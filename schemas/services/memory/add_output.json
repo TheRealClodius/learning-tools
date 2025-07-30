@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Memory Add Output",
+  "description": "Result of storing a conversation pair in MemoryOS with details about the operation success and memory processing status.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the memory addition was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "error"],
+          "description": "Operation status"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the memory was stored"
+        },
+        "details": {
+          "type": "object",
+          "properties": {
+            "user_input_length": {
+              "type": "integer",
+              "description": "Length of the user input text"
+            },
+            "agent_response_length": {
+              "type": "integer", 
+              "description": "Length of the agent response text"
+            },
+            "has_meta_data": {
+              "type": "boolean",
+              "description": "Whether metadata was provided"
+            },
+            "memory_processing": {
+              "type": "string",
+              "description": "Information about memory processing (short-term full, promoted to mid-term, etc.)"
+            }
+          }
+        }
+      },
+      "required": ["status", "timestamp"]
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 

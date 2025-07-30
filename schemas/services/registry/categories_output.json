@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Categories Output",
+  "description": [
+    "Comprehensive category taxonomy with usage patterns, relationships, and ecosystem insights.",
+    "Each category includes detailed statistics (tool counts by type and complexity), sample tools to illustrate the category's scope, and common capabilities to understand what the category specializes in.",
+    "Related_categories reveal how different functional areas work together - complementary categories for integrated workflows, alternatives for different approaches, and prerequisites for foundational tools.",
+    "Usage_patterns show the most popular tools and typical workflows within each category, helping you understand proven patterns and best practices.",
+    "The categories_metadata provides registry-wide statistics including most/least popular categories and distribution patterns.",
+    "Use this to understand the tool ecosystem's structure, discover new functional areas, plan multi-category workflows, identify the most mature vs emerging tool areas, and understand how different categories of tools work together to solve complex problems."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/list_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Category identifier",
+                "pattern": "^[a-z_]+$"
+              },
+              "name": {
+                "type": "string",
+                "description": "Human-readable category name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Category description"
+              },
+              "icon": {
+                "type": "string",
+                "description": "Unicode emoji or icon identifier"
+              },
+              "tool_count": {
+                "type": "integer",
+                "description": "Number of tools in this category",
+                "minimum": 0
+              },
+              "tool_counts_by_type": {
+                "type": "object",
+                "properties": {
+                  "rest_api": {"type": "integer"},
+                  "mcp_server": {"type": "integer"},
+                  "internal": {"type": "integer"}
+                },
+                "description": "Tool counts broken down by implementation type"
+              },
+              "tool_counts_by_complexity": {
+                "type": "object",
+                "properties": {
+                  "simple": {"type": "integer"},
+                  "moderate": {"type": "integer"},
+                  "complex": {"type": "integer"}
+                },
+                "description": "Tool counts broken down by complexity level"
+              },
+              "sample_tools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "display_name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "complexity": {"type": "string"},
+                    "implementation_type": {"type": "string"},
+                    "capabilities": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    }
+                  },
+                  "required": ["name", "display_name", "description"]
+                },
+                "description": "Sample tools from this category"
+              },
+              "common_capabilities": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Most common capabilities across tools in this category"
+              },
+              "related_categories": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "category_id": {"type": "string"},
+                    "category_name": {"type": "string"},
+                    "relationship": {
+                      "type": "string",
+                      "enum": ["complementary", "alternative", "prerequisite", "extension"]
+                    }
+                  },
+                  "required": ["category_id", "category_name", "relationship"]
+                },
+                "description": "Categories that are commonly used together"
+              },
+              "usage_patterns": {
+                "type": "object",
+                "properties": {
+                  "most_used_tools": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Most frequently used tools in this category"
+                  },
+                  "typical_workflows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "tool_sequence": {
+                          "type": "array",
+                          "items": {"type": "string"}
+                        }
+                      }
+                    },
+                    "description": "Common workflows using tools from this category"
+                  }
+                }
+              }
+            },
+            "required": ["id", "name", "description", "tool_count"]
+          }
+        },
+        "categories_metadata": {
+          "type": "object",
+          "properties": {
+            "total_categories": {"type": "integer"},
+            "categories_with_tools": {"type": "integer"},
+            "empty_categories": {"type": "integer"},
+            "filters_applied": {
+              "type": "object",
+              "properties": {
+                "implementation_type": {"type": "string"},
+                "show_empty_categories": {"type": "boolean"}
+              }
+            },
+            "global_stats": {
+              "type": "object",
+              "properties": {
+                "total_tools_across_all_categories": {"type": "integer"},
+                "most_popular_category": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "tool_count": {"type": "integer"}
+                  }
+                },
+                "least_popular_category": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "tool_count": {"type": "integer"}
+                  }
+                },
+                "average_tools_per_category": {"type": "number"}
+              }
+            }
+          },
+          "required": ["total_categories", "categories_with_tools"]
+        }
+      },
+      "required": ["categories_metadata"]
+    }
+  ]
+} 

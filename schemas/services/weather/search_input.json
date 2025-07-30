@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenWeather Geocoding API Input",
+  "description": [
+    "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+    "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+    "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+    "Supports direct geocoding (name → coordinates) with multiple results and optional result limiting.",
+    "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+  ],
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "$ref": "../../shared/common_inputs.json#/$defs/explanation"
+    },
+    "q": {
+      "type": "string",
+      "description": "City name, state code (only for the US) and country code divided by comma. Please use ISO 3166 country codes.",
+      "examples": [
+        "London",
+        "London,UK", 
+        "New York,NY,US",
+        "San Francisco,CA,US",
+        "Paris,FR",
+        "Tokyo,JP"
+      ],
+      "minLength": 1
+    },
+    "appid": {
+      "type": "string",
+      "description": "Your unique OpenWeather API key",
+      "minLength": 1
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Number of the locations in the API response (up to 5 results can be returned)",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 5
+    }
+  },
+  "required": ["explanation", "q", "appid"],
+  "examples": [
+    {
+      "explanation": "User wants weather for San Francisco but I need coordinates first",
+      "q": "San Francisco,CA,US",
+      "appid": "your_api_key",
+      "limit": 1
+    },
+    {
+      "explanation": "Finding all London locations to disambiguate for user",
+      "q": "London",
+      "appid": "your_api_key",
+      "limit": 5
+    },
+    {
+      "explanation": "Looking up coordinates for Paris before getting weather forecast",
+      "q": "Paris,FR", 
+      "appid": "your_api_key",
+      "limit": 1
+    }
+  ]
+} 

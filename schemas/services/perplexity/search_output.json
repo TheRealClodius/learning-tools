@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Perplexity Search Output",
+  "description": "Response from Perplexity search operations containing AI-generated answers with comprehensive source citations. Includes the main answer text, model used, token usage statistics, and detailed citations with URLs. Citations are converted from the API's URL-only format to objects for easier consumption. Optionally contains related follow-up questions for deeper exploration and images when requested. Provides transparent sourcing with citation links, making it ideal for research and fact-checking workflows.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the search operation was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "answer": {
+          "type": "string",
+          "description": "The main response text from Perplexity"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model used for the response"
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "prompt_tokens": {
+              "type": "integer",
+              "description": "Number of tokens in the prompt"
+            },
+            "completion_tokens": {
+              "type": "integer",
+              "description": "Number of tokens in the completion"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "description": "Total number of tokens used"
+            },
+            "search_context_size": {
+              "type": "string",
+              "description": "Context size used for the search (low/medium/high)"
+            }
+          },
+          "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+          "description": "Token usage information"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Source URL (converted from API's URL-only format)"
+              },
+              "title": {
+                "type": "string", 
+                "description": "Source title (empty in current API format)"
+              },
+              "snippet": {
+                "type": "string",
+                "description": "Relevant snippet from the source (empty in current API format)"
+              }
+            },
+            "required": ["url"]
+          },
+          "description": "Array of cited sources converted to object format"
+        },
+        "related_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Related follow-up questions (if requested)"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Image URL"
+              },
+              "description": {
+                "type": "string",
+                "description": "Image description"
+              }
+            },
+            "required": ["url"]
+          },
+          "description": "Array of related images (if requested)"
+        }
+      },
+      "required": ["answer", "model"],
+      "description": "Search result data"
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 

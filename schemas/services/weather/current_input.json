@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenWeather Current Weather Input",
+  "description": [
+    "Get current weather data for any location using OpenWeather Current Weather API.",
+    "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+    "Use coordinates (lat/lon) for most accurate results, or city names for convenience.", 
+    "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+    "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+  ],
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "$ref": "../../shared/common_inputs.json#/$defs/explanation"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Latitude coordinate (-90 to 90)",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "lon": {
+      "type": "number", 
+      "description": "Longitude coordinate (-180 to 180)",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "q": {
+      "type": "string",
+      "description": "City name, state code and country code divided by comma. Use ISO 3166 country codes.",
+      "examples": [
+        "London",
+        "London,UK", 
+        "New York,NY,US"
+      ]
+    },
+    "id": {
+      "type": "integer",
+      "description": "City ID. List of city IDs can be downloaded from OpenWeather."
+    },
+    "zip": {
+      "type": "string", 
+      "description": "ZIP code with optional country code (US default)",
+      "examples": [
+        "94040,US",
+        "10001"
+      ]
+    },
+    "appid": {
+      "type": "string",
+      "description": "Your unique OpenWeather API key",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["json", "xml", "html"],
+      "description": "Response format",
+      "default": "json"
+    },
+    "units": {
+      "type": "string",
+      "enum": ["standard", "metric", "imperial"],
+      "description": "Units of measurement. Standard=Kelvin, Metric=Celsius, Imperial=Fahrenheit",
+      "default": "standard"
+    },
+    "lang": {
+      "type": "string",
+      "description": "Language code for weather condition descriptions",
+      "examples": ["en", "fr", "es", "de", "zh_cn"]
+    }
+  },
+  "required": ["explanation", "appid"],
+  "oneOf": [
+    {"required": ["lat", "lon"]},
+    {"required": ["q"]},
+    {"required": ["id"]}, 
+    {"required": ["zip"]}
+  ],
+  "examples": [
+    {
+      "explanation": "User asked about current weather in London for travel planning",
+      "q": "London,UK",
+      "appid": "your_api_key",
+      "units": "metric"
+    },
+    {
+      "explanation": "Get precise weather data for specific coordinates",
+      "lat": 40.7128,
+      "lon": -74.0060,
+      "appid": "your_api_key",
+      "units": "imperial"
+    },
+    {
+      "explanation": "Quick weather check for ZIP code",
+      "zip": "10001,US",
+      "appid": "your_api_key", 
+      "units": "imperial"
+    }
+  ]
+} 

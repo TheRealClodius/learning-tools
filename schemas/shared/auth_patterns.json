@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Flexible Authentication Patterns for Current and Future MCP",
+  "$defs": {
+    "current_direct_auth": {
+      "description": "Current pattern: Auth credentials passed directly with tool calls",
+      "oneOf": [
+        {"$ref": "./auth.json#/$defs/token_auth"},
+        {"$ref": "./auth.json#/$defs/api_key_auth"},
+        {"$ref": "./auth.json#/$defs/credentials_auth"},
+        {"$ref": "./auth.json#/$defs/workspace_auth"},
+        {"$ref": "./auth.json#/$defs/no_auth"}
+      ]
+    },
+    "future_mcp_auth": {
+      "description": "MCP 2.0 pattern: Authentication handled at MCP level",
+      "oneOf": [
+        {"$ref": "./auth.json#/$defs/mcp_session_auth"},
+        {"$ref": "./auth.json#/$defs/delegated_auth"},
+        {"$ref": "./auth.json#/$defs/no_auth"}
+      ]
+    },
+    "flexible_tool_auth": {
+      "description": "Tool schema that works with both current and future auth patterns",
+      "type": "object",
+      "properties": {
+        "auth_mode": {
+          "type": "string",
+          "enum": ["direct", "delegated", "none"],
+          "description": "How authentication is handled",
+          "default": "direct"
+        },
+        "auth_config": {
+          "oneOf": [
+            {"$ref": "#/$defs/current_direct_auth"},
+            {"$ref": "#/$defs/future_mcp_auth"}
+          ]
+        }
+      },
+      "required": ["auth_mode"],
+      "if": {
+        "properties": {"auth_mode": {"const": "none"}}
+      },
+      "then": {
+        "not": {"required": ["auth_config"]}
+      },
+      "else": {
+        "required": ["auth_config"]
+      }
+    }
+  }
+} 

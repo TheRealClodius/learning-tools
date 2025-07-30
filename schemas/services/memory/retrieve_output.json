@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Memory Retrieve Output",
+  "description": "Comprehensive memory retrieval results from MemoryOS including short-term conversations, mid-term contextual pages, long-term user knowledge, and user profile information.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean", 
+      "description": "Whether the memory retrieval was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "error"],
+          "description": "Operation status"
+        },
+        "query": {
+          "type": "string",
+          "description": "The original search query"
+        },
+        "timestamp": {
+          "type": "string", 
+          "description": "When the retrieval was performed"
+        },
+        "user_profile": {
+          "type": "string",
+          "description": "Current user profile summary with personality traits and preferences"
+        },
+        "short_term_memory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "user_input": {"type": "string"},
+              "agent_response": {"type": "string"},
+              "timestamp": {"type": "string"}
+            }
+          },
+          "description": "Recent conversation history from short-term memory"
+        },
+        "short_term_count": {
+          "type": "integer",
+          "description": "Number of short-term memory items"
+        },
+        "retrieved_pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "user_input": {"type": "string"},
+              "agent_response": {"type": "string"},
+              "timestamp": {"type": "string"},
+              "meta_info": {"type": "object"}
+            }
+          },
+          "description": "Relevant conversation pages from mid-term memory"
+        },
+        "retrieved_user_knowledge": {
+          "type": "array",
+          "items": {
+            "type": "object", 
+            "properties": {
+              "knowledge": {"type": "string"},
+              "timestamp": {"type": "string"}
+            }
+          },
+          "description": "Relevant user-specific knowledge from long-term memory"
+        },
+        "retrieved_assistant_knowledge": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "knowledge": {"type": "string"},
+              "timestamp": {"type": "string"}
+            }
+          },
+          "description": "Relevant assistant knowledge from long-term memory"
+        },
+        "total_pages_found": {
+          "type": "integer",
+          "description": "Total number of mid-term pages found"
+        },
+        "total_user_knowledge_found": {
+          "type": "integer",
+          "description": "Total number of user knowledge items found"
+        },
+        "total_assistant_knowledge_found": {
+          "type": "integer",
+          "description": "Total number of assistant knowledge items found"
+        }
+      },
+      "required": ["status", "query", "timestamp", "user_profile", "short_term_memory"]
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Categories Input",
+  "description": [
+    "Explore the organizational structure and taxonomy of the tool registry to understand how tools are categorized and what's available in each domain.",
+    "Use this to get a high-level map of tool capabilities, understand the scope of each category, and discover new areas of functionality you might not have considered.",
+    "Perfect for initial exploration when you're not sure what category your task fits into, or when planning complex workflows that might span multiple categories.",
+    "The sample_tools feature shows representative tools from each category to help you understand what each category covers.",
+    "Tool counts reveal the depth of functionality in each area.",
+    "Filter by implementation_type to see what's available through different backends (REST APIs, MCP servers, etc.).",
+    "Essential for strategic tool selection and understanding the relationship between different functional areas."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/list_operation_input"},
+    {
+      "type": "object",
+      "properties": {
+        "include_tool_counts": {
+          "type": "boolean",
+          "description": "Include count of tools in each category",
+          "default": true
+        },
+        "include_sample_tools": {
+          "type": "boolean",
+          "description": "Include sample tools for each category",
+          "default": false
+        },
+        "sample_tool_limit": {
+          "type": "integer",
+          "description": "Maximum number of sample tools per category",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
+        "show_empty_categories": {
+          "type": "boolean",
+          "description": "Include categories with no tools",
+          "default": false
+        },
+        "implementation_type": {
+          "type": "string",
+          "enum": ["rest_api", "mcp_server", "internal"],
+          "description": "Only count tools of this implementation type"
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "explanation": "I need to understand what categories of tools are available",
+      "include_tool_counts": true,
+      "show_empty_categories": false
+    },
+    {
+      "explanation": "I want to see categories with example tools to understand their scope",
+      "include_sample_tools": true,
+      "sample_tool_limit": 5,
+      "include_tool_counts": true
+    },
+    {
+      "explanation": "I need categories specifically for MCP server tools",
+      "implementation_type": "mcp_server",
+      "include_tool_counts": true
+    }
+  ]
+} 

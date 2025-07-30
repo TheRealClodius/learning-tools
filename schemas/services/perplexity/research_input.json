@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Perplexity Research Input",
+  "description": "Conduct comprehensive, multi-step research using Perplexity's Sonar Deep Research model for exhaustive analysis and reporting. Performs automated research across multiple sources with intelligent search refinement, source evaluation, and synthesis. Generates detailed research reports with extensive citations, key findings extraction, and methodology documentation. Supports advanced filtering by domain, date ranges, and focus areas for targeted academic and professional research. Essential for academic research, market analysis, policy studies, technical investigations, and comprehensive fact-gathering that requires depth and rigor.",
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this research is being performed"
+    },
+    "directive": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000,
+      "description": "The research directive or comprehensive question to investigate"
+    },
+    "model": {
+      "type": "string",
+      "enum": ["sonar-deep-research"],
+      "default": "sonar-deep-research",
+      "description": "Perplexity model to use for deep research"
+    },
+    "api_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Perplexity API key for authentication"
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "default": 0.1,
+      "description": "Controls randomness in the response (lower for research)"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8000,
+      "default": 4000,
+      "description": "Maximum number of tokens to generate"
+    },
+    "search_domain_filter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 30,
+      "description": "List of domains to include/exclude for research (prefix with '-' to exclude)"
+    },
+    "search_recency_filter": {
+      "type": "string",
+      "enum": ["hour", "day", "week", "month", "year"],
+      "description": "Filter research sources by recency"
+    },
+    "search_after_date_filter": {
+      "type": "string",
+      "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/([0-9]{4})$",
+      "description": "Only include sources published after this date (MM/DD/YYYY format)"
+    },
+    "search_before_date_filter": {
+      "type": "string",
+      "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/([0-9]{4})$",
+      "description": "Only include sources published before this date (MM/DD/YYYY format)"
+    },
+    "return_related_questions": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to return related follow-up questions for further research"
+    },
+    "search_context_size": {
+      "type": "string",
+      "enum": ["medium", "high"],
+      "default": "high",
+      "description": "Amount of search context to include for comprehensive research"
+    },
+    "focus_areas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10,
+      "description": "Specific areas or topics to focus the research on"
+    }
+  },
+  "required": ["explanation", "directive", "api_key"],
+  "additionalProperties": false
+} 

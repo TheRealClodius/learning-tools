@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenWeather Geocoding API Output",
+  "description": [
+    "Geographic location data response exactly matching OpenWeather Geocoding API structure.",
+    "Returns array of location matches with precise coordinates, country codes, and localized names.", 
+    "Essential for converting city names into lat/lon coordinates needed for weather API calls.",
+    "Includes multiple language variants of city names and administrative regions for disambiguation.",
+    "Perfect for location validation, coordinate extraction, and preparing input for current weather and forecast APIs."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/search_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "description": "Array of location objects matching the search query",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the found location"
+              },
+              "local_names": {
+                "type": "object",
+                "description": "City name in different languages",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "examples": [
+                  {
+                    "en": "London",
+                    "fr": "Londres", 
+                    "es": "Londres",
+                    "de": "London",
+                    "ja": "ロンドン"
+                  }
+                ]
+              },
+              "lat": {
+                "type": "number",
+                "description": "Latitude of the found location"
+              },
+              "lon": {
+                "type": "number",
+                "description": "Longitude of the found location"
+              },
+              "country": {
+                "type": "string",
+                "description": "Country code (ISO 3166-1 alpha-2)",
+                "pattern": "^[A-Z]{2}$",
+                "examples": ["US", "GB", "FR", "JP", "CA"]
+              },
+              "state": {
+                "type": "string", 
+                "description": "State or region name (where applicable)"
+              }
+            },
+            "required": ["name", "lat", "lon", "country"]
+          },
+          "maxItems": 5,
+          "minItems": 0
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "success": true,
+      "message": "Found 1 location matching 'San Francisco,CA,US'",
+      "data": [
+        {
+          "name": "San Francisco",
+          "local_names": {
+            "en": "San Francisco",
+            "es": "San Francisco", 
+            "zh": "旧金山"
+          },
+          "lat": 37.7749295,
+          "lon": -122.4194155,
+          "country": "US",
+          "state": "California"
+        }
+      ]
+    },
+    {
+      "success": true,
+      "message": "Found 5 locations matching 'London'",
+      "data": [
+        {
+          "name": "London",
+          "local_names": {
+            "en": "London",
+            "fr": "Londres"
+          },
+          "lat": 51.5073219,
+          "lon": -0.1276474,
+          "country": "GB",
+          "state": "England"
+        },
+        {
+          "name": "London",
+          "lat": 42.9832406,
+          "lon": -81.243372,
+          "country": "CA",
+          "state": "Ontario"
+        },
+        {
+          "name": "London",
+          "lat": 39.8864493,
+          "lon": -83.4482508,
+          "country": "US",
+          "state": "Ohio"
+        }
+      ]
+    }
+  ]
+} 

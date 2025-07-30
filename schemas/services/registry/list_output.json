@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry List Output",
+  "description": [
+    "Organized catalog of tools with comprehensive metadata and registry analytics.",
+    "Returns either a flat list or grouped results depending on your query, with rich metadata about each tool including status, authentication requirements, and last update time.",
+    "The list_metadata provides valuable registry insights: total counts, filtering effects, and overall statistics broken down by implementation type and complexity.",
+    "When grouping is used, tools are organized into logical categories with group descriptions and counts.",
+    "Registry_stats give you the big picture - how tools are distributed across categories and types, helping you understand the overall ecosystem.",
+    "Use this to get oriented in the tool landscape, understand what's available in each category, track tool status and maintenance, and plan your tool selection strategy based on complexity and implementation requirements."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/list_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {"$ref": "../../shared/common_outputs.json#/$defs/tool_info"},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "implementation_type": {
+                        "type": "string",
+                        "enum": ["rest_api", "mcp_server", "internal"]
+                      },
+                      "endpoint": {"type": "string"},
+                      "auth_required": {"type": "boolean"},
+                      "rate_limited": {"type": "boolean"},
+                      "status": {
+                        "type": "string",
+                        "enum": ["active", "deprecated", "experimental", "maintenance"]
+                      },
+                      "last_updated": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                ]
+              },
+              "description": "Flat list of tools (when group_by is 'none')"
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                  "type": "object",
+                  "properties": {
+                    "group_name": {"type": "string"},
+                    "group_description": {"type": "string"},
+                    "tool_count": {"type": "integer"},
+                    "tools": {
+                      "type": "array",
+                      "items": {"$ref": "../../shared/common_outputs.json#/$defs/tool_info"}
+                    }
+                  },
+                  "required": ["group_name", "tool_count", "tools"]
+                }
+              },
+              "description": "Grouped tools (when group_by is specified)"
+            }
+          ]
+        },
+        "list_metadata": {
+          "type": "object",
+          "properties": {
+            "total_tools": {"type": "integer"},
+            "filtered_count": {"type": "integer"},
+            "filters_applied": {
+              "type": "object",
+              "properties": {
+                "category": {"type": "string"},
+                "implementation_type": {"type": "string"},
+                "complexity": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "capabilities": {"type": "array", "items": {"type": "string"}},
+                "show_deprecated": {"type": "boolean"}
+              }
+            },
+            "grouping": {
+              "type": "object",
+              "properties": {
+                "grouped_by": {"type": "string"},
+                "group_count": {"type": "integer"},
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "count": {"type": "integer"}
+                    }
+                  }
+                }
+              }
+            },
+            "available_categories": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "All categories available in the registry"
+            },
+            "registry_stats": {
+              "type": "object",
+              "properties": {
+                "total_categories": {"type": "integer"},
+                "tools_by_type": {
+                  "type": "object",
+                  "properties": {
+                    "rest_api": {"type": "integer"},
+                    "mcp_server": {"type": "integer"},
+                    "internal": {"type": "integer"}
+                  }
+                },
+                "tools_by_complexity": {
+                  "type": "object",
+                  "properties": {
+                    "simple": {"type": "integer"},
+                    "moderate": {"type": "integer"},
+                    "complex": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          },
+          "required": ["total_tools", "filtered_count"]
+        }
+      },
+      "required": ["list_metadata"]
+    }
+  ]
+} 

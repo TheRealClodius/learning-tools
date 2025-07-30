@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Operation Patterns",
+  "$defs": {
+    "search_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "query": {"$ref": "../common_inputs.json#/$defs/search_query"},
+        "filters": {"$ref": "../common_inputs.json#/$defs/filters"},
+        "pagination": {"$ref": "../common_inputs.json#/$defs/pagination"}
+      },
+      "required": ["explanation", "query"]
+    },
+    "search_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/paginated_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {"type": "object"},
+              "description": "Array of search results"
+            },
+            "query_info": {
+              "type": "object",
+              "properties": {
+                "original_query": {"type": "string"},
+                "processed_query": {"type": "string"},
+                "search_time_ms": {"type": "number"},
+                "suggestions": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "list_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "filters": {"$ref": "../common_inputs.json#/$defs/filters"},
+        "pagination": {"$ref": "../common_inputs.json#/$defs/pagination"},
+        "sort_by": {
+          "type": "string",
+          "description": "Field to sort by"
+        },
+        "sort_order": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "default": "asc"
+        }
+      },
+      "required": ["explanation"]
+    },
+    "list_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/paginated_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {"type": "object"},
+              "description": "Array of list items"
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "get_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "id": {"$ref": "../common_inputs.json#/$defs/resource_id"},
+        "include_related": {
+          "type": "boolean",
+          "description": "Include related resources in response",
+          "default": false
+        }
+      },
+      "required": ["explanation", "id"]
+    },
+    "get_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "description": "The requested resource"
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "create_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "mode": {"$ref": "../common_inputs.json#/$defs/bulk_mode"}
+      },
+      "required": ["explanation"]
+    },
+    "create_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "oneOf": [
+                {"type": "object", "description": "Single created resource"},
+                {"$ref": "../common_outputs.json#/$defs/bulk_operation_result"}
+              ]
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "update_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "mode": {"$ref": "../common_inputs.json#/$defs/bulk_mode"},
+        "id": {"$ref": "../common_inputs.json#/$defs/resource_id"}
+      },
+      "required": ["explanation"]
+    },
+    "update_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "oneOf": [
+                {"type": "object", "description": "Single updated resource"},
+                {"$ref": "../common_outputs.json#/$defs/bulk_operation_result"}
+              ]
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "delete_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "mode": {"$ref": "../common_inputs.json#/$defs/bulk_mode"},
+        "id": {"$ref": "../common_inputs.json#/$defs/resource_id"},
+        "confirm": {
+          "type": "boolean",
+          "description": "Confirmation flag for destructive operations",
+          "const": true
+        }
+      },
+      "required": ["explanation", "confirm"]
+    },
+    "delete_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "deleted_id": {"type": "string"},
+                    "deleted_at": {"type": "string", "format": "date-time"}
+                  }
+                },
+                {"$ref": "../common_outputs.json#/$defs/bulk_operation_result"}
+              ]
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    },
+    "action_operation_input": {
+      "type": "object",
+      "properties": {
+        "explanation": {"$ref": "../common_inputs.json#/$defs/explanation"},
+        "target_id": {"$ref": "../common_inputs.json#/$defs/resource_id"}
+      },
+      "required": ["explanation", "target_id"]
+    },
+    "action_operation_output": {
+      "allOf": [
+        {"$ref": "../common_outputs.json#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "action_performed": {"type": "string"},
+                "target_id": {"type": "string"},
+                "timestamp": {"type": "string", "format": "date-time"},
+                "result_data": {"type": "object"}
+              },
+              "required": ["action_performed", "target_id", "timestamp"]
+            }
+          },
+          "required": ["data"]
+        }
+      ]
+    }
+  }
+} 

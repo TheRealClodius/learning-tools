@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Input Patterns",
+  "$defs": {
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this tool is being used and how it contributes to the goal",
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "search_query": {
+      "type": "string",
+      "description": "Search query string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "location": {
+      "type": "string",
+      "description": "Location identifier (city name, coordinates, etc.)",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "pagination": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "description": "Maximum number of results to return",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        },
+        "offset": {
+          "type": "integer", 
+          "description": "Number of results to skip",
+          "minimum": 0,
+          "default": 0
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Pagination cursor for next page"
+        }
+      }
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "Unique identifier for a resource",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "resource_key": {
+      "type": "string", 
+      "description": "Human-readable key or slug for a resource",
+      "pattern": "^[A-Z0-9]+-[0-9]+$"
+    },
+    "text_content": {
+      "type": "string",
+      "description": "Text content for creation or updates",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50
+      },
+      "description": "Array of tags for categorization",
+      "maxItems": 20
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "urgent"],
+      "description": "Priority level"
+    },
+    "status": {
+      "type": "string",
+      "description": "Status identifier",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "date_range": {
+      "type": "object",
+      "properties": {
+        "start_date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start date and time"
+        },
+        "end_date": {
+          "type": "string", 
+          "format": "date-time",
+          "description": "End date and time"
+        }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "properties": {
+        "status": {"$ref": "#/$defs/status"},
+        "priority": {"$ref": "#/$defs/priority"},
+        "tags": {"$ref": "#/$defs/tags"},
+        "date_range": {"$ref": "#/$defs/date_range"},
+        "assigned_to": {
+          "type": "string",
+          "description": "User identifier for assigned person"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bulk_mode": {
+      "type": "string",
+      "enum": ["single", "bulk"],
+      "description": "Operation mode for single or bulk operations",
+      "default": "single"
+    }
+  }
+} 

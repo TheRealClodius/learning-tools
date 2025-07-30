@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenWeather One Call API 3.0 Output",
+  "description": [
+    "Complete weather data response exactly matching OpenWeather One Call API 3.0 structure.",
+    "Contains current weather, minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+    "Follows OpenWeather's exact field names, data types, and nesting structure for seamless integration.",
+    "Includes all standard OpenWeather response fields with proper Unix timestamps, weather condition codes, and alert information.",
+    "Perfect for applications requiring comprehensive weather data in OpenWeather's proven format."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/get_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "lat": {
+              "type": "number",
+              "description": "Latitude of the location, decimal (−90; 90)"
+            },
+            "lon": {
+              "type": "number",
+              "description": "Longitude of the location, decimal (-180; 180)"
+            },
+            "timezone": {
+              "type": "string",
+              "description": "Timezone name for the requested location"
+            },
+            "timezone_offset": {
+              "type": "integer",
+              "description": "Shift in seconds from UTC"
+            },
+            "current": {
+              "type": "object",
+              "description": "Current weather data",
+              "properties": {
+                "dt": {
+                  "type": "integer",
+                  "description": "Current time, Unix, UTC"
+                },
+                "sunrise": {
+                  "type": "integer",
+                  "description": "Sunrise time, Unix, UTC"
+                },
+                "sunset": {
+                  "type": "integer", 
+                  "description": "Sunset time, Unix, UTC"
+                },
+                "temp": {
+                  "type": "number",
+                  "description": "Temperature"
+                },
+                "feels_like": {
+                  "type": "number",
+                  "description": "Temperature accounting for human perception"
+                },
+                "pressure": {
+                  "type": "number",
+                  "description": "Atmospheric pressure on the sea level, hPa"
+                },
+                "humidity": {
+                  "type": "number",
+                  "description": "Humidity, %"
+                },
+                "dew_point": {
+                  "type": "number",
+                  "description": "Atmospheric temperature below which water droplets begin to condense"
+                },
+                "clouds": {
+                  "type": "number",
+                  "description": "Cloudiness, %"
+                },
+                "uvi": {
+                  "type": "number",
+                  "description": "Current UV index"
+                },
+                "visibility": {
+                  "type": "number",
+                  "description": "Average visibility, metres"
+                },
+                "wind_speed": {
+                  "type": "number",
+                  "description": "Wind speed"
+                },
+                "wind_gust": {
+                  "type": "number",
+                  "description": "Wind gust"
+                },
+                "wind_deg": {
+                  "type": "number",
+                  "description": "Wind direction, degrees (meteorological)"
+                },
+                "rain": {
+                  "type": "object",
+                  "properties": {
+                    "1h": {
+                      "type": "number",
+                      "description": "Precipitation, mm/h"
+                    }
+                  }
+                },
+                "snow": {
+                  "type": "object",
+                  "properties": {
+                    "1h": {
+                      "type": "number",
+                      "description": "Precipitation, mm/h"
+                    }
+                  }
+                },
+                "weather": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "description": "Weather condition id"
+                      },
+                      "main": {
+                        "type": "string",
+                        "description": "Group of weather parameters"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Weather condition within the group"
+                      },
+                      "icon": {
+                        "type": "string",
+                        "description": "Weather icon id"
+                      }
+                    },
+                    "required": ["id", "main", "description", "icon"]
+                  }
+                }
+              },
+              "required": ["dt", "temp", "feels_like", "pressure", "humidity", "dew_point", "clouds", "uvi", "visibility", "wind_speed", "wind_deg", "weather"]
+            },
+            "minutely": {
+              "type": "array",
+              "description": "Minute forecast weather data for 1 hour",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dt": {
+                    "type": "integer",
+                    "description": "Time of the forecasted data, unix, UTC"
+                  },
+                  "precipitation": {
+                    "type": "number",
+                    "description": "Precipitation, mm/h"
+                  }
+                },
+                "required": ["dt", "precipitation"]
+              }
+            },
+            "hourly": {
+              "type": "array",
+              "description": "Hourly forecast weather data for 48 hours",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dt": {
+                    "type": "integer",
+                    "description": "Time of the forecasted data, Unix, UTC"
+                  },
+                  "temp": {
+                    "type": "number",
+                    "description": "Temperature"
+                  },
+                  "feels_like": {
+                    "type": "number",
+                    "description": "Temperature accounting for human perception"
+                  },
+                  "pressure": {
+                    "type": "number",
+                    "description": "Atmospheric pressure on the sea level, hPa"
+                  },
+                  "humidity": {
+                    "type": "number",
+                    "description": "Humidity, %"
+                  },
+                  "dew_point": {
+                    "type": "number",
+                    "description": "Atmospheric temperature below which water droplets begin to condense"
+                  },
+                  "uvi": {
+                    "type": "number",
+                    "description": "UV index"
+                  },
+                  "clouds": {
+                    "type": "number",
+                    "description": "Cloudiness, %"
+                  },
+                  "visibility": {
+                    "type": "number",
+                    "description": "Average visibility, metres"
+                  },
+                  "wind_speed": {
+                    "type": "number",
+                    "description": "Wind speed"
+                  },
+                  "wind_gust": {
+                    "type": "number",
+                    "description": "Wind gust"
+                  },
+                  "wind_deg": {
+                    "type": "number",
+                    "description": "Wind direction, degrees (meteorological)"
+                  },
+                  "pop": {
+                    "type": "number",
+                    "description": "Probability of precipitation (0-1, where 0=0%, 1=100%)"
+                  },
+                  "rain": {
+                    "type": "object",
+                    "properties": {
+                      "1h": {
+                        "type": "number",
+                        "description": "Precipitation, mm/h"
+                      }
+                    }
+                  },
+                  "snow": {
+                    "type": "object",
+                    "properties": {
+                      "1h": {
+                        "type": "number",
+                        "description": "Precipitation, mm/h"
+                      }
+                    }
+                  },
+                  "weather": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {"type": "integer"},
+                        "main": {"type": "string"},
+                        "description": {"type": "string"},
+                        "icon": {"type": "string"}
+                      },
+                      "required": ["id", "main", "description", "icon"]
+                    }
+                  }
+                },
+                "required": ["dt", "temp", "feels_like", "pressure", "humidity", "dew_point", "uvi", "clouds", "visibility", "wind_speed", "wind_deg", "pop", "weather"]
+              }
+            },
+            "daily": {
+              "type": "array",
+              "description": "Daily forecast weather data for 8 days",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dt": {
+                    "type": "integer",
+                    "description": "Time of the forecasted data, Unix, UTC"
+                  },
+                  "sunrise": {
+                    "type": "integer",
+                    "description": "Sunrise time, Unix, UTC"
+                  },
+                  "sunset": {
+                    "type": "integer",
+                    "description": "Sunset time, Unix, UTC"
+                  },
+                  "moonrise": {
+                    "type": "integer",
+                    "description": "The time of when the moon rises for this day, Unix, UTC"
+                  },
+                  "moonset": {
+                    "type": "integer",
+                    "description": "The time of when the moon sets for this day, Unix, UTC"
+                  },
+                  "moon_phase": {
+                    "type": "number",
+                    "description": "Moon phase. 0 and 1 are 'new moon', 0.25 is 'first quarter moon', 0.5 is 'full moon' and 0.75 is 'last quarter moon'"
+                  },
+                  "summary": {
+                    "type": "string",
+                    "description": "Human-readable description of the weather conditions for the day"
+                  },
+                  "temp": {
+                    "type": "object",
+                    "properties": {
+                      "morn": {"type": "number", "description": "Morning temperature"},
+                      "day": {"type": "number", "description": "Day temperature"},
+                      "eve": {"type": "number", "description": "Evening temperature"},
+                      "night": {"type": "number", "description": "Night temperature"},
+                      "min": {"type": "number", "description": "Min daily temperature"},
+                      "max": {"type": "number", "description": "Max daily temperature"}
+                    },
+                    "required": ["morn", "day", "eve", "night", "min", "max"]
+                  },
+                  "feels_like": {
+                    "type": "object",
+                    "properties": {
+                      "morn": {"type": "number"},
+                      "day": {"type": "number"},
+                      "eve": {"type": "number"},
+                      "night": {"type": "number"}
+                    },
+                    "required": ["morn", "day", "eve", "night"]
+                  },
+                  "pressure": {
+                    "type": "number",
+                    "description": "Atmospheric pressure on the sea level, hPa"
+                  },
+                  "humidity": {
+                    "type": "number",
+                    "description": "Humidity, %"
+                  },
+                  "dew_point": {
+                    "type": "number",
+                    "description": "Atmospheric temperature below which water droplets begin to condense"
+                  },
+                  "wind_speed": {
+                    "type": "number",
+                    "description": "Wind speed"
+                  },
+                  "wind_gust": {
+                    "type": "number",
+                    "description": "Wind gust"
+                  },
+                  "wind_deg": {
+                    "type": "number",
+                    "description": "Wind direction, degrees (meteorological)"
+                  },
+                  "clouds": {
+                    "type": "number",
+                    "description": "Cloudiness, %"
+                  },
+                  "uvi": {
+                    "type": "number",
+                    "description": "The maximum value of UV index for the day"
+                  },
+                  "pop": {
+                    "type": "number",
+                    "description": "Probability of precipitation (0-1)"
+                  },
+                  "rain": {
+                    "type": "number",
+                    "description": "Precipitation volume, mm"
+                  },
+                  "snow": {
+                    "type": "number",
+                    "description": "Snow volume, mm"
+                  },
+                  "weather": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {"type": "integer"},
+                        "main": {"type": "string"},
+                        "description": {"type": "string"},
+                        "icon": {"type": "string"}
+                      },
+                      "required": ["id", "main", "description", "icon"]
+                    }
+                  }
+                },
+                "required": ["dt", "sunrise", "sunset", "temp", "feels_like", "pressure", "humidity", "dew_point", "wind_speed", "wind_deg", "clouds", "uvi", "pop", "weather"]
+              }
+            },
+            "alerts": {
+              "type": "array",
+              "description": "National weather alerts data from major national weather warning systems",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sender_name": {
+                    "type": "string",
+                    "description": "Name of the alert source"
+                  },
+                  "event": {
+                    "type": "string",
+                    "description": "Alert event name"
+                  },
+                  "start": {
+                    "type": "integer",
+                    "description": "Date and time of the start of the alert, Unix, UTC"
+                  },
+                  "end": {
+                    "type": "integer",
+                    "description": "Date and time of the end of the alert, Unix, UTC"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the alert"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Type of severe weather"
+                  }
+                },
+                "required": ["sender_name", "event", "start", "end", "description"]
+              }
+            }
+          },
+          "required": ["lat", "lon", "timezone", "timezone_offset"]
+        }
+      }
+    }
+  ]
+} 

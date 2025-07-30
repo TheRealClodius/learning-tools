@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Search Input",
+  "description": [
+    "Search for tools in the registry using semantic queries, filters, and advanced search criteria.",
+    "This is the primary discovery mechanism when you need to find tools that match specific capabilities, solve particular problems, or work within certain constraints.",
+    "Use this when you have a task to accomplish but aren't sure which tool to use, or when you need to find alternatives to known tools.",
+    "The search supports multiple modes: semantic search through descriptions and capabilities, exact matching by tags or categories, and filtered browsing by implementation type or complexity.",
+    "Best for exploratory discovery, finding tools by capability rather than name, and understanding what tools are available for specific use cases.",
+    "Supports pagination for large result sets and can include full schemas when you need to validate tool compatibility before use."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/search_operation_input"},
+    {
+      "type": "object",
+      "properties": {
+        "search_type": {
+          "type": "string",
+          "enum": ["capability", "tag", "category", "description", "name"],
+          "description": "Type of search to perform",
+          "default": "description"
+        },
+        "categories": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Filter by specific categories",
+          "maxItems": 10
+        },
+        "complexity": {
+          "type": "string", 
+          "enum": ["simple", "moderate", "complex"],
+          "description": "Filter by tool complexity level"
+        },
+        "implementation_type": {
+          "type": "string",
+          "enum": ["rest_api", "mcp_server", "internal"],
+          "description": "Filter by how the tool is implemented"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Filter by specific capabilities",
+          "maxItems": 10
+        },
+        "include_schemas": {
+          "type": "boolean",
+          "description": "Include full input/output schemas in results",
+          "default": false
+        }
+      }
+    }
+  ]
+} 

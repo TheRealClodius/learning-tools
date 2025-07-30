@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Perplexity Search Input",
+  "description": "Perform quick, accurate web searches using Perplexity's Sonar models with real-time web information and automatic source citations. Access current web data, news, and information with AI-powered search that provides grounded responses with transparent sourcing. Choose from multiple Sonar models: basic Sonar for cost-effective searches, Sonar Pro for detailed responses, or reasoning models for analytical queries. Filter results by domain, recency, and context size for targeted information retrieval suited to your specific needs. Essential for fact-checking, research tasks, current events, and getting cited information with transparent source attribution.",
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this search is being performed"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The search query or question to ask Perplexity"
+    },
+    "model": {
+      "type": "string",
+      "enum": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro"],
+      "default": "sonar",
+      "description": "Perplexity model to use for search"
+    },
+    "api_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Perplexity API key for authentication"
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "default": 0.2,
+      "description": "Controls randomness in the response"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8000,
+      "default": 1000,
+      "description": "Maximum number of tokens to generate"
+    },
+    "search_domain_filter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "description": "List of domains to include/exclude (prefix with '-' to exclude)"
+    },
+    "search_recency_filter": {
+      "type": "string",
+      "enum": ["hour", "day", "week", "month", "year"],
+      "description": "Filter results by recency"
+    },
+    "return_images": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to include images in the response"
+    },
+    "return_related_questions": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to return related follow-up questions"
+    },
+    "search_context_size": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "default": "medium",
+      "description": "Amount of search context to include"
+    }
+  },
+  "required": ["explanation", "query", "api_key"],
+  "additionalProperties": false
+} 

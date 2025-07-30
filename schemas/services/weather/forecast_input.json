@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenWeather One Call API 3.0 Input",
+  "description": [
+    "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+    "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+    "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+    "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+    "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+  ],
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "$ref": "../../shared/common_inputs.json#/$defs/explanation"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Latitude, decimal (-90; 90)",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "lon": {
+      "type": "number",
+      "description": "Longitude, decimal (-180; 180)",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "appid": {
+      "type": "string",
+      "description": "Your unique OpenWeather API key",
+      "minLength": 1
+    },
+    "exclude": {
+      "type": "string",
+      "description": "Comma-delimited list (without spaces) of parts to exclude from the API response",
+      "pattern": "^(current|minutely|hourly|daily|alerts)(,(current|minutely|hourly|daily|alerts))*$",
+      "examples": [
+        "current",
+        "minutely,alerts", 
+        "hourly,daily"
+      ]
+    },
+    "units": {
+      "type": "string",
+      "enum": ["standard", "metric", "imperial"],
+      "description": "Units of measurement. Standard=Kelvin, Metric=Celsius, Imperial=Fahrenheit",
+      "default": "standard"
+    },
+    "lang": {
+      "type": "string",
+      "description": "Language code for weather descriptions",
+      "examples": ["en", "fr", "es", "de", "zh_cn", "ru", "ja"]
+    }
+  },
+  "required": ["explanation", "lat", "lon", "appid"],
+  "examples": [
+    {
+      "explanation": "User planning weekend outdoor activities needs complete weather forecast",
+      "lat": 39.7392,
+      "lon": -104.9903,
+      "appid": "your_api_key",
+      "units": "metric"
+    },
+    {
+      "explanation": "Event organizer needs current and hourly forecast only for outdoor wedding",
+      "lat": 40.7589,
+      "lon": -73.9851,
+      "appid": "your_api_key",
+      "exclude": "minutely,daily,alerts",
+      "units": "imperial"
+    },
+    {
+      "explanation": "Weather dashboard needs all data except minute-by-minute forecasts",
+      "lat": 48.8566,
+      "lon": 2.3522,
+      "appid": "your_api_key",
+      "exclude": "minutely",
+      "units": "metric",
+      "lang": "fr"
+    }
+  ]
+} 

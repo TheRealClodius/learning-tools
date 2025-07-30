@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Memory Add Input",
+  "description": "Store a conversation pair (user input and agent response) in the MemoryOS system for building persistent dialogue history and contextual records. The memory will flow through short-term, mid-term, and potentially long-term memory based on relevance and heat.",
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this memory is being stored"
+    },
+    "user_input": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The user's input, question, or message to be stored"
+    },
+    "agent_response": {
+      "type": "string", 
+      "minLength": 1,
+      "maxLength": 10000,
+      "description": "The agent's response or reply to the user input"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$",
+      "description": "Optional timestamp in YYYY-MM-DD HH:MM:SS format (auto-generated if not provided)"
+    },
+    "meta_data": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional metadata about the conversation context (platform, importance, etc.)"
+    }
+  },
+  "required": ["explanation", "user_input", "agent_response"],
+  "additionalProperties": false
+} 

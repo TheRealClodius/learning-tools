@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry List Input",
+  "description": [
+    "Browse and filter the complete catalog of available tools with powerful organization and filtering capabilities.",
+    "Use this to understand the tool landscape, explore tools by category or complexity, or get an organized view of what's available.",
+    "Perfect for discovery when you want to see everything in a category (like 'all search tools'), or when you need tools matching specific criteria (like 'simple tools that don't require authentication').",
+    "The group_by feature organizes results by category, implementation type, or complexity for easier browsing.",
+    "Filtering lets you narrow down by specific requirements - exclude deprecated tools, show only MCP server tools, or find tools with specific capabilities.",
+    "Include schemas when you need to validate compatibility across multiple tools.",
+    "Essential for understanding the scope of available functionality and planning multi-tool workflows."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/list_operation_input"},
+    {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "description": "Filter by specific category"
+        },
+        "implementation_type": {
+          "type": "string",
+          "enum": ["rest_api", "mcp_server", "internal"],
+          "description": "Filter by implementation type"
+        },
+        "complexity": {
+          "type": "string",
+          "enum": ["simple", "moderate", "complex"],
+          "description": "Filter by complexity level"
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Filter by tags (tools must have ALL specified tags)",
+          "maxItems": 5
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"}, 
+          "description": "Filter by capabilities (tools must have ALL specified capabilities)",
+          "maxItems": 5
+        },
+        "show_deprecated": {
+          "type": "boolean",
+          "description": "Include deprecated tools in results",
+          "default": false
+        },
+        "include_schemas": {
+          "type": "boolean",
+          "description": "Include input/output schemas in results",
+          "default": false
+        },
+        "group_by": {
+          "type": "string",
+          "enum": ["category", "implementation_type", "complexity", "none"],
+          "description": "Group results by specified field",
+          "default": "none"
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "explanation": "I need to see all available search tools to understand my options",
+      "category": "search",
+      "sort_by": "name",
+      "sort_order": "asc"
+    },
+    {
+      "explanation": "I want to list all simple tools that don't require complex setup", 
+      "complexity": "simple",
+      "show_deprecated": false,
+      "pagination": {"limit": 20}
+    },
+    {
+      "explanation": "I need all weather-related tools grouped by complexity",
+      "tags": ["weather"],
+      "group_by": "complexity",
+      "include_schemas": true
+    }
+  ]
+} 

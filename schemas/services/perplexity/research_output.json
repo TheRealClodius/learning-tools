@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Perplexity Research Output",
+  "description": "Comprehensive research report from Perplexity's Deep Research model containing detailed analysis, findings, and extensive citations. Includes a full research report with methodology documentation and comprehensive source attribution. Citations are converted from the API's URL-only format to objects for consistency. Provides detailed usage metrics including search count and reasoning tokens for transparency and cost tracking. Offers related questions for continued research and structured findings for easy extraction and further analysis.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the research operation was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "research_report": {
+          "type": "string",
+          "description": "The comprehensive research report from Perplexity"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model used for the research (typically sonar-deep-research)"
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "prompt_tokens": {
+              "type": "integer",
+              "description": "Number of tokens in the prompt"
+            },
+            "completion_tokens": {
+              "type": "integer",
+              "description": "Number of tokens in the completion"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "description": "Total number of tokens used"
+            },
+            "search_count": {
+              "type": "integer",
+              "description": "Number of searches performed during research"
+            },
+            "reasoning_tokens": {
+              "type": "integer",
+              "description": "Number of reasoning tokens used"
+            }
+          },
+          "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+          "description": "Token usage and research metrics"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Source URL (converted from API's URL-only format)"
+              },
+              "title": {
+                "type": "string",
+                "description": "Source title (empty in current API format)"
+              },
+              "snippet": {
+                "type": "string",
+                "description": "Relevant snippet from the source (empty in current API format)"
+              },
+              "published_date": {
+                "type": "string",
+                "description": "Publication date of the source (empty in current API format)"
+              },
+              "domain": {
+                "type": "string",
+                "description": "Source domain (empty in current API format)"
+              }
+            },
+            "required": ["url"]
+          },
+          "description": "Array of cited research sources converted to object format"
+        },
+        "related_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Related follow-up questions for further research"
+        },
+        "key_findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key findings extracted from the research"
+        },
+        "research_methodology": {
+          "type": "object",
+          "properties": {
+            "search_strategy": {
+              "type": "string",
+              "description": "Description of the search strategy used"
+            },
+            "sources_evaluated": {
+              "type": "integer",
+              "description": "Number of sources evaluated during research"
+            },
+            "research_duration": {
+              "type": "string",
+              "description": "Time taken to complete the research"
+            }
+          },
+          "description": "Information about the research methodology"
+        }
+      },
+      "required": ["research_report", "model"],
+      "description": "Research result data"
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 

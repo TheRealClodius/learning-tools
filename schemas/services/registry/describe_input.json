@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Describe Input",
+  "description": [
+    "Get comprehensive documentation and usage guidance for a specific tool by name.",
+    "This is your go-to operation when you've identified a tool (from search or list results) and need detailed implementation guidance before using it.",
+    "Returns exhaustive information including schemas, examples, best practices, common pitfalls, error handling patterns, and related tools.",
+    "Use this when you need to understand exactly how a tool works, what parameters it accepts, what output to expect, and how to handle edge cases.",
+    "Essential for proper tool usage - always describe a tool before using it if you're unsure about its behavior.",
+    "The format parameter lets you control detail level: 'detailed' for comprehensive guidance, 'compact' for essential info only, or 'schema_only' for just input/output validation.",
+    "Include examples and related tools to understand usage patterns and discover complementary tools."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/get_operation_input"},
+    {
+      "type": "object",
+      "properties": {
+        "tool_name": {
+          "type": "string",
+          "description": "Name of the tool to describe",
+          "pattern": "^[a-z]+_[a-z_]+$",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "include_examples": {
+          "type": "boolean",
+          "description": "Include usage examples in the response",
+          "default": true
+        },
+        "include_related_tools": {
+          "type": "boolean",
+          "description": "Include information about related tools",
+          "default": true
+        },
+        "include_implementation_details": {
+          "type": "boolean",
+          "description": "Include technical implementation details",
+          "default": false
+        },
+        "format": {
+          "type": "string",
+          "enum": ["detailed", "compact", "schema_only"],
+          "description": "Level of detail to return",
+          "default": "detailed"
+        }
+      },
+      "required": ["tool_name"]
+    }
+  ],
+  "examples": [
+    {
+      "explanation": "I need detailed information about the weather forecast tool to understand its capabilities",
+      "tool_name": "weather_forecast",
+      "include_examples": true,
+      "format": "detailed"
+    },
+    {
+      "explanation": "I need just the schema for the JIRA search tool to validate my input",
+      "tool_name": "jira_search", 
+      "format": "schema_only"
+    }
+  ]
+} 

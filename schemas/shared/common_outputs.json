@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Output Patterns",
+  "$defs": {
+    "base_response": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the operation was successful"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Response timestamp"
+        }
+      },
+      "required": ["success"]
+    },
+    "error_response": {
+      "allOf": [
+        {"$ref": "#/$defs/base_response"},
+        {
+          "type": "object",
+          "properties": {
+            "success": {"const": false},
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "Machine-readable error code"
+                },
+                "details": {
+                  "type": "string",
+                  "description": "Detailed error description"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "Suggested action to resolve the error"
+                }
+              },
+              "required": ["code", "details"]
+            }
+          },
+          "required": ["error"]
+        }
+      ]
+    },
+    "success_response": {
+      "allOf": [
+        {"$ref": "#/$defs/base_response"},
+        {
+          "type": "object", 
+          "properties": {
+            "success": {"const": true}
+          }
+        }
+      ]
+    },
+    "paginated_response": {
+      "allOf": [
+        {"$ref": "#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "description": "Total number of items available",
+                  "minimum": 0
+                },
+                "limit": {
+                  "type": "integer", 
+                  "description": "Number of items per page",
+                  "minimum": 1
+                },
+                "offset": {
+                  "type": "integer",
+                  "description": "Current offset",
+                  "minimum": 0
+                },
+                "has_more": {
+                  "type": "boolean",
+                  "description": "Whether more items are available"
+                },
+                "next_cursor": {
+                  "type": "string",
+                  "description": "Cursor for next page"
+                }
+              },
+              "required": ["total", "limit", "offset", "has_more"]
+            }
+          },
+          "required": ["pagination"]
+        }
+      ]
+    },
+    "resource_metadata": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time", 
+          "description": "Creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "User who created this resource"
+        },
+        "updated_by": {
+          "type": "string",
+          "description": "User who last updated this resource"
+        }
+      },
+      "required": ["id", "created_at"]
+    },
+    "tool_info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tool name",
+          "pattern": "^[a-z]+_[a-z_]+$"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable tool name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Comprehensive tool description with usage guidelines"
+        },
+        "category": {
+          "type": "string",
+          "description": "Tool category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Searchable tags"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "What the tool can do"
+        },
+        "complexity": {
+          "type": "string",
+          "enum": ["simple", "moderate", "complex"],
+          "description": "Tool complexity level"
+        },
+        "input_schema": {
+          "type": "object",
+          "description": "JSON schema for tool input"
+        },
+        "output_schema": {
+          "type": "object", 
+          "description": "JSON schema for tool output"
+        }
+      },
+      "required": ["name", "description", "category", "input_schema", "output_schema"]
+    },
+    "bulk_operation_result": {
+      "allOf": [
+        {"$ref": "#/$defs/success_response"},
+        {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "object",
+              "properties": {
+                "total_attempted": {
+                  "type": "integer",
+                  "description": "Total number of operations attempted",
+                  "minimum": 0
+                },
+                "successful": {
+                  "type": "integer",
+                  "description": "Number of successful operations",
+                  "minimum": 0
+                },
+                "failed": {
+                  "type": "integer",
+                  "description": "Number of failed operations", 
+                  "minimum": 0
+                }
+              },
+              "required": ["total_attempted", "successful", "failed"]
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {"type": "string"},
+                  "success": {"type": "boolean"},
+                  "result": {"type": "object"},
+                  "error": {"type": "string"}
+                },
+                "required": ["id", "success"]
+              }
+            }
+          },
+          "required": ["summary", "results"]
+        }
+      ]
+    }
+  }
+} 

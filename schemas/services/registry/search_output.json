@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Search Output",
+  "description": [
+    "Returns ranked, scored search results with comprehensive tool information and usage guidance.",
+    "Each result includes a relevance score (0-1) explaining why it matched your query, along with practical details like authentication requirements, rate limits, and implementation type.",
+    "Results are sorted by relevance and include match explanations to help you understand why each tool was suggested.",
+    "Use the match_score to prioritize tools, the match_reason to understand relevance, and the usage_examples to see how the tool works in practice.",
+    "The search_metadata provides insights into how your query was processed and suggests refinements.",
+    "Perfect for understanding not just what tools are available, but which ones are most suitable for your specific use case and how to use them effectively."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/search_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {"$ref": "../../shared/common_outputs.json#/$defs/tool_info"},
+              {
+                "type": "object",
+                "properties": {
+                  "match_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Relevance score for this result"
+                  },
+                  "match_reason": {
+                    "type": "string",
+                    "description": "Why this tool matched the search"
+                  },
+                  "implementation_type": {
+                    "type": "string",
+                    "enum": ["rest_api", "mcp_server", "internal"],
+                    "description": "How this tool is implemented"
+                  },
+                  "endpoint": {
+                    "type": "string",
+                    "description": "API endpoint or MCP server identifier"
+                  },
+                  "auth_required": {
+                    "type": "boolean",
+                    "description": "Whether authentication is required"
+                  },
+                  "rate_limited": {
+                    "type": "boolean",
+                    "description": "Whether this tool has rate limits"
+                  },
+                  "usage_examples": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "scenario": {"type": "string"},
+                        "example_input": {"type": "object"},
+                        "expected_output": {"type": "object"}
+                      },
+                      "required": ["scenario", "example_input"]
+                    },
+                    "description": "Usage examples for this tool"
+                  }
+                }
+              }
+            ]
+          },
+          "description": "Array of matching tools"
+        },
+        "search_metadata": {
+          "type": "object",
+          "properties": {
+            "search_type_used": {"type": "string"},
+            "categories_searched": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "filters_applied": {
+              "type": "object",
+              "properties": {
+                "complexity": {"type": "string"},
+                "implementation_type": {"type": "string"},
+                "capabilities": {"type": "array", "items": {"type": "string"}}
+              }
+            },
+            "total_tools_in_registry": {"type": "integer"}
+          }
+        }
+      }
+    }
+  ]
+} 

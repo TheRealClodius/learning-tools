@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Registry Describe Output",
+  "description": [
+    "Comprehensive tool documentation with everything needed for successful implementation.",
+    "Contains complete schemas, realistic usage examples with expected outputs, detailed guidelines on when and how to use the tool, common error patterns with resolution steps, rate limiting information, and authentication requirements.",
+    "The usage_guidelines section is critical - it tells you exactly when this tool is appropriate versus when to use alternatives, plus best practices and pitfalls to avoid.",
+    "Examples show real-world scenarios with actual input/output pairs.",
+    "Implementation_details provide technical configuration including endpoints, timeouts, and retry policies.",
+    "Related_tools help you discover complementary or alternative tools for your workflow.",
+    "Error_patterns prepare you for common failures with specific resolution steps.",
+    "This is the definitive reference for any tool - use it to understand capabilities, plan implementations, handle edge cases, and troubleshoot issues."
+  ],
+  "allOf": [
+    {"$ref": "../../shared/operation_patterns.json#/$defs/get_operation_output"},
+    {
+      "type": "object",
+      "properties": {
+        "data": {
+          "allOf": [
+            {"$ref": "../../shared/common_outputs.json#/$defs/tool_info"},
+            {
+              "type": "object",
+              "properties": {
+                "implementation_details": {
+                  "type": "object",
+                  "properties": {
+                    "implementation_type": {
+                      "type": "string",
+                      "enum": ["rest_api", "mcp_server", "internal"]
+                    },
+                    "endpoint": {"type": "string"},
+                    "method": {"type": "string"},
+                    "timeout_ms": {"type": "integer"},
+                    "retry_policy": {
+                      "type": "object",
+                      "properties": {
+                        "max_retries": {"type": "integer"},
+                        "backoff_strategy": {"type": "string"}
+                      }
+                    },
+                    "auth_config": {
+                      "$ref": "../../shared/auth_patterns.json#/$defs/flexible_tool_auth"
+                    }
+                  }
+                },
+                "usage_guidelines": {
+                  "type": "object",
+                  "properties": {
+                    "when_to_use": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Scenarios where this tool is appropriate"
+                    },
+                    "when_not_to_use": {
+                      "type": "array", 
+                      "items": {"type": "string"},
+                      "description": "Scenarios where this tool should be avoided"
+                    },
+                    "best_practices": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Best practices for using this tool"
+                    },
+                    "common_pitfalls": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Common mistakes to avoid"
+                    }
+                  }
+                },
+                "examples": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {"type": "string"},
+                      "description": {"type": "string"},
+                      "scenario": {"type": "string"},
+                      "input": {"type": "object"},
+                      "expected_output": {"type": "object"},
+                      "explanation": {"type": "string"}
+                    },
+                    "required": ["title", "scenario", "input"]
+                  }
+                },
+                "related_tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "relationship": {
+                        "type": "string",
+                        "enum": ["alternative", "complementary", "prerequisite", "follow_up"]
+                      },
+                      "description": {"type": "string"}
+                    },
+                    "required": ["name", "relationship"]
+                  }
+                },
+                "rate_limits": {
+                  "type": "object",
+                  "properties": {
+                    "requests_per_minute": {"type": "integer"},
+                    "requests_per_hour": {"type": "integer"},
+                    "concurrent_requests": {"type": "integer"},
+                    "burst_allowance": {"type": "integer"}
+                  }
+                },
+                "error_patterns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "error_code": {"type": "string"},
+                      "description": {"type": "string"},
+                      "common_causes": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                      },
+                      "resolution_steps": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                      }
+                    },
+                    "required": ["error_code", "description"]
+                  }
+                },
+                "version_info": {
+                  "type": "object",
+                  "properties": {
+                    "current_version": {"type": "string"},
+                    "supported_versions": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "deprecation_notice": {"type": "string"},
+                    "migration_guide": {"type": "string"}
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+} 

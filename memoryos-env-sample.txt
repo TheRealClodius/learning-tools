@@ -1,0 +1,28 @@
+# MemoryOS Environment Variables Sample
+# Copy this to your .env.local file and fill in your actual API keys
+
+# Existing API Keys (already configured)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+PERPLEXITY_API_KEY=your_perplexity_api_key_here  
+OPENWEATHER_API_KEY=your_openweather_api_key_here
+
+# NEW: Required for MemoryOS
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_BASE_URL=  # Optional: custom OpenAI endpoint
+
+# MemoryOS Configuration
+MEMORY_USER_ID=default_user
+MEMORY_ASSISTANT_ID=learning_tools_assistant
+MEMORY_DATA_PATH=./memory_data
+MEMORY_LLM_MODEL=gpt-4o-mini
+MEMORY_EMBEDDING_MODEL=BAAI/bge-m3
+
+# Alternative embedding models you can use:
+# MEMORY_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
+# MEMORY_EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+# Notes:
+# - OPENAI_API_KEY is REQUIRED for MemoryOS LLM operations
+# - MEMORY_DATA_PATH will store conversation memories locally
+# - BAAI/bge-m3 is recommended for best embedding performance
+# - All other memory settings have sensible defaults 

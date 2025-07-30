@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Memory Profile Input",
+  "description": "Get user profile information generated from analysis of historical dialogues, including personality traits, interests, preferences, and knowledge background extracted from conversation patterns.",
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why the user profile is being requested"
+    },
+    "include_knowledge": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to include user-specific knowledge entries in the response"
+    },
+    "include_assistant_knowledge": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to include assistant knowledge base entries in the response"
+    }
+  },
+  "required": ["explanation"],
+  "additionalProperties": false
+} 
