@@ -404,6 +404,18 @@ class execute_memory_execution_retrieve_output(BaseModel):
     message: str = Field(..., description="Human-readable result message")
     data: Dict[str, Any] = Field(..., description="Retrieved execution records containing actionable insights and patterns")
 
+class execute_memory_get_profile_input(BaseModel):
+    """Input model for getting user profile from MemoryOS dual memory system"""
+    explanation: str = Field(..., description="One sentence explanation of why the user profile is being requested")
+    include_knowledge: bool = Field(default=True, description="Whether to include user-specific knowledge entries in the response")
+    include_assistant_knowledge: bool = Field(default=False, description="Whether to include assistant knowledge base entries in the response")
+
+class execute_memory_get_profile_output(BaseModel):
+    """Output model for user profile get operation"""
+    success: bool = Field(..., description="Whether the profile retrieval was successful")
+    message: str = Field(..., description="Human-readable result message")
+    data: Dict[str, Any] = Field(..., description="User profile data including personality traits, preferences, and knowledge")
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================

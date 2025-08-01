@@ -13,7 +13,8 @@ from execute import (
     execute_memory_conversation_add_input, execute_memory_conversation_add_output,
     execute_memory_conversation_retrieve_input, execute_memory_conversation_retrieve_output,
     execute_memory_execution_add_input, execute_memory_execution_add_output,
-    execute_memory_execution_retrieve_input, execute_memory_execution_retrieve_output
+    execute_memory_execution_retrieve_input, execute_memory_execution_retrieve_output,
+    execute_memory_get_profile_input, execute_memory_get_profile_output
 )
 
 logger = logging.getLogger(__name__)
@@ -583,5 +584,133 @@ async def execution_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
                 "total_found": 0,
                 "returned_count": 0,
                 "max_results_applied": False
+            }
+        }
+
+
+async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Retrieve user profile information from MemoryOS via MCP
+    
+    Args:
+        input_data: Dictionary with explanation, include_knowledge (optional), 
+                   include_assistant_knowledge (optional)
+        
+    Returns:
+        Dictionary with user profile data matching profile_output.json schema
+    """
+    logger.info(f"Retrieving user profile via MCP: {input_data.get('explanation', 'No explanation provided')}")
+    
+    try:
+        client = _get_mcp_client()
+        
+        # Validate required fields
+        required_fields = ["explanation"]
+        for field in required_fields:
+            if field not in input_data or not input_data[field]:
+                return {
+                    "success": False,
+                    "message": f"Missing required field: {field}",
+                    "data": {
+                        "status": "error",
+                        "timestamp": "",
+                        "user_id": client.user_id,
+                        "assistant_id": "signal",
+                        "user_profile": "",
+                        "user_knowledge": [],
+                        "user_knowledge_count": 0,
+                        "assistant_knowledge": [],
+                        "assistant_knowledge_count": 0
+                    }
+                }
+        
+        # Prepare MCP parameters - only what MCP server expects
+        mcp_params = {
+            "arguments": {
+                "user_id": client.user_id,  # Required by MCP server
+                "include_knowledge": input_data.get("include_knowledge", True),
+                "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
+            }
+        }
+        
+        # Call MCP server
+        result = await client._make_mcp_request("tools/call", {
+            "name": "get_user_profile",
+            **mcp_params
+        })
+        
+        # Get current timestamp
+        from datetime import datetime
+        timestamp = datetime.now().isoformat()
+        
+        # Extract profile data from MCP result
+        profile_data = result.get("content", [])
+        if profile_data and isinstance(profile_data[0], dict) and "text" in profile_data[0]:
+            try:
+                parsed_profile = json.loads(profile_data[0]["text"])
+            except json.JSONDecodeError:
+                parsed_profile = {
+                    "user_profile": "",
+                    "user_knowledge": [],
+                    "assistant_knowledge": []
+                }
+        else:
+            parsed_profile = {
+                "user_profile": "",
+                "user_knowledge": [],
+                "assistant_knowledge": []
+            }
+        
+        user_knowledge = parsed_profile.get("user_knowledge", [])
+        assistant_knowledge = parsed_profile.get("assistant_knowledge", [])
+        
+        return {
+            "success": True,
+            "message": f"Retrieved user profile with {len(user_knowledge)} knowledge items via MCP server",
+            "data": {
+                "status": "success",
+                "timestamp": timestamp,
+                "user_id": client.user_id,
+                "assistant_id": "signal",
+                "user_profile": parsed_profile.get("user_profile", ""),
+                "user_knowledge": user_knowledge,
+                "user_knowledge_count": len(user_knowledge),
+                "assistant_knowledge": assistant_knowledge,
+                "assistant_knowledge_count": len(assistant_knowledge)
+            }
+        }
+        
+    except MemoryError as e:
+        logger.error(f"MCP User Profile error: {e}")
+        return {
+            "success": False,
+            "message": str(e),
+            "data": {
+                "status": "error",
+                "timestamp": "",
+                "user_id": client.user_id,
+                "assistant_id": "signal",
+                "user_profile": "",
+                "user_knowledge": [],
+                "user_knowledge_count": 0,
+                "assistant_knowledge": [],
+                "assistant_knowledge_count": 0
+            }
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in profile_retrieve: {e}")
+        return {
+            "success": False,
+            "message": f"User profile retrieval failed: {str(e)}",
+            "data": {
+                "status": "error",
+                "timestamp": "",
+                "user_id": client.user_id,
+                "assistant_id": "signal",
+                "user_profile": "",
+                "user_knowledge": [],
+                "user_knowledge_count": 0,
+                "assistant_knowledge": [],
+                "assistant_knowledge_count": 0
             }
         } 

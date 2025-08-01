@@ -41,7 +41,8 @@ class ToolExecutor:
                 "memory.conversation.add": "tools.memory:conversation_add",
                 "memory.conversation.retrieve": "tools.memory:conversation_retrieve",
                 "memory.execution.add": "tools.memory:execution_add",
-                "memory.execution.retrieve": "tools.memory:execution_retrieve"
+                "memory.execution.retrieve": "tools.memory:execution_retrieve",
+                "memory.get_profile": "tools.memory:profile_retrieve"
             },
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
@@ -83,14 +84,16 @@ class ToolExecutor:
                 conversation_add,
                 conversation_retrieve,
                 execution_add,
-                execution_retrieve
+                execution_retrieve,
+                profile_retrieve
             )
             
             self.available_tools.update({
                 "memory.conversation.add": conversation_add,
                 "memory.conversation.retrieve": conversation_retrieve,
                 "memory.execution.add": execution_add,
-                "memory.execution.retrieve": execution_retrieve
+                "memory.execution.retrieve": execution_retrieve,
+                "memory.get_profile": profile_retrieve
             })
             
             self.loaded_services.add("memory")

@@ -130,6 +130,7 @@ class CLIInterface:
                 message,
                 context={
                     "platform": "cli",
+                    "user_id": "cli_user",  # Fixed user for CLI sessions
                     "timestamp": timestamp,
                     "verbose": self.verbose
                 },

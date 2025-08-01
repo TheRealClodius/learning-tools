@@ -1,11 +1,12 @@
 import os
 import logging
+import time
 from typing import Dict, Any, Optional
 from slack_bolt.async_app import AsyncApp
-from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
+from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
 
 # Import agent and runtime components
-from agents.research_agent import ResearchAgent
+from agents.client_agent import ClientAgent
 from runtime.tool_executor import ToolExecutor
 
 # Configure logging
@@ -21,24 +22,21 @@ class SlackInterface:
     """
     
     def __init__(self):
-        # Initialize Slack app
+        # Initialize Slack app for webhook mode
         self.app = AsyncApp(
             token=os.environ.get("SLACK_BOT_TOKEN"),
             signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
         )
         
         # Initialize agent and executor
-        self.agent = ResearchAgent()
+        self.agent = ClientAgent()
         self.tool_executor = ToolExecutor()
         
         # Setup Slack event handlers
         self._setup_handlers()
         
-        # Socket mode handler for development
-        self.socket_handler = AsyncSocketModeHandler(
-            self.app, 
-            os.environ.get("SLACK_APP_TOKEN")
-        )
+        # Create FastAPI handler for webhooks
+        self.handler = AsyncSlackRequestHandler(self.app)
     
     def _setup_handlers(self):
         """Setup Slack event handlers"""
@@ -62,6 +60,10 @@ class SlackInterface:
         @self.app.action("agent_action")
         async def handle_agent_action(ack, body, respond, logger):
             await self._handle_interactive_action(ack, body, respond, logger)
+        
+        @self.app.action("view_execution_details")
+        async def handle_execution_details(ack, body, respond, logger):
+            await self._handle_execution_details_view(ack, body, respond, logger)
     
     async def _handle_user_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming user messages"""
@@ -72,8 +74,13 @@ class SlackInterface:
             message_text = event.get("text", "")
             thread_ts = event.get("thread_ts") or event.get("ts")
             
+            # DEBUG: Log user_id extraction
+            logger.info(f"SLACK-USER-ID: Extracted user_id='{user_id}' from event")
+            logger.info(f"SLACK-MESSAGE: User '{user_id}' sent: '{message_text[:50]}...'")
+            
             # Skip bot messages
             if event.get("bot_id"):
+                logger.debug(f"SLACK-SKIP: Ignoring bot message from {event.get('bot_id')}")
                 return
             
             # Remove bot mention if present
@@ -91,19 +98,40 @@ class SlackInterface:
             # Show typing indicator
             await self._show_typing(channel_id)
             
-            # Process message through agent
+            # Process message through agent with modal execution tracking
             try:
+                # Open execution modal (need trigger_id from event)
+                modal_response = await self._open_execution_modal(user_id, message_text, event.get("ts"))
+                modal_view_id = modal_response.get("view", {}).get("id") if modal_response else None
+                
+                # Create streaming callback for modal updates
+                async def slack_streaming_callback(text: str, msg_type: str):
+                    await self._update_execution_modal(modal_view_id, text, msg_type)
+                
+                # Process with live modal updates
+                context = {
+                    "platform": "slack",
+                    "user_id": user_id,
+                    "channel_id": channel_id,
+                    "thread_ts": thread_ts
+                }
+                
+                # DEBUG: Log context being passed to agent
+                logger.info(f"SLACK-CONTEXT: Passing user_id='{user_id}' to ClientAgent")
+                logger.info(f"SLACK-CONTEXT: Full context={context}")
+                
+                start_time = time.time()
                 response = await self.agent.process_request(
                     message_text,
-                    context={
-                        "platform": "slack",
-                        "user_id": user_id,
-                        "channel_id": channel_id,
-                        "thread_ts": thread_ts
-                    }
+                    context=context,
+                    streaming_callback=slack_streaming_callback
                 )
                 
-                # Send response back to Slack
+                # Mark execution complete in modal
+                duration_ms = int((time.time() - start_time) * 1000)
+                await self._complete_execution_modal(modal_view_id, duration_ms)
+                
+                # Send only the final response to conversation (clean!)
                 await self._send_response(say, response, thread_ts)
                 
             except Exception as e:
@@ -246,22 +274,21 @@ class SlackInterface:
                 ]
             })
         
-        # Add action buttons if relevant
-        if "weather" in message_text.lower():
-            blocks.append({
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Get Forecast"
-                        },
-                        "action_id": "agent_action",
-                        "value": "get_weather_forecast"
-                    }
-                ]
-            })
+        # Add execution details button
+        blocks.append({
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🔍 View Execution Details"
+                    },
+                    "action_id": "view_execution_details",
+                    "value": f"execution_details_{int(time.time())}"
+                }
+            ]
+        })
         
         await say(
             blocks=blocks,
@@ -269,37 +296,196 @@ class SlackInterface:
             thread_ts=thread_ts
         )
     
+    # =============================================================================
+    # BLOCK KIT MODAL EXECUTION SYSTEM
+    # =============================================================================
+    
+    def _filter_execution_message(self, text: str, msg_type: str) -> str:
+        """Filter and clean execution messages for display"""
+        # All ClientAgent messages come as msg_type "thinking", so we filter by content
+        
+        if text.startswith("🔧 Executing"):
+            # Tool execution: "🔧 Executing reg_search..." → "Executing reg_search"
+            clean_text = text.replace("🔧 Executing ", "").replace("...", "")
+            return f"Executing {clean_text}"
+            
+        elif text.startswith("📋 Got result"):
+            # Skip verbose result messages - too much detail
+            return None
+            
+        elif any(keyword in text.lower() for keyword in ["search", "tool", "need", "should", "execute", "call", "discover", "find"]):
+            # Show meaningful thinking that indicates what the agent is doing
+            return text
+            
+        # Skip generic thinking or overly detailed thoughts
+        return None
+    
+    async def _open_execution_modal(self, user_id: str, message_text: str, trigger_ts: str) -> dict:
+        """Open Block Kit modal for live execution tracking"""
+        try:
+            modal_view = {
+                "type": "modal",
+                "title": {
+                    "type": "plain_text",
+                    "text": "🤖 Agent Execution"
+                },
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn", 
+                            "text": f"*Query:* {message_text[:100]}{'...' if len(message_text) > 100 else ''}"
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "block_id": "status_section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Status:* 🔄 Working..."
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "block_id": "execution_steps",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*🔄 Execution Steps:*\n• Just a sec..."
+                        }
+                    }
+                ]
+            }
+            
+            # Use a webhook or direct API call since we don't have trigger_id
+            # For now, we'll simulate the modal opening
+            logger.info(f"Would open execution modal for user {user_id}")
+            return {"view": {"id": f"modal_{user_id}_{trigger_ts}"}}
+            
+        except Exception as e:
+            logger.error(f"Failed to open execution modal: {e}")
+            return None
+    
+    async def _update_execution_modal(self, view_id: str, text: str, msg_type: str):
+        """Update execution modal with filtered progress"""
+        try:
+            if not view_id:
+                return
+                
+            # Filter the message
+            filtered_text = self._filter_execution_message(text, msg_type)
+            if not filtered_text:
+                return  # Skip this message
+            
+            # For now, just log the filtered content (in real implementation, would update modal)
+            logger.info(f"MODAL UPDATE [{view_id}]: {filtered_text}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update execution modal: {e}")
+    
+    async def _complete_execution_modal(self, view_id: str, duration_ms: int = None):
+        """Mark execution modal as complete"""
+        try:
+            if not view_id:
+                return
+                
+            duration_text = f" ({duration_ms/1000:.1f}s)" if duration_ms else ""
+            logger.info(f"MODAL COMPLETE [{view_id}]: Done!{duration_text}")
+            
+        except Exception as e:
+            logger.error(f"Failed to complete execution modal: {e}")
+    
+    async def _handle_execution_details_view(self, ack, body, respond, logger):
+        """Handle when user clicks 'View Execution Details' button"""
+        await ack()
+        
+        try:
+            user_id = body.get("user", {}).get("id")
+            
+            # Create a sample execution modal (in real implementation, would fetch stored details)
+            modal_view = {
+                "type": "modal",
+                "title": {
+                    "type": "plain_text",
+                    "text": "🤖 Execution Details"
+                },
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Query:* What's the weather in London?"
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Status:* ✅ Complete (4.2s)"
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*🔄 Execution Steps:*\n• Just a sec...\n• I need to search for weather tools\n• Executing reg_search\n• Now I'll use the weather.search tool\n• Executing weather.search\n• Done!"
+                        }
+                    }
+                ]
+            }
+            
+            # Open the modal (would need proper trigger_id in real implementation)
+            logger.info(f"Would show execution details modal for user {user_id}")
+            
+            # For now, send an ephemeral message
+            await respond({
+                "text": "🔍 *Execution Details*\n\n*Steps taken:*\n• I need to search for weather tools\n• Executing reg_search\n• Now I'll use the weather.search tool\n• Executing weather.search\n• Done!\n\n*Duration:* 4.2s",
+                "response_type": "ephemeral"
+            })
+            
+        except Exception as e:
+            logger.error(f"Error showing execution details: {e}")
+            await respond({
+                "text": "Sorry, I couldn't load the execution details.",
+                "response_type": "ephemeral"
+            })
+    
     async def start(self):
         """Start the Slack bot"""
         logger.info("Starting Slack interface...")
         
-        # Verify environment variables
-        required_vars = ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET", "SLACK_APP_TOKEN"]
+        # Verify environment variables (no SLACK_APP_TOKEN needed for webhooks)
+        required_vars = ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET"]
         missing_vars = [var for var in required_vars if not os.environ.get(var)]
         
         if missing_vars:
             logger.error(f"Missing required environment variables: {missing_vars}")
             raise ValueError(f"Missing Slack configuration: {missing_vars}")
         
-        try:
-            # Start socket mode handler
-            await self.socket_handler.start_async()
-            logger.info("Slack bot started successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to start Slack bot: {e}")
-            raise
+        logger.info("Slack interface initialized for webhook mode")
+        logger.info("Ready to receive events via webhook endpoints")
     
     async def stop(self):
         """Stop the Slack bot"""
         logger.info("Stopping Slack interface...")
-        try:
-            await self.socket_handler.close_async()
-            logger.info("Slack bot stopped successfully")
-        except Exception as e:
-            logger.error(f"Error stopping Slack bot: {e}")
+        logger.info("Slack interface stopped")
 
-# For standalone running
+    def get_fastapi_handler(self):
+        """Get the FastAPI handler for webhook integration"""
+        return self.handler
+
+# For webhook deployment with FastAPI
+def create_slack_app():
+    """Create Slack interface for FastAPI integration"""
+    slack_interface = SlackInterface()
+    return slack_interface.get_fastapi_handler()
+
+# For standalone testing (webhook simulation)
 if __name__ == "__main__":
     import asyncio
     
@@ -307,7 +493,21 @@ if __name__ == "__main__":
         slack_interface = SlackInterface()
         await slack_interface.start()
         
-        # Keep running
+        print("=" * 60)
+        print("🚀 SLACK WEBHOOK MODE")
+        print("=" * 60)
+        print("Slack interface is ready for webhook events!")
+        print("")
+        print("📝 Next steps:")
+        print("1. Deploy this with FastAPI/uvicorn")
+        print("2. Set up webhook URL in Slack app settings")
+        print("3. Configure event subscriptions")
+        print("")
+        print("Example deployment:")
+        print("  uvicorn slack_webhook_server:app --host 0.0.0.0 --port 8000")
+        print("=" * 60)
+        
+        # Keep alive for testing
         try:
             while True:
                 await asyncio.sleep(1)
