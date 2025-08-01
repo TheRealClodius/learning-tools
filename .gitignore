@@ -5,9 +5,8 @@
 .env.staging
 .env.development
 
-# MemoryOS data - contains conversation history and personal data
-memory_data/
-memoryos/
+# MemoryOS remote server configuration (if using local MCP server)
+# memory_data/ - only needed if running local MCP server
 
 # Python cache files
 __pycache__/

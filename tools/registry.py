@@ -42,7 +42,7 @@ class ToolRegistry:
                 "name": "Search & Research",
                 "description": "Tools for web search and comprehensive research",
                 "icon": "🔍"
-            },
+                        },
                         "communication": {
                             "name": "Communication",
                             "description": "Tools for messaging and team communication",
@@ -500,11 +500,11 @@ async def registry_describe(input_data: Dict[str, Any]) -> Dict[str, Any]:
                         input_schema_data = json.load(f)
                         
                         # Extract the actual schema properties for agent use
-                        agent_schema = {
-                            "type": input_schema_data.get("type", "object"),
-                            "properties": input_schema_data.get("properties", {}),
-                            "required": input_schema_data.get("required", [])
-                        }
+                            agent_schema = {
+                                "type": input_schema_data.get("type", "object"),
+                                "properties": input_schema_data.get("properties", {}),
+                                "required": input_schema_data.get("required", [])
+                            }
                         
                         # Filter out implementation details that are handled automatically
                         implementation_fields = ["appid", "api_key", "auth_token", "authorization"]

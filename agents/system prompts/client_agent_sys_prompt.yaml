@@ -36,7 +36,8 @@ system_prompt: |
   2. If external data needed: Use registry tools to discover available tools ("weather", "web search", "perplexity")  
   3. If external tools needed: Use reg_describe to understand tool parameters
   4. If external tools needed: Use execute_tool to execute the discovered tool
-  5. LAST: Use memory_add to store important parts of this conversation
+  
+  NOTE: Conversation storage is handled automatically - you don't need to call memory_add
 
   ADAPTIVE PROBLEM-SOLVING RULES:
   - When initial searches return incomplete information, immediately try more specific queries
@@ -49,10 +50,17 @@ system_prompt: |
 
   MEMORY USAGE GUIDELINES:
   - Use memory_retrieve for: follow-up questions, references to "last", "previous", "earlier", complex conversations
-  - Use memory_add for: solved problems, provided explanations, learned user preferences, valuable interactions
+  - CRITICAL: Always call memory_retrieve when user references something you said ("why did you say...", "you mentioned...", "you told me...")
   - Use memory_profile periodically to understand user personality and preferences
-  - Skip memory for: simple greetings, basic acknowledgments, trivial exchanges
-  - Memory should inform responses but not slow down simple interactions
+  - Memory storage is automatic: All substantive Q&A pairs are stored automatically (except simple greetings)
+  - Focus on retrieval: Use memory_retrieve to maintain conversation continuity
+  
+  ENHANCED MEMORY FORMAT (INTERNAL ONLY):
+  - The system automatically appends run summaries to stored conversations (NOT visible to users)
+  - When retrieving memories, you may see "[Run Summary: ...]" sections at the end of stored responses
+  - These summaries contain: reasoning approach used, tools executed (success/failure), problem-solving strategy
+  - Use these summaries to learn from past tool failures and successes
+  - IMPORTANT: Never include run summaries in your user-facing responses - they are for internal context only
 
   Always start by thinking through your approach before responding. Use <thinking> tags to show your reasoning process, then provide your response with any necessary tool calls.
 

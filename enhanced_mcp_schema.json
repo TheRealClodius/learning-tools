@@ -1,0 +1,36 @@
+{
+  "tools": [
+    {
+      "name": "contextual_memory_add",
+      "description": "Store memory with automatic context inclusion and structured history",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {"type": "string", "description": "User identifier"},
+          "user_input": {"type": "string", "description": "Current user query"},
+          "agent_response": {"type": "string", "description": "Agent's response"},
+          "system_prompt": {"type": "string", "description": "Current system prompt"},
+          "execution_summary": {"type": "string", "description": "Gemini-generated run summary"},
+          "tools_used": {"type": "array", "items": {"type": "string"}},
+          "errors": {"type": "array", "items": {"type": "string"}},
+          "observations": {"type": "string", "description": "Reasoning approach"}
+        },
+        "required": ["user_id", "user_input", "agent_response"]
+      }
+    },
+    {
+      "name": "contextual_memory_retrieve",
+      "description": "Retrieve memories with full context automatically included",
+      "inputSchema": {
+        "type": "object", 
+        "properties": {
+          "user_id": {"type": "string"},
+          "query": {"type": "string"},
+          "include_recent_context": {"type": "boolean", "default": true},
+          "max_results": {"type": "integer", "default": 5}
+        },
+        "required": ["user_id", "query"]
+      }
+    }
+  ]
+}
