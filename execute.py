@@ -341,56 +341,68 @@ class execute_weather_forecast_output(BaseModel):
 # MEMORY TOOL MODELS (MemoryOS)
 # =============================================================================
 
-class RelationshipType(str, Enum):
-    """Relationship type between agent and user"""
-    friend = "friend"
-    assistant = "assistant"
-    colleague = "colleague"
-    professional = "professional"
-    casual = "casual"
-
-# Memory Add Models
-class execute_memory_add_input(BaseModel):
-    """Input model for adding memories to MemoryOS"""
+# Conversation Memory Models
+class execute_memory_conversation_add_input(BaseModel):
+    """Input model for adding conversation memories to MemoryOS dual memory system"""
+    message_id: str = Field(..., min_length=1, max_length=100, description="Unique identifier for this conversation pair, used to link with execution memory")
     explanation: str = Field(..., description="One sentence explanation of why this memory is being stored")
     user_input: str = Field(..., min_length=1, max_length=10000, description="The user's input, question, or message to be stored")
     agent_response: str = Field(..., min_length=1, max_length=10000, description="The agent's response or reply to the user input")
-    timestamp: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", description="Optional timestamp in YYYY-MM-DD HH:MM:SS format")
-    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata about the conversation context")
+    timestamp: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", description="Optional timestamp in ISO 8601 format (auto-generated if not provided)")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata about the conversation context (platform, importance, etc.)")
 
-class execute_memory_add_output(BaseModel):
-    """Output model for memory add operation"""
+class execute_memory_conversation_add_output(BaseModel):
+    """Output model for conversation memory add operation"""
     success: bool = Field(..., description="Whether the memory addition was successful")
     message: str = Field(..., description="Human-readable result message")
     data: Dict[str, Any] = Field(..., description="Operation result details")
 
-# Memory Retrieve Models
-class execute_memory_retrieve_input(BaseModel):
-    """Input model for retrieving memories from MemoryOS"""
+class execute_memory_conversation_retrieve_input(BaseModel):
+    """Input model for retrieving conversation memories from MemoryOS dual memory system"""
     explanation: str = Field(..., description="One sentence explanation of why this memory retrieval is being performed")
-    query: str = Field(..., min_length=1, max_length=2000, description="The search query to find relevant memories and context")
-    relationship_with_user: RelationshipType = Field(default=RelationshipType.friend, description="The relationship context between agent and user")
-    style_hint: Optional[str] = Field(default="", max_length=500, description="Optional style hint for how retrieved memories should be contextualized")
+    query: str = Field(..., min_length=1, max_length=4000, description="The search query to find relevant memories and context")
+    message_id: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Unique identifier linking conversation and execution memories for this interaction")
+    time_range: Optional[Dict[str, str]] = Field(default=None, description="Optional time range to filter conversations with start and end datetime strings")
     max_results: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return from each memory type")
 
-class execute_memory_retrieve_output(BaseModel):
-    """Output model for memory retrieval operation"""
-    success: bool = Field(..., description="Whether the memory retrieval was successful")
+class execute_memory_conversation_retrieve_output(BaseModel):
+    """Output model for conversation memory retrieval operation"""
+    success: bool = Field(..., description="Whether the conversation retrieval was successful")
     message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Comprehensive memory retrieval results")
+    data: Dict[str, Any] = Field(..., description="Retrieved conversations with linking information")
 
-# Memory Profile Models
-class execute_memory_profile_input(BaseModel):
-    """Input model for getting user profile from MemoryOS"""
-    explanation: str = Field(..., description="One sentence explanation of why the user profile is being requested")
-    include_knowledge: bool = Field(default=True, description="Whether to include user-specific knowledge entries")
-    include_assistant_knowledge: bool = Field(default=False, description="Whether to include assistant knowledge base entries")
+# Execution Memory Models
+class execute_memory_execution_add_input(BaseModel):
+    """Input model for adding execution memories to MemoryOS dual memory system"""
+    message_id: str = Field(..., min_length=1, max_length=100, description="Unique identifier linking this execution to its conversation pair")
+    explanation: str = Field(..., description="One sentence explanation of why this execution memory is being stored")
+    execution_summary: str = Field(..., min_length=1, max_length=2000, description="High-level summary of what was executed and accomplished")
+    tools_used: List[str] = Field(..., description="List of tools that were executed, in chronological order")
+    errors: List[Dict[str, str]] = Field(..., description="Any errors that occurred during execution")
+    observations: str = Field(..., max_length=5000, description="Reasoning approach, problem-solving strategy, and key insights from execution")
+    success: bool = Field(..., description="Whether the overall execution was successful")
+    duration_ms: Optional[int] = Field(default=None, ge=0, description="How long the execution took in milliseconds")
+    timestamp: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", description="When this execution happened (ISO 8601 format)")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata about the execution context")
 
-class execute_memory_profile_output(BaseModel):
-    """Output model for user profile retrieval"""
-    success: bool = Field(..., description="Whether the profile retrieval was successful")
+class execute_memory_execution_add_output(BaseModel):
+    """Output model for execution memory add operation"""
+    success: bool = Field(..., description="Whether the execution memory addition was successful")
     message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="User profile and knowledge information")
+    data: Dict[str, Any] = Field(..., description="Operation result details")
+
+class execute_memory_execution_retrieve_input(BaseModel):
+    """Input model for retrieving execution memories from MemoryOS dual memory system"""
+    explanation: str = Field(..., description="One sentence explanation of why this execution retrieval is being performed")
+    query: str = Field(..., min_length=1, max_length=4000, description="Search query for execution patterns to learn from")
+    message_id: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Specific message ID to get execution details for a specific user prompt and agent response pair")
+    max_results: int = Field(default=10, ge=1, le=50, description="Maximum number of execution records to return")
+
+class execute_memory_execution_retrieve_output(BaseModel):
+    """Output model for execution memory retrieval operation"""
+    success: bool = Field(..., description="Whether the execution retrieval was successful")
+    message: str = Field(..., description="Human-readable result message")
+    data: Dict[str, Any] = Field(..., description="Retrieved execution records containing actionable insights and patterns")
 
 # =============================================================================
 # UTILITY FUNCTIONS

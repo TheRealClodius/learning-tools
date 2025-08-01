@@ -37,9 +37,11 @@ class ToolExecutor:
                 "perplexity.research": "tools.perplexity:perplexity_research"
             },
             "memory": {
-                "memory.add": "tools.memory:memory_add",
-                "memory.retrieve": "tools.memory:memory_retrieve",
-                "memory.profile": "tools.memory:memory_profile"
+                # Dual memory system functions
+                "memory.conversation.add": "tools.memory:conversation_add",
+                "memory.conversation.retrieve": "tools.memory:conversation_retrieve",
+                "memory.execution.add": "tools.memory:execution_add",
+                "memory.execution.retrieve": "tools.memory:execution_retrieve"
             },
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
@@ -78,19 +80,21 @@ class ToolExecutor:
         """Load memory tools that are always available"""
         try:
             from tools.memory import (
-                memory_add,
-                memory_retrieve,
-                memory_profile
+                conversation_add,
+                conversation_retrieve,
+                execution_add,
+                execution_retrieve
             )
             
             self.available_tools.update({
-                "memory.add": memory_add,
-                "memory.retrieve": memory_retrieve,
-                "memory.profile": memory_profile
+                "memory.conversation.add": conversation_add,
+                "memory.conversation.retrieve": conversation_retrieve,
+                "memory.execution.add": execution_add,
+                "memory.execution.retrieve": execution_retrieve
             })
             
             self.loaded_services.add("memory")
-            logger.info("Memory tools loaded successfully")
+            logger.info("Dual memory system tools loaded successfully")
             
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
