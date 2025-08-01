@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Execution Memory Retrieve Output",
+  "description": "Execution memory results providing actionable insights for similar future tasks. Contains tools that were used, errors encountered, reasoning approaches, and success patterns to inform current problem-solving.",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the execution retrieval was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "error"],
+          "description": "Operation status"
+        },
+        "query": {
+          "type": "string",
+          "description": "The original search query"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Echo of the explanation provided in the request"
+        },
+        "query_type": {
+          "type": "string",
+          "enum": ["general", "specific_message", "pattern_search"],
+          "description": "Type of execution query performed"
+        },
+        "requested_message_id": {
+          "type": "string",
+          "description": "Message ID that was specifically requested, if any"
+        },
+        "retrieval_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this retrieval was performed (ISO 8601)"
+        },
+        "executions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Message ID linking back to conversation memory"
+              },
+              "execution_timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When this execution happened"
+              },
+              "execution_details": {
+                "type": "object",
+                "properties": {
+                  "execution_summary": {
+                    "type": "string",
+                    "description": "High-level summary of what was accomplished - use this to understand the overall approach and outcome"
+                  },
+                  "tools_used": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Specific tools that were executed - learn which tools are effective for similar tasks. These should be organised chronologically by the order in which they were used."
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "error_type": {"type": "string"},
+                        "error_message": {"type": "string"},
+                        "tool": {"type": "string"}
+                      }
+                    },
+                    "description": "Errors encountered during execution - learn what to avoid and how to handle failures"
+                  },
+                  "observations": {
+                    "type": "string",
+                    "description": "Reasoning approach and problem-solving insights - learn the thinking process behind successful solutions or important observations to avoid future mistakes"
+                  }
+                },
+                "required": ["execution_summary", "tools_used", "errors", "observations"]
+              },
+              "success": {
+                "type": "boolean",
+                "description": "Whether the overall execution was successful"
+              },
+              "duration_ms": {
+                "type": "integer",
+                "description": "How long the execution took in milliseconds"
+              },
+              "relevance_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "How relevant this execution is to the search query"
+              }
+            },
+            "required": ["message_id", "execution_timestamp", "execution_details", "success", "duration_ms"]
+          },
+          "description": "Retrieved execution records containing actionable insights and patterns for future task execution"
+        },
+        "total_found": {
+          "type": "integer",
+          "description": "Total execution records matching criteria"
+        },
+        "returned_count": {
+          "type": "integer",
+          "description": "Number returned (limited by max_results)"
+        },
+        "max_results_applied": {
+          "type": "boolean",
+          "description": "Whether results were limited by max_results parameter"
+        }
+      },
+      "required": ["status", "query", "explanation", "query_type", "retrieval_timestamp", "executions", "total_found", "returned_count", "max_results_applied"]
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 

@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Conversation Memory Retrieve Input", 
+  "description": "Retrieve relevant memories and context from MemoryOS based on a user query or task to get the user prompt and agent response pair. Searches across short-term conversations, mid-term contextual sessions, and long-term user knowledge to provide comprehensive historical context for informed responses. Use this to gain more context about the current conversation or to answer a question about the user's past. This conversation pair is connected to an execution memory by matching the message_id, so you can get more insight into how that specific past task was solved",
+  "type": "object",
+  "properties": {
+
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Unique identifier linking conversation and execution memories for this interaction. Optional for general queries like <What did we discuss about Python?> and required for linked queries like <Show me the execution details for message ABC123>"
+    },
+
+    "time_range": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Find conversations after this time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Find conversations before this time"
+        }
+      },
+      "description": "Optional time range to filter conversations. If not provided, searches all time periods."
+    },
+
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this memory retrieval is being performed"
+    },
+
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "The search query to find relevant memories and context"
+    },
+
+    "max_results": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10,
+      "description": "Maximum number of results to return from each memory type"
+    }
+  },
+
+  "required": ["explanation", "query"],
+  "additionalProperties": false
+} 

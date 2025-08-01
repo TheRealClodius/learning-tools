@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Execution Memory Retrieve Input",
+  "description": "Retrieve execution details to learn from past problem-solving approaches. Use this to understand: how similar tasks were solved, what tools worked/failed, error patterns to avoid, and successful reasoning strategies. Essential for building context about execution patterns and improving future task performance.",
+  "type": "object",
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Specific message ID to get execution details for a specific user prompt and agent response pair. This is how you match execution memories to conversation memories. Optional for pattern searches, required for specific execution lookups."
+    },
+    "explanation": {
+      "type": "string",
+      "description": "One sentence explanation of why this execution retrieval is being performed"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "Search query for execution patterns to learn from (e.g. 'weather tool usage', 'error handling strategies', 'successful debugging approaches', 'API integration patterns')"
+    },
+    "max_results": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10,
+      "description": "Maximum number of execution records to return"
+    }
+  },
+  "required": ["explanation", "query"],
+  "additionalProperties": false
+} 

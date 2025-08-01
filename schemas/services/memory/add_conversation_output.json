@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Memory Add Output",
+  "title": "Conversation Memory Add Output",
   "description": "Result of storing a conversation pair in MemoryOS with details about the operation success and memory processing status.",
   "type": "object",
   "properties": {
@@ -20,24 +20,21 @@
           "enum": ["success", "error"],
           "description": "Operation status"
         },
+        "message_id": {
+          "type": "string",
+          "description": "Unique identifier for the stored conversation pair"
+        },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp when the memory was stored"
+          "format": "date-time",
+          "description": "When the conversation was stored (ISO 8601)"
         },
         "details": {
           "type": "object",
           "properties": {
-            "user_input_length": {
-              "type": "integer",
-              "description": "Length of the user input text"
-            },
-            "agent_response_length": {
-              "type": "integer", 
-              "description": "Length of the agent response text"
-            },
             "has_meta_data": {
               "type": "boolean",
-              "description": "Whether metadata was provided"
+              "description": "Whether metadata was provided and stored with this conversation"
             },
             "memory_processing": {
               "type": "string",
@@ -46,7 +43,7 @@
           }
         }
       },
-      "required": ["status", "timestamp"]
+      "required": ["status", "message_id", "timestamp"]
     }
   },
   "required": ["success", "message", "data"],

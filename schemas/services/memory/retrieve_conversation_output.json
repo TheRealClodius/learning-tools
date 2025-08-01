@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Conversation Memory Retrieve Output",
+  "description": "Results from conversation memory retrieval with user prompts and agent responses, linked to execution memories via message_id",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the conversation retrieval was successful"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable result message"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "error"],
+          "description": "Operation status"
+        },
+        "query": {
+          "type": "string",
+          "description": "The original search query"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Echo of the explanation provided in the request"
+        },
+        "query_type": {
+          "type": "string",
+          "enum": ["general", "specific_message", "time_filtered"],
+          "description": "Type of query performed"
+        },
+        "requested_message_id": {
+          "type": "string",
+          "description": "Message ID that was specifically requested, if any"
+        },
+        "retrieval_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this retrieval was performed (ISO 8601)"
+        },
+        "time_range": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "description": "Time range filter used, if any"
+        },
+        "conversations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "description": "Unique ID linking to execution memory"
+              },
+              "conversation_timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When this conversation happened"
+              },
+              "user_input": {
+                "type": "string",
+                "description": "User's question or prompt"
+              },
+              "agent_response": {
+                "type": "string",
+                "description": "Agent's response"
+              },
+              "meta_data": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Metadata about the conversation context that was stored (platform, importance, etc.)"
+              },
+              "has_execution_memory": {
+                "type": "boolean",
+                "description": "Whether execution memory exists for this message_id"
+              },
+              "relevance_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Relevance to the search query"
+              }
+            },
+            "required": ["message_id", "conversation_timestamp", "user_input", "agent_response", "meta_data", "has_execution_memory"]
+          },
+          "description": "Retrieved conversation pairs"
+        },
+        "total_found": {
+          "type": "integer",
+          "description": "Total conversations matching criteria"
+        },
+        "returned_count": {
+          "type": "integer",
+          "description": "Number returned (limited by max_results)"
+        },
+        "max_results_applied": {
+          "type": "boolean",
+          "description": "Whether results were limited by max_results parameter"
+        }
+      },
+      "required": ["status", "query", "explanation", "query_type", "retrieval_timestamp", "conversations", "total_found", "returned_count", "max_results_applied"]
+    }
+  },
+  "required": ["success", "message", "data"],
+  "additionalProperties": false
+} 
