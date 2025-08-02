@@ -608,8 +608,8 @@ class SlackInterface:
         logger.info(f"Found all <> patterns: {all_mentions}")
         
         # Find all user mentions - more flexible pattern to handle different formats
-        # Slack can send <@U123456789>, <@U123456789|username>, or other variants
-        user_mentions = re.findall(r'<@(U[A-Z0-9]+)(?:\|([^>]+))?>', text)
+        # Slack can send <@U123456789>, <@WLZK08431>, or other variants - not all start with U!
+        user_mentions = re.findall(r'<@([A-Z0-9]+)(?:\|([^>]+))?>', text)
         logger.info(f"Found user mentions: {user_mentions}")
         
         # Additional debug: try broader pattern
