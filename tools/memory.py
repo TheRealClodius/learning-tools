@@ -94,7 +94,7 @@ def _get_mcp_client() -> McpMemoryClient:
 # DUAL MEMORY SYSTEM FUNCTIONS
 # =============================================================================
 
-async def conversation_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def conversation_add(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Store a conversation pair in MemoryOS dual memory system via MCP
     
@@ -124,22 +124,27 @@ async def conversation_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 }
         
-        # Prepare MCP parameters - user_id injected by client
+        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        if not user_id:
+            raise ValueError("user_id is required for memory operations - cannot store conversations without user identification")
+        
         mcp_params = {
             "arguments": {
-                "user_id": client.user_id,  # Injected at transport layer
-                "message_id": input_data["message_id"],
-                "explanation": input_data["explanation"],
-                "user_input": input_data["user_input"],
-                "agent_response": input_data["agent_response"]
+                "params": {
+                    "user_id": user_id,
+                    "message_id": input_data["message_id"],
+                    "explanation": input_data["explanation"],
+                    "user_input": input_data["user_input"],
+                    "agent_response": input_data["agent_response"]
+                }
             }
         }
         
         # Optional fields
         if input_data.get("timestamp"):
-            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
+            mcp_params["arguments"]["params"]["timestamp"] = input_data["timestamp"]
         if input_data.get("meta_data"):
-            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
+            mcp_params["arguments"]["params"]["meta_data"] = input_data["meta_data"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -197,13 +202,14 @@ async def conversation_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-async def conversation_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def conversation_retrieve(input_data: Dict[str, Any], user_id: str = None) -> Dict[str, Any]:
     """
     Retrieve conversation memories from MemoryOS dual memory system via MCP
     
     Args:
         input_data: Dictionary with explanation, query, message_id (optional), 
                    time_range (optional), max_results (optional)
+        user_id: Dynamic user ID to use (overrides client default)
         
     Returns:
         Dictionary with retrieved conversations matching retrieve_conversation_output.json schema
@@ -233,21 +239,28 @@ async def conversation_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 }
         
-        # Prepare MCP parameters - user_id injected by client
+        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        if not user_id:
+            raise ValueError("user_id is required for memory operations - cannot retrieve conversations without user identification")
+        
+        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Using user_id='{user_id}' (explicit)")
+        
         mcp_params = {
             "arguments": {
-                "user_id": client.user_id,  # Injected at transport layer
-                "explanation": input_data["explanation"],
-                "query": input_data["query"],
-                "max_results": input_data.get("max_results", 10)
+                "params": {
+                    "user_id": user_id,
+                    "explanation": input_data["explanation"],
+                    "query": input_data["query"],
+                    "max_results": input_data.get("max_results", 10)
+                }
             }
         }
         
         # Optional fields
         if input_data.get("message_id"):
-            mcp_params["arguments"]["message_id"] = input_data["message_id"]
+            mcp_params["arguments"]["params"]["message_id"] = input_data["message_id"]
         if input_data.get("time_range"):
-            mcp_params["arguments"]["time_range"] = input_data["time_range"]
+            mcp_params["arguments"]["params"]["time_range"] = input_data["time_range"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -333,7 +346,7 @@ async def conversation_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-async def execution_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def execution_add(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Store execution details in MemoryOS dual memory system via MCP
     
@@ -374,28 +387,33 @@ async def execution_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 }
         
-        # Prepare MCP parameters - user_id injected by client, flat structure
+        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        if not user_id:
+            raise ValueError("user_id is required for memory operations - cannot store executions without user identification")
+        
         mcp_params = {
             "arguments": {
-                "user_id": client.user_id,  # Injected at transport layer
-                "message_id": input_data["message_id"],
-                "explanation": input_data["explanation"],
-                # Flat structure for better LLM processing
-                "execution_summary": input_data["execution_summary"],
-                "tools_used": input_data["tools_used"],
-                "errors": input_data["errors"],
-                "observations": input_data["observations"],
-                "success": input_data["success"]
+                "params": {
+                    "user_id": user_id,
+                    "message_id": input_data["message_id"],
+                    "explanation": input_data["explanation"],
+                    # Flat structure for better LLM processing
+                    "execution_summary": input_data["execution_summary"],
+                    "tools_used": input_data["tools_used"],
+                    "errors": input_data["errors"],
+                    "observations": input_data["observations"],
+                    "success": input_data["success"]
+                }
             }
         }
         
         # Optional fields
         if input_data.get("duration_ms") is not None:
-            mcp_params["arguments"]["duration_ms"] = input_data["duration_ms"]
+            mcp_params["arguments"]["params"]["duration_ms"] = input_data["duration_ms"]
         if input_data.get("timestamp"):
-            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
+            mcp_params["arguments"]["params"]["timestamp"] = input_data["timestamp"]
         if input_data.get("meta_data"):
-            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
+            mcp_params["arguments"]["params"]["meta_data"] = input_data["meta_data"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -454,13 +472,14 @@ async def execution_add(input_data: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-async def execution_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def execution_retrieve(input_data: Dict[str, Any], user_id: str = None) -> Dict[str, Any]:
     """
     Retrieve execution memories from MemoryOS dual memory system via MCP
     
     Args:
         input_data: Dictionary with explanation, query, message_id (optional), 
                    max_results (optional)
+        user_id: Dynamic user ID to use (overrides client default)
         
     Returns:
         Dictionary with retrieved executions matching retrieve_execution_output.json schema
@@ -490,19 +509,26 @@ async def execution_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 }
         
-        # Prepare MCP parameters - user_id injected by client
+        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        if not user_id:
+            raise ValueError("user_id is required for memory operations - cannot retrieve executions without user identification")
+        
+        logger.info(f"MEMORY-EXECUTION-RETRIEVE: Using user_id='{user_id}' (explicit)")
+        
         mcp_params = {
             "arguments": {
-                "user_id": client.user_id,  # Injected at transport layer
-                "explanation": input_data["explanation"],
-                "query": input_data["query"],
-                "max_results": input_data.get("max_results", 10)
+                "params": {
+                    "user_id": user_id,
+                    "explanation": input_data["explanation"],
+                    "query": input_data["query"],
+                    "max_results": input_data.get("max_results", 10)
+                }
             }
         }
         
         # Optional fields
         if input_data.get("message_id"):
-            mcp_params["arguments"]["message_id"] = input_data["message_id"]
+            mcp_params["arguments"]["params"]["message_id"] = input_data["message_id"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -627,9 +653,11 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
         # Prepare MCP parameters - only what MCP server expects
         mcp_params = {
             "arguments": {
-                "user_id": client.user_id,  # Required by MCP server
-                "include_knowledge": input_data.get("include_knowledge", True),
-                "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
+                "params": {
+                    "user_id": client.user_id,  # Required by MCP server
+                    "include_knowledge": input_data.get("include_knowledge", True),
+                    "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
+                }
             }
         }
         

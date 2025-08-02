@@ -9,6 +9,7 @@ import anthropic
 import logging
 import os
 import time
+import uuid
 from typing import Dict, Any, Optional
 import asyncio
 from dotenv import load_dotenv
@@ -130,40 +131,7 @@ class ClientAgent:
                     "required": ["explanation"]
                 }
             },
-            {
-                "name": "memory_conversation_add",
-                "description": "Store a conversation pair (user input and agent response) in MemoryOS dual memory system for building persistent dialogue history. Links to execution memory via message_id.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "message_id": {
-                            "type": "string",
-                            "description": "Unique identifier for this conversation pair, used to link with execution memory"
-                        },
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this memory is being stored"
-                        },
-                        "user_input": {
-                            "type": "string",
-                            "description": "The user's input, question, or message to be stored"
-                        },
-                        "agent_response": {
-                            "type": "string",
-                            "description": "The agent's response or reply to the user input"
-                        },
-                        "timestamp": {
-                            "type": "string",
-                            "description": "Optional timestamp in ISO 8601 format (auto-generated if not provided)"
-                        },
-                        "meta_data": {
-                            "type": "object",
-                            "description": "Optional metadata about the conversation context (platform, importance, etc.)"
-                        }
-                    },
-                    "required": ["message_id", "explanation", "user_input", "agent_response"]
-                }
-            },
+
             {
                 "name": "memory_conversation_retrieve",
                 "description": "Retrieve conversation memories from MemoryOS dual memory system to get user prompts and agent responses with execution linking info.",
@@ -194,56 +162,7 @@ class ClientAgent:
                     "required": ["explanation", "query"]
                 }
             },
-            {
-                "name": "memory_execution_add",
-                "description": "Store execution details (tools used, errors, reasoning, observations) in MemoryOS dual memory system. Links to conversation memory via message_id.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "message_id": {
-                            "type": "string",
-                            "description": "Unique identifier linking this execution to its conversation pair"
-                        },
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this execution memory is being stored"
-                        },
-                        "execution_details": {
-                            "type": "object",
-                            "properties": {
-                                "execution_summary": {
-                                    "type": "string",
-                                    "description": "High-level summary of what was executed and accomplished"
-                                },
-                                "tools_used": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "List of tools that were executed, in chronological order"
-                                },
-                                "errors": {
-                                    "type": "array",
-                                    "items": {"type": "object"},
-                                    "description": "Any errors that occurred during execution"
-                                },
-                                "observations": {
-                                    "type": "string",
-                                    "description": "Reasoning approach, problem-solving strategy, and key insights"
-                                }
-                            },
-                            "required": ["execution_summary", "tools_used", "errors", "observations"]
-                        },
-                        "success": {
-                            "type": "boolean",
-                            "description": "Whether the overall execution was successful"
-                        },
-                        "duration_ms": {
-                            "type": "integer",
-                            "description": "How long the execution took in milliseconds"
-                        }
-                    },
-                    "required": ["message_id", "explanation", "execution_details", "success"]
-                }
-            },
+
             {
                 "name": "memory_execution_retrieve",
                 "description": "Retrieve execution memories from MemoryOS dual memory system to learn from past problem-solving approaches, tools used, and error patterns.",
@@ -421,11 +340,15 @@ class ClientAgent:
     async def run_agent_loop(self, user_message: str, streaming_callback=None, user_id: Optional[str] = None) -> str:
         """Run the agent loop with iterative tool calling"""
         # Enhanced prompt assembly from local buffer
-        user_id = user_id or "default_user"
+        if not user_id:
+            raise ValueError("user_id is required for agent processing - cannot proceed without user identification")
         
         # DEBUG: Log buffer system usage
         logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
         logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
+        
+        if streaming_callback:
+            await streaming_callback("Assembling context from conversation history...", "memory")
         
         enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
         
@@ -440,6 +363,9 @@ class ClientAgent:
         
         for iteration in range(max_iterations):
             logger.info(f"Agent iteration {iteration + 1}")
+            
+            if streaming_callback:
+                await streaming_callback(f"Agent iteration {iteration + 1}", "status")
             
             # Generate response using Claude
             loop = asyncio.get_event_loop()
@@ -506,9 +432,9 @@ class ClientAgent:
             
             for tool_call in tool_calls:
                 if streaming_callback:
-                    await streaming_callback(f"🔧 Executing {tool_call.name}...", "thinking")
+                    await streaming_callback(tool_call.name, "tool_start")
                 
-                result = await self._execute_claude_tool(tool_call, streaming_callback)
+                result = await self._execute_claude_tool(tool_call, streaming_callback, user_id)
                 
                 # Log tool usage for run summary
                 tool_usage_log.append({
@@ -528,7 +454,7 @@ class ClientAgent:
                 # All execution is handled dynamically by tool_executor
                 
                 if streaming_callback:
-                    await streaming_callback(f"📋 Got result: {str(result)[:100]}...", "thinking")
+                    await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
             
             # Add tool results to conversation
             messages.append({"role": "user", "content": tool_results})
@@ -541,8 +467,14 @@ class ClientAgent:
         # ALWAYS store conversation and update buffer (regardless of tool usage or max iterations)
         logger.info(f"CONTROL-FLOW: Storing memory and updating buffer - Response: {final_response[:100]}...")
         
+        if streaming_callback:
+            await streaming_callback("Storing conversation to memory...", "memory")
+        
         # 1. Store Q&A pair to MemoryOS (immediate)
         message_id = await self._store_conversation_memory(user_message, final_response, user_id)
+        
+        if streaming_callback:
+            await streaming_callback("Updating local conversation buffer...", "memory")
         
         # 2. Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
@@ -580,7 +512,7 @@ class ClientAgent:
                         "auto_stored": True,
                         "user_id": user_id
                     }
-                })
+                }, user_id=user_id)
                 logger.info(f"CONVERSATION-MEMORY: Successfully stored Q&A pair for user {user_id}")
                 return message_id  # Return for linking execution memory
                 
@@ -715,7 +647,7 @@ Generate summary:"""
                     await streaming_callback(line, "thinking")
                     await asyncio.sleep(0.3)  # Brief pause between thoughts
     
-    async def _execute_claude_tool(self, tool_use_block, streaming_callback=None) -> str:
+    async def _execute_claude_tool(self, tool_use_block, streaming_callback=None, user_id: str = None) -> str:
         """Execute a Claude tool call and return the result"""
         try:
             function_name = tool_use_block.name
@@ -723,30 +655,43 @@ Generate summary:"""
             
             logger.info(f"Executing Claude tool: {function_name}, Args: {args}")
             
+            if streaming_callback:
+                await streaming_callback(f"Running {function_name} with args: {str(args)[:100]}...", "tool_details")
+            
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
+                if streaming_callback:
+                    await streaming_callback(f"Searching registry for: {args.get('query', 'N/A')}", "operation")
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args)
             elif function_name == "reg_describe":
+                if streaming_callback:
+                    await streaming_callback(f"Getting tool details for: {args.get('tool_name', 'N/A')}", "operation")
                 args.setdefault("include_schema", True)
                 result = await self.tool_executor.execute_command("reg.describe", args)
             elif function_name == "reg_list":
+                if streaming_callback:
+                    await streaming_callback("Listing all available tools", "operation")
                 args.setdefault("limit", 50)
                 result = await self.tool_executor.execute_command("reg.list", args)
             elif function_name == "reg_categories":
+                if streaming_callback:
+                    await streaming_callback("Getting tool categories", "operation")
                 result = await self.tool_executor.execute_command("reg.categories", args)
-            elif function_name == "memory_conversation_add":
-                result = await self.tool_executor.execute_command("memory.conversation.add", args)
             elif function_name == "memory_conversation_retrieve":
+                if streaming_callback:
+                    await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.conversation.retrieve", args)
-            elif function_name == "memory_execution_add":
-                result = await self.tool_executor.execute_command("memory.execution.add", args)
+                result = await self.tool_executor.execute_command("memory.conversation.retrieve", args, user_id=user_id)
             elif function_name == "memory_execution_retrieve":
+                if streaming_callback:
+                    await streaming_callback(f"Retrieving execution memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.execution.retrieve", args)
+                result = await self.tool_executor.execute_command("memory.execution.retrieve", args, user_id=user_id)
             elif function_name == "memory_get_profile":
+                if streaming_callback:
+                    await streaming_callback("Getting user profile from memory", "memory")
                 args.setdefault("include_knowledge", True)
                 args.setdefault("include_assistant_knowledge", False)
                 result = await self.tool_executor.execute_command("memory.get_profile", args)
@@ -755,11 +700,36 @@ Generate summary:"""
                 tool_name = args["tool_name"]
                 tool_args = args.get("tool_args", {})
                 
+                if streaming_callback:
+                    await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
+                
                 result = await self.tool_executor.execute_command(tool_name, tool_args)
             else:
-                return f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_add, memory_conversation_retrieve, memory_execution_add, memory_execution_retrieve, memory_get_profile, execute_tool"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_execution_retrieve, memory_get_profile, execute_tool"
+                if streaming_callback:
+                    await streaming_callback(f"ERROR: {error_msg}", "error")
+                return error_msg
             
             logger.info(f"Tool executor result: {result}")
+            
+            # Stream the result details
+            if streaming_callback:
+                if isinstance(result, dict):
+                    success = result.get("success", False)
+                    message = result.get("message", "No message")
+                    if success:
+                        await streaming_callback(f"✅ {function_name} succeeded: {message}", "result")
+                        # Also stream key data if available
+                        data = result.get("data", {})
+                        if isinstance(data, dict):
+                            if "total_results" in data:
+                                await streaming_callback(f"Found {data['total_results']} results", "result_detail")
+                            elif "answer" in data:
+                                await streaming_callback(f"Got answer: {str(data['answer'])[:100]}...", "result_detail")
+                    else:
+                        await streaming_callback(f"❌ {function_name} failed: {message}", "error")
+                else:
+                    await streaming_callback(f"Got result: {str(result)[:150]}...", "result")
             
             # Return JSON-serializable result
             if isinstance(result, dict):
@@ -802,45 +772,60 @@ Generate summary:"""
         buffer = self.user_buffers.get(user_id, {})
         context_parts = [user_message]
         
-        # Add previous Q&A context if available
+        # Prioritize context based on relevance and recency
         conversations = buffer.get('conversations', [])
-        if conversations:
-            context_parts.append("\n=== PREVIOUS Q&A ===")
-            last_conv = conversations[-1]  # Most recent conversation
-            context_parts.append(f"Previous Q: {last_conv['user_input']}")
-            context_parts.append(f"Previous A: {last_conv['agent_response']}")
-        
-        # Add execution context if available (async processing may have completed)
         executions = buffer.get('executions', [])
-        if executions:
-            context_parts.append("\n=== EXECUTION CONTEXT ===")
-            last_exec = executions[-1]  # Most recent execution
-            if last_exec.get('tools_used'):
-                context_parts.append(f"Tools used: {', '.join(last_exec['tools_used'])}")
-            if last_exec.get('execution_summary'):
-                context_parts.append(f"Summary: {last_exec['execution_summary']}")
-            if last_exec.get('observations'):
-                context_parts.append(f"Observations: {last_exec['observations']}")
-        
-        # Add recent flow summary if available
         recent_flow = buffer.get('recent_flow', {})
-        if recent_flow.get('summary'):
-            context_parts.append("\n=== RECENT FLOW ===")
-            context_parts.append(f"Pattern: {recent_flow['summary']}")
-            context_parts.append(f"Conversations: {recent_flow.get('conversation_count', 0)}")
-        
-        # Add important highlights if available
         important = buffer.get('important', {})
-        if important:
-            context_parts.append("\n=== IMPORTANT HIGHLIGHTS ===")
-            # Show most recent important items
+        
+        # Only add context if it's meaningful and recent
+        context_weight = 0
+        
+        # Add most recent conversation (high priority)
+        if conversations:
+            last_conv = conversations[-1]
+            # Only include if recent (within last hour)
+            if time.time() - last_conv.get('timestamp', 0) < 3600:
+                context_parts.append("\n=== RECENT CONTEXT ===")
+                context_parts.append(f"Previous: {last_conv['user_input'][:100]}{'...' if len(last_conv['user_input']) > 100 else ''}")
+                context_parts.append(f"Response: {last_conv['agent_response'][:150]}{'...' if len(last_conv['agent_response']) > 150 else ''}")
+                context_weight += 1
+        
+        # Add execution summary only if tools were used (medium priority)
+        if executions and context_weight < 2:
+            last_exec = executions[-1]
+            if last_exec.get('tools_used'):
+                context_parts.append("\n=== TOOLS USED ===")
+                context_parts.append(f"Recent tools: {', '.join(last_exec['tools_used'][:3])}")
+                if last_exec.get('execution_summary'):
+                    context_parts.append(f"Summary: {last_exec['execution_summary'][:200]}...")
+                context_weight += 1
+        
+        # Add flow pattern only if established (low priority)
+        if recent_flow.get('summary') and context_weight < 2:
+            context_parts.append("\n=== INTERACTION PATTERN ===")
+            context_parts.append(f"Recent pattern: {recent_flow['summary'][:200]}...")
+            context_weight += 0.5
+        
+        # Add only most critical important items (high priority)
+        if important and context_weight < 2:
             sorted_important = sorted(
                 important.items(), 
                 key=lambda x: x[1]['timestamp'], 
                 reverse=True
             )
-            for note_id, note_data in sorted_important[:3]:  # Show top 3 most recent
-                context_parts.append(f"• {note_data['notes']}")
+            # Only show if very recent (within last 30 minutes)
+            recent_important = [
+                item for item in sorted_important 
+                if time.time() - item[1]['timestamp'] < 1800
+            ]
+            
+            if recent_important:
+                context_parts.append("\n=== KEY POINTS ===")
+                for note_id, note_data in recent_important[:2]:  # Only top 2 most recent
+                    notes_text = note_data['notes'][:150] + ('...' if len(note_data['notes']) > 150 else '')
+                    context_parts.append(f"• {notes_text}")
+                context_weight += 1
         
         enriched_message = "\n".join(context_parts)
         logger.info(f"PROMPT-ASSEMBLY: Assembled {len(context_parts)-1} context sections for user {user_id}")
@@ -970,7 +955,7 @@ Generate summary:"""
                 "observations": f"Used {reasoning_approach} approach with {len(tool_usage_log)} tool(s) and {len(thinking_content)} thinking blocks",
                 "success": len(tool_failures) == 0,
                 "duration_ms": duration_ms
-            })
+            }, user_id=user_id)
             
             # Update buffer execution entry with generated summary
             if user_id in self.user_buffers and self.user_buffers[user_id]['executions']:
@@ -1018,7 +1003,7 @@ Generate summary:"""
             
             if not api_key:
                 logger.warning("RECENT-FLOW: GEMINI_API_KEY not set, using fallback summary")
-                recent_flow_summary = f"Recent pattern: {len(conversations)} conversations with {len(executions)} tool executions"
+                recent_flow_summary = self._generate_fallback_flow_summary(conversations, executions)
             else:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -1040,8 +1025,12 @@ Format: Natural language summary focusing on flow and patterns, not individual d
 
 Generate summary:"""
 
-                response = model.generate_content(prompt)
-                recent_flow_summary = response.text.strip().replace('\n', ' ')
+                try:
+                    response = model.generate_content(prompt)
+                    recent_flow_summary = response.text.strip().replace('\n', ' ')
+                except Exception as gemini_error:
+                    logger.warning(f"RECENT-FLOW: Gemini API failed ({gemini_error}), using fallback")
+                    recent_flow_summary = self._generate_fallback_flow_summary(conversations, executions)
             
             # Update buffer
             self.user_buffers[user_id]['recent_flow'] = {
@@ -1056,6 +1045,60 @@ Generate summary:"""
             logger.error(f"RECENT-FLOW: Failed to update recent flow for user {user_id}: {e}")
             import traceback
             logger.error(f"RECENT-FLOW: Traceback: {traceback.format_exc()}")
+    
+    def _generate_fallback_flow_summary(self, conversations: list, executions: list) -> str:
+        """Generate a simple flow summary without using Gemini API"""
+        if not conversations:
+            return "No conversation history available"
+        
+        # Analyze conversation patterns
+        recent_convs = conversations[-3:]  # Last 3 conversations
+        topics = []
+        
+        for conv in recent_convs:
+            user_input = conv.get('user_input', '').lower()
+            
+            # Extract key topics based on common patterns
+            if any(word in user_input for word in ['weather', 'temperature', 'forecast']):
+                topics.append('weather')
+            elif any(word in user_input for word in ['search', 'find', 'lookup', 'information']):
+                topics.append('information_search')
+            elif any(word in user_input for word in ['memory', 'remember', 'recall', 'context']):
+                topics.append('memory_operations')
+            elif any(word in user_input for word in ['help', 'assist', 'support']):
+                topics.append('assistance')
+            elif any(word in user_input for word in ['prompt', 'assembly', 'stack', 'context']):
+                topics.append('system_inquiry')
+            else:
+                topics.append('general_inquiry')
+        
+        # Analyze execution patterns
+        tool_usage = []
+        if executions:
+            recent_exec = executions[-1]
+            tools_used = recent_exec.get('tools_used', [])
+            if tools_used:
+                if any('memory' in tool for tool in tools_used):
+                    tool_usage.append('memory_retrieval')
+                if any('perplexity' in tool for tool in tools_used):
+                    tool_usage.append('web_search')
+                if any('weather' in tool for tool in tools_used):
+                    tool_usage.append('weather_data')
+                if any('reg_' in tool for tool in tools_used):
+                    tool_usage.append('tool_discovery')
+        
+        # Generate summary
+        unique_topics = list(set(topics))
+        topic_text = ', '.join(unique_topics[:2]) if unique_topics else 'general discussion'
+        
+        if tool_usage:
+            tool_text = f" using {', '.join(set(tool_usage))}"
+        else:
+            tool_text = " with direct responses"
+        
+        conversation_count = len(conversations)
+        
+        return f"Recent pattern: {conversation_count} conversations focused on {topic_text}{tool_text}. User appears to be exploring system capabilities and memory functionality."
     
     async def _update_important(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, user_id: str):
         """Generate important cliffnotes from Q&A pair and execution trace"""
@@ -1088,7 +1131,7 @@ Generate summary:"""
             
             if not api_key:
                 logger.warning("IMPORTANT: GEMINI_API_KEY not set, using fallback notes")
-                important_notes = f"Key interaction: {user_message[:50]}... with {len(tool_usage_log)} tools used"
+                important_notes = self._generate_fallback_important_notes(user_message, agent_response, tool_usage_log, thinking_content)
             else:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -1117,8 +1160,12 @@ Format: Bullet points, focus on what's worth remembering for future interactions
 
 Generate important notes:"""
 
-                response = model.generate_content(prompt)
-                important_notes = response.text.strip()
+                try:
+                    response = model.generate_content(prompt)
+                    important_notes = response.text.strip()
+                except Exception as gemini_error:
+                    logger.warning(f"IMPORTANT: Gemini API failed ({gemini_error}), using fallback")
+                    important_notes = self._generate_fallback_important_notes(user_message, agent_response, tool_usage_log, thinking_content)
             
             # Update buffer (keep only recent important items)
             if user_id not in self.user_buffers:
@@ -1148,6 +1195,54 @@ Generate important notes:"""
             logger.error(f"IMPORTANT: Failed to generate important notes for user {user_id}: {e}")
             import traceback
             logger.error(f"IMPORTANT: Traceback: {traceback.format_exc()}")
+    
+    def _generate_fallback_important_notes(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list) -> str:
+        """Generate important notes without using Gemini API"""
+        notes = []
+        
+        # Analyze user message for key information
+        user_lower = user_message.lower()
+        
+        # Check for personal information or preferences
+        if any(word in user_lower for word in ['my name is', 'i am', 'call me', 'i prefer']):
+            notes.append(f"• **Personal Info**: User shared: {user_message[:100]}...")
+        
+        # Check for specific requests or requirements
+        if any(word in user_lower for word in ['need', 'want', 'require', 'must', 'should']):
+            notes.append(f"• **User Requirement**: {user_message[:80]}...")
+        
+        # Check for system queries or debugging
+        if any(word in user_lower for word in ['prompt', 'memory', 'context', 'assembly', 'debug', 'issue']):
+            notes.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
+        
+        # Analyze tool usage for important patterns
+        if tool_usage_log:
+            tools_used = [tool['tool'] for tool in tool_usage_log]
+            failed_tools = [tool['tool'] for tool in tool_usage_log if not tool['success']]
+            
+            if failed_tools:
+                notes.append(f"• **System Issue**: Tools failed: {', '.join(failed_tools[:2])}")
+            
+            if any('memory' in tool for tool in tools_used):
+                notes.append(f"• **Memory Operations**: User accessing conversation history and context")
+            
+            if any('perplexity' in tool for tool in tools_used):
+                notes.append(f"• **Information Search**: User requested current information lookup")
+        
+        # Check agent response for important facts or limitations
+        response_lower = agent_response.lower()
+        if any(phrase in response_lower for phrase in ['sorry', 'error', 'unable', 'cannot', 'failed']):
+            notes.append(f"• **System Limitation**: Agent encountered issues responding to user request")
+        
+        # If no specific patterns found, create a general note
+        if not notes:
+            if len(tool_usage_log) > 0:
+                notes.append(f"• **Interaction**: User query with {len(tool_usage_log)} tool operations")
+            else:
+                notes.append(f"• **Simple Exchange**: Direct Q&A about {user_message[:40]}...")
+        
+        # Limit to 2 most important notes
+        return '\n'.join(notes[:2])
 
     
 

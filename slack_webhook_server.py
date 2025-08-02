@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv('.env.local')
 
-# Import our Slack interface
-from interfaces.slack_interface import create_slack_app
+# Import our simplified Slack interface
+from interfaces.slack_interface_simple import create_slack_app
 
 # Configure logging
 logging.basicConfig(

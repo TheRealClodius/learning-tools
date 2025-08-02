@@ -102,13 +102,14 @@ class ToolExecutor:
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
     
-    async def execute_command(self, command: str, input_data: Any) -> Any:
+    async def execute_command(self, command: str, input_data: Any, user_id: str = None) -> Any:
         """
         Main command execution flow with dynamic discovery
         
         Args:
             command: Tool command like "weather.current" or "reg.search"  
             input_data: Input data (Pydantic model instance)
+            user_id: Dynamic user ID for memory operations (optional)
             
         Returns:
             Tool execution result (Pydantic model instance)
@@ -117,7 +118,7 @@ class ToolExecutor:
         
         # Check if tool is already loaded
         if command in self.available_tools:
-            return await self._execute_tool(command, input_data)
+            return await self._execute_tool(command, input_data, user_id)
         
         # Parse service and action
         try:
@@ -131,15 +132,24 @@ class ToolExecutor:
         
         # Execute the command after loading
         if command in self.available_tools:
-            return await self._execute_tool(command, input_data)
+            return await self._execute_tool(command, input_data, user_id)
         else:
             raise ToolNotFoundError(f"Command {command} not available after discovery")
     
-    async def _execute_tool(self, command: str, input_data: Any) -> Any:
+    async def _execute_tool(self, command: str, input_data: Any, user_id: str = None) -> Any:
         """Execute a loaded tool with error handling"""
         try:
             tool_func = self.available_tools[command]
-            result = await tool_func(input_data)
+            
+            # For memory tools, require user_id - no silent fallbacks
+            if command.startswith("memory.") and command.endswith((".retrieve", ".add")):
+                if not user_id:
+                    raise ValueError(f"user_id is required for memory operation {command} - cannot proceed without user identification")
+                logger.info(f"TOOL-EXECUTOR: Passing user_id='{user_id}' to {command}")
+                result = await tool_func(input_data, user_id)
+            else:
+                result = await tool_func(input_data)
+                
             logger.info(f"Successfully executed {command}")
             return result
             

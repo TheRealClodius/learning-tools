@@ -1,7 +1,8 @@
 import os
 import logging
 import time
-from typing import Dict, Any, Optional
+import asyncio
+from typing import Dict, Any, Optional, Set
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
 
@@ -31,6 +32,9 @@ class SlackInterface:
         # Initialize agent and executor
         self.agent = ClientAgent()
         self.tool_executor = ToolExecutor()
+        
+        # Event deduplication to prevent double processing
+        self.processed_events: Set[str] = set()
         
         # Setup Slack event handlers
         self._setup_handlers()
@@ -66,8 +70,26 @@ class SlackInterface:
             await self._handle_execution_details_view(ack, body, respond, logger)
     
     async def _handle_user_message(self, event: Dict[str, Any], say, logger):
-        """Handle incoming user messages"""
+        """Handle incoming user messages with deduplication and async processing"""
         try:
+            # Extract event ID for deduplication
+            event_id = event.get("client_msg_id") or event.get("ts")
+            if not event_id:
+                logger.warning("No event ID found, skipping deduplication")
+                event_id = f"{event.get('user')}_{event.get('ts')}"
+            
+            # Check for duplicate processing
+            if event_id in self.processed_events:
+                logger.info(f"SLACK-DUPLICATE: Skipping already processed event {event_id}")
+                return
+            
+            # Mark event as processed immediately
+            self.processed_events.add(event_id)
+            
+            # Clean up old processed events (keep last 1000)
+            if len(self.processed_events) > 1000:
+                self.processed_events = set(list(self.processed_events)[-1000:])
+            
             # Extract message details
             user_id = event.get("user")
             channel_id = event.get("channel")
@@ -75,7 +97,7 @@ class SlackInterface:
             thread_ts = event.get("thread_ts") or event.get("ts")
             
             # DEBUG: Log user_id extraction
-            logger.info(f"SLACK-USER-ID: Extracted user_id='{user_id}' from event")
+            logger.info(f"SLACK-USER-ID: Extracted user_id='{user_id}' from event {event_id}")
             logger.info(f"SLACK-MESSAGE: User '{user_id}' sent: '{message_text[:50]}...'")
             
             # Skip bot messages
@@ -95,13 +117,33 @@ class SlackInterface:
             
             logger.info(f"Processing message from user {user_id}: {message_text[:50]}...")
             
+            # Respond immediately to prevent Slack timeout
+            await say(
+                text="🤖 Processing your request...",
+                thread_ts=thread_ts
+            )
+            
+            # Process message asynchronously to prevent Slack webhook timeout
+            asyncio.create_task(self._process_message_async(
+                user_id, channel_id, message_text, thread_ts, say, event.get("ts"), logger
+            ))
+                
+        except Exception as e:
+            logger.error(f"Error handling Slack message: {e}")
+            # Remove from processed events on error so it can be retried
+            if 'event_id' in locals() and event_id in self.processed_events:
+                self.processed_events.discard(event_id)
+    
+    async def _process_message_async(self, user_id: str, channel_id: str, message_text: str, thread_ts: str, say, event_ts: str, logger):
+        """Process message asynchronously to avoid Slack webhook timeouts"""
+        try:
             # Show typing indicator
             await self._show_typing(channel_id)
             
             # Process message through agent with modal execution tracking
             try:
-                # Open execution modal (need trigger_id from event)
-                modal_response = await self._open_execution_modal(user_id, message_text, event.get("ts"))
+                # Open execution modal
+                modal_response = await self._open_execution_modal(user_id, message_text, event_ts)
                 modal_view_id = modal_response.get("view", {}).get("id") if modal_response else None
                 
                 # Create streaming callback for modal updates
@@ -132,17 +174,18 @@ class SlackInterface:
                 await self._complete_execution_modal(modal_view_id, duration_ms)
                 
                 # Send only the final response to conversation (clean!)
-                await self._send_response(say, response, thread_ts)
+                await self._send_response(channel_id, response, thread_ts)
                 
             except Exception as e:
                 logger.error(f"Error processing agent request: {e}")
-                await say(
+                await self.app.client.chat_postMessage(
+                    channel=channel_id,
                     text="Sorry, I encountered an error processing your request. Please try again.",
                     thread_ts=thread_ts
                 )
                 
         except Exception as e:
-            logger.error(f"Error handling Slack message: {e}")
+            logger.error(f"Error in async message processing: {e}")
     
     async def _handle_slash_command(self, ack, respond, command, logger):
         """Handle slash commands like /agent"""
@@ -240,8 +283,8 @@ class SlackInterface:
         except Exception as e:
             logger.warning(f"Could not show typing indicator: {e}")
     
-    async def _send_response(self, say, response: Dict[str, Any], thread_ts: str):
-        """Send formatted response back to Slack"""
+    async def _send_response(self, channel_id: str, response: Dict[str, Any], thread_ts: str):
+        """Send formatted response back to Slack using client directly"""
         
         message_text = response.get("message", "No response generated")
         tool_calls = response.get("tool_calls", [])
@@ -290,7 +333,9 @@ class SlackInterface:
             ]
         })
         
-        await say(
+        # Use client directly instead of say() for async tasks
+        await self.app.client.chat_postMessage(
+            channel=channel_id,
             blocks=blocks,
             text=message_text,  # Fallback for notifications
             thread_ts=thread_ts
@@ -416,14 +461,14 @@ class SlackInterface:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*Query:* What's the weather in London?"
+                            "text": "*Query:* Execution details"
                         }
                     },
                     {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*Status:* ✅ Complete (4.2s)"
+                            "text": "*Status:* ✅ Complete"
                         }
                     },
                     {
@@ -433,7 +478,7 @@ class SlackInterface:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*🔄 Execution Steps:*\n• Just a sec...\n• I need to search for weather tools\n• Executing reg_search\n• Now I'll use the weather.search tool\n• Executing weather.search\n• Done!"
+                            "text": "*🔄 Execution Steps:*\n• Real-time execution tracking coming soon!\n• This modal will show actual tool usage\n• For now, check the main response for results"
                         }
                     }
                 ]
