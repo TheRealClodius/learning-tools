@@ -485,7 +485,7 @@ class SlackInterface:
             thread_ts = event.get("thread_ts") or event.get("ts")
             
             # Clean message (resolve mentions to readable names)
-            message_text = await self._clean_message(message_text)
+            message_text, mention_mappings = await self._clean_message(message_text)
             
             if not message_text:
                 greeting_blocks = MarkdownToSlackParser.parse_to_blocks("Hi! How can I help you? 👋")
@@ -510,13 +510,13 @@ class SlackInterface:
             
             # Process asynchronously - no status messages
             asyncio.create_task(self._process_and_respond(
-                user_id, channel_id, message_text, thread_ts
+                user_id, channel_id, message_text, thread_ts, mention_mappings
             ))
             
         except Exception as e:
             logger.error(f"Error handling message: {e}")
     
-    async def _process_and_respond(self, user_id: str, channel_id: str, message_text: str, thread_ts: str):
+    async def _process_and_respond(self, user_id: str, channel_id: str, message_text: str, thread_ts: str, mention_mappings: dict):
         """Process message and send response with execution streaming"""
         streaming_handler = None
         try:
@@ -567,6 +567,9 @@ class SlackInterface:
             # Get response text from Claude (not status message)
             response_text = response.get("response", "No response generated")
             
+            # Convert mentions back to Slack format for proper linking
+            response_text = self._convert_mentions_to_slack(response_text, mention_mappings)
+            
             # Replace thinking message with final response
             await streaming_handler.finish_with_response(response_text)
             
@@ -583,11 +586,22 @@ class SlackInterface:
                 except:
                     pass  # Fallback failed, just log
     
-    async def _clean_message(self, text: str) -> str:
-        """Clean message text and resolve mentions to readable names"""
+    async def _clean_message(self, text: str) -> tuple[str, dict]:
+        """Clean message text and resolve mentions to readable names
+        
+        Returns:
+            tuple: (cleaned_text, mention_mappings)
+            mention_mappings: dict mapping readable names back to Slack IDs
+        """
         import re
         
         logger.info(f"Raw message text: {repr(text)}")
+        
+        # Store mappings for reverse conversion
+        mention_mappings = {
+            'users': {},  # name -> user_id
+            'channels': {}  # name -> channel_id
+        }
         
         # Debug: Find ALL potential mentions first 
         all_mentions = re.findall(r'<[^>]+>', text)
@@ -622,6 +636,9 @@ class SlackInterface:
                         name = user_id
                         logger.warning(f"Failed to get user info for {user_id}")
                 
+                # Store mapping for reverse conversion
+                mention_mappings['users'][name] = user_id
+                
                 # Replace the mention with readable name
                 mention_pattern = f'<@{user_id}' + (f'|{re.escape(display_name)}' if display_name else '') + '>'
                 text = text.replace(mention_pattern, f'@{name}')
@@ -629,6 +646,8 @@ class SlackInterface:
             except Exception as e:
                 logger.error(f"Error resolving user {user_id}: {e}")
                 # Fallback: just show @user_id
+                name = user_id
+                mention_mappings['users'][name] = user_id
                 mention_pattern = f'<@{user_id}' + (f'|{re.escape(display_name)}' if display_name else '') + '>'
                 text = text.replace(mention_pattern, f'@{user_id}')
         
@@ -653,6 +672,9 @@ class SlackInterface:
                         name = channel_id
                         logger.warning(f"Failed to get channel info for {channel_id}")
                 
+                # Store mapping for reverse conversion
+                mention_mappings['channels'][name] = channel_id
+                
                 # Replace the mention with readable name
                 mention_pattern = f'<#{channel_id}' + (f'|{re.escape(channel_name)}' if channel_name else '') + '>'
                 text = text.replace(mention_pattern, f'#{name}')
@@ -660,6 +682,8 @@ class SlackInterface:
             except Exception as e:
                 logger.error(f"Error resolving channel {channel_id}: {e}")
                 # Fallback: just show #channel_id
+                name = channel_id
+                mention_mappings['channels'][name] = channel_id
                 mention_pattern = f'<#{channel_id}' + (f'|{re.escape(channel_name)}' if channel_name else '') + '>'
                 text = text.replace(mention_pattern, f'#{channel_id}')
         
@@ -673,8 +697,27 @@ class SlackInterface:
         
         final_text = ' '.join(text.split()).strip()
         logger.info(f"Final cleaned text: {repr(final_text)}")
+        logger.info(f"Mention mappings: {mention_mappings}")
         
-        return final_text
+        return final_text, mention_mappings
+    
+    def _convert_mentions_to_slack(self, text: str, mention_mappings: dict) -> str:
+        """Convert readable mentions back to Slack mention format for responses"""
+        import re
+        
+        # Convert user mentions: @Name -> <@U123456789>
+        for name, user_id in mention_mappings.get('users', {}).items():
+            # Use word boundaries to avoid partial matches
+            pattern = f'@{re.escape(name)}'
+            text = re.sub(pattern, f'<@{user_id}>', text)
+        
+        # Convert channel mentions: #channel-name -> <#C123456789>
+        for name, channel_id in mention_mappings.get('channels', {}).items():
+            pattern = f'#{re.escape(name)}'
+            text = re.sub(pattern, f'<#{channel_id}>', text)
+        
+        logger.info(f"Converted mentions back to Slack format: {repr(text)}")
+        return text
     
     def get_fastapi_handler(self):
         """Get FastAPI handler for webhook integration"""
