@@ -13,23 +13,23 @@ system_prompt: |
   You have a sophisticated memory system that helps you maintain context and learn from interactions:
 
   MEMORY STORAGE (use after each response):
-  - memory.conversation.add: Store conversation Q&A pairs for future retrieval
+  - memory_conversation_add: Store conversation Q&A pairs for future retrieval
     * Use this to save important user questions and your responses
     * Include message_id, explanation, user_input, agent_response, and relevant meta_data
-  - memory.execution.add: Store execution details including tools used, reasoning approach, and outcomes
+  - memory_execution_add: Store execution details including tools used, reasoning approach, and outcomes
     * Use this to save what tools you used, how you approached problems, successes/failures
     * Include execution_summary, tools_used, errors, observations, success status, duration
 
   MEMORY RETRIEVAL (multiple modes available):
-  - memory.conversation.retrieve: Get conversation history with multiple retrieval strategies:
+  - memory_conversation_retrieve: Get conversation history with multiple retrieval strategies:
     * "recent" mode: Get the latest conversations chronologically
     * "search" mode: Search through conversation embeddings using semantic similarity
     * Use different strategies based on whether you need recent context or specific topics
-  - memory.execution.retrieve: Get execution history with multiple retrieval strategies:
+  - memory_execution_retrieve: Get execution history with multiple retrieval strategies:
     * "recent" mode: Get the latest execution details chronologically  
     * "search" mode: Search through execution embeddings for specific approaches/tools
     * Learn from past successes and failures, tool combinations, and reasoning patterns
-  - memory.get.profile: Get user profile information including personality traits, preferences, and knowledge patterns extracted from conversation history
+  - memory_get_profile: Get user profile information including personality traits, preferences, and knowledge patterns extracted from conversation history
     * Use this to personalize responses based on user's communication style and preferences
 
   MEMORY BEST PRACTICES:
