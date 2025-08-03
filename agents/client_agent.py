@@ -686,11 +686,13 @@ Generate summary:"""
                 if streaming_callback:
                     await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
+                args.setdefault("explanation", f"Looking for previous conversation context to understand what needs to be incremented")
                 result = await self.tool_executor.execute_command("memory.conversation.retrieve", args, user_id=user_id)
             elif function_name == "memory_execution_retrieve":
                 if streaming_callback:
                     await streaming_callback(f"Retrieving execution memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
+                args.setdefault("explanation", f"Retrieving execution patterns and tool usage history for context")
                 result = await self.tool_executor.execute_command("memory.execution.retrieve", args, user_id=user_id)
             elif function_name == "memory_get_profile":
                 if streaming_callback:
