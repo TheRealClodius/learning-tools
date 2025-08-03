@@ -160,8 +160,7 @@ class ConvoInsightsAgent:
                                 tool_usage_log: List[Dict], thinking_content: List[str], 
                                 user_id: str, user_buffers: Dict[str, Dict[str, Any]]) -> bool:
         """
-        Analyze user interaction and update insights in the provided buffer.
-        Also stores the conversation pair in MemoryOS for future retrieval.
+        Analyze user interaction and update insights in the provided buffer
         
         Args:
             user_message: User's input message
@@ -177,12 +176,9 @@ class ConvoInsightsAgent:
         try:
             logger.info(f"{self._log_prefix()}: Analyzing interaction for user {user_id}")
             
-            # Store conversation pair in MemoryOS first (always do this regardless of insights)
-            await self._store_conversation_memory(user_message, agent_response, tool_usage_log, user_id)
-            
-            # Check if we should skip insights generation for this interaction
+            # Check if we should skip this interaction
             if self._should_skip_interaction(user_message, tool_usage_log):
-                logger.info(f"{self._log_prefix()}: Skipping trivial interaction for user {user_id} (conversation still stored)")
+                logger.info(f"{self._log_prefix()}: Skipping trivial interaction for user {user_id}")
                 return False
             
             # Get existing insights for comparison and evolution
