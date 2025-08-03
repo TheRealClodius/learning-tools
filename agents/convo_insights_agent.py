@@ -91,11 +91,77 @@ class ConvoInsightsAgent:
         """Get logging prefix from config"""
         return self.logging_config.get('prefix', 'INSIGHTS-AGENT')
     
+    async def _store_conversation_memory(self, user_message: str, agent_response: str, 
+                                       tool_usage_log: List[Dict], user_id: str) -> bool:
+        """
+        Store conversation pair in MemoryOS via memory.conversation.add
+        
+        Args:
+            user_message: User's input message
+            agent_response: Agent's response
+            tool_usage_log: List of tool usage records
+            user_id: User identifier
+            
+        Returns:
+            bool: True if stored successfully, False otherwise
+        """
+        try:
+            # Import the memory function and tool executor
+            from runtime.tool_executor import ToolExecutor
+            import uuid
+            from datetime import datetime
+            
+            # Create a unique message ID for this conversation turn
+            message_id = f"msg_{uuid.uuid4().hex[:12]}"
+            
+            # Prepare metadata about the interaction
+            meta_data = {
+                "tools_used": [tool['tool'] for tool in tool_usage_log] if tool_usage_log else [],
+                "tool_count": len(tool_usage_log) if tool_usage_log else 0,
+                "successful_tools": [tool['tool'] for tool in tool_usage_log if tool.get('success', False)] if tool_usage_log else [],
+                "failed_tools": [tool['tool'] for tool in tool_usage_log if not tool.get('success', True)] if tool_usage_log else [],
+                "agent_type": "client_agent",
+                "stored_by": "convo_insights_agent"
+            }
+            
+            # Prepare input data for memory.conversation.add
+            conversation_data = {
+                "message_id": message_id,
+                "explanation": f"Conversation turn for user {user_id}",
+                "user_input": user_message,
+                "agent_response": agent_response,
+                "timestamp": datetime.now().isoformat(),
+                "meta_data": meta_data
+            }
+            
+            # Use ToolExecutor to call memory.conversation.add
+            tool_executor = ToolExecutor()
+            result = await tool_executor.execute_command(
+                "memory.conversation.add", 
+                conversation_data, 
+                user_id=user_id
+            )
+            
+            # Check if storage was successful
+            if isinstance(result, dict) and result.get("success", False):
+                logger.info(f"{self._log_prefix()}: Successfully stored conversation {message_id} for user {user_id}")
+                return True
+            else:
+                logger.error(f"{self._log_prefix()}: Failed to store conversation: {result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"{self._log_prefix()}: Error storing conversation memory for user {user_id}: {e}")
+            import traceback
+            logger.error(f"{self._log_prefix()}: Traceback: {traceback.format_exc()}")
+            return False
+    
     async def analyze_interaction(self, user_message: str, agent_response: str, 
                                 tool_usage_log: List[Dict], thinking_content: List[str], 
                                 user_id: str, user_buffers: Dict[str, Dict[str, Any]]) -> bool:
         """
-        Analyze user interaction and update insights in the provided buffer
+        Analyze user interaction and update insights in the provided buffer.
+        Also stores the conversation pair in MemoryOS for future retrieval.
         
         Args:
             user_message: User's input message
@@ -111,9 +177,12 @@ class ConvoInsightsAgent:
         try:
             logger.info(f"{self._log_prefix()}: Analyzing interaction for user {user_id}")
             
-            # Check if we should skip this interaction
+            # Store conversation pair in MemoryOS first (always do this regardless of insights)
+            await self._store_conversation_memory(user_message, agent_response, tool_usage_log, user_id)
+            
+            # Check if we should skip insights generation for this interaction
             if self._should_skip_interaction(user_message, tool_usage_log):
-                logger.info(f"{self._log_prefix()}: Skipping trivial interaction for user {user_id}")
+                logger.info(f"{self._log_prefix()}: Skipping trivial interaction for user {user_id} (conversation still stored)")
                 return False
             
             # Get existing insights for comparison and evolution
