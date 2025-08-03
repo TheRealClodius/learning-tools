@@ -206,7 +206,7 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 
 ### 💡 Dual Memory Usage
 
-**Agent-Driven Storage**: The AI agent can store conversation and execution data using memory functions
+**Automatic Background Storage**: Every significant interaction automatically stores conversation and execution data in the background (non-blocking)
 ```python
 # Conversation Memory - stored via memory_conversation_add
 {
@@ -228,7 +228,13 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 }
 ```
 
-**Available Memory Functions**:
+**How It Works**:
+- **Immediate Response**: Users get answers instantly, no memory latency
+- **Background Processing**: Memory storage happens asynchronously after response
+- **AI-Generated Content**: Execution summaries and observations created by Gemini Flash 2.5
+- **Smart Filtering**: Only stores significant conversations (5+ words) and complex executions
+
+**Available Memory Functions** (for manual storage):
 - `memory_conversation_add`: Store Q&A pairs for future retrieval
 - `memory_execution_add`: Store execution details (tools, reasoning, outcomes)
 - `memory_conversation_retrieve`: Retrieve conversation history with semantic/recent search

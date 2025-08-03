@@ -32,11 +32,11 @@ MEMORY_USER_ID=default_user
 # 5. Get Gemini API key from: https://aistudio.google.com/app/apikey
 #
 # Enhanced Memory Features:
-# - Agent-driven Q&A storage using memory_conversation_add function
-# - Agent-driven execution storage using memory_execution_add function  
+# - Automatic background storage of conversations and executions (non-blocking)
+# - AI-generated execution summaries and observations using Gemini Flash 2.5
 # - Execution summaries include: reasoning approach, tools used, what worked/failed
-# - Agent generates summaries and observations as needed
-# - Memory functions available to AI agent for strategic storage
+# - Smart filtering: only stores significant interactions and complex executions
+# - Memory functions also available for manual agent-driven storage
 #
 # Performance benefits:
 # - ~50ms response time vs 15+ seconds with direct integration

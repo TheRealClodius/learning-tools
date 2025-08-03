@@ -573,13 +573,182 @@ class ClientAgent:
         # Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
         
-        # Update insights asynchronously using Conversation Insights Agent (non-blocking)
-        asyncio.create_task(self.insights_agent.analyze_interaction(
-            user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
+        # Background processing (non-blocking) - runs after user gets response
+        asyncio.create_task(self._background_memory_and_insights(
+            user_message, final_response, tool_usage_log, all_thinking_content, user_id
         ))
         
         return final_response
     
+    async def _background_memory_and_insights(self, user_message: str, final_response: str, 
+                                            tool_usage_log: list, all_thinking_content: list, user_id: str):
+        """
+        Background processing for automatic memory storage and insights generation.
+        Runs asynchronously after the user receives their response to avoid latency.
+        """
+        try:
+            logger.info(f"BACKGROUND-MEMORY: Starting background processing for user {user_id}")
+            
+            # Generate unique message ID for linking conversation and execution memory
+            import uuid
+            from datetime import datetime
+            message_id = f"msg_{int(datetime.now().timestamp())}_{str(uuid.uuid4())[:8]}"
+            
+            # Store conversation memory (always do this for significant interactions)
+            if len(user_message.split()) >= 5:  # Only store substantial conversations
+                logger.info(f"BACKGROUND-MEMORY: Storing conversation memory for message_id={message_id}")
+                await self._store_conversation_memory(message_id, user_message, final_response, user_id)
+            
+            # Store execution memory (only if tools were used or complex thinking occurred)
+            if tool_usage_log or (all_thinking_content and len(' '.join(all_thinking_content)) > 200):
+                logger.info(f"BACKGROUND-MEMORY: Storing execution memory for message_id={message_id}")
+                await self._store_execution_memory(message_id, tool_usage_log, all_thinking_content, user_id)
+            
+            # Update insights (existing functionality)
+            logger.info(f"BACKGROUND-MEMORY: Updating insights for user {user_id}")
+            await self.insights_agent.analyze_interaction(
+                user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
+            )
+            
+            logger.info(f"BACKGROUND-MEMORY: Completed background processing for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"BACKGROUND-MEMORY: Failed for user {user_id}: {e}")
+            import traceback
+            logger.error(f"BACKGROUND-MEMORY: Traceback: {traceback.format_exc()}")
+    
+    async def _store_conversation_memory(self, message_id: str, user_message: str, agent_response: str, user_id: str):
+        """Store conversation memory with proper error handling"""
+        try:
+            from datetime import datetime
+            conversation_args = {
+                "message_id": message_id,
+                "explanation": "Automatically storing conversation for future context and learning",
+                "user_input": user_message,
+                "agent_response": agent_response,
+                "meta_data": {
+                    "source": "automatic_background_storage",
+                    "timestamp": datetime.now().isoformat(),
+                    "interaction_type": "user_query"
+                }
+            }
+            
+            result = await self.tool_executor.execute_command("memory.add_conversation", conversation_args, user_id=user_id)
+            if result.get("success"):
+                logger.info(f"CONVERSATION-MEMORY: Successfully stored for message_id={message_id}")
+            else:
+                logger.warning(f"CONVERSATION-MEMORY: Failed to store: {result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"CONVERSATION-MEMORY: Exception during storage: {e}")
+    
+    async def _store_execution_memory(self, message_id: str, tool_usage_log: list, thinking_content: list, user_id: str):
+        """Store execution memory with AI-generated summary and observations"""
+        try:
+            # Generate execution summary using existing function
+            execution_summary = await self._generate_run_summary(thinking_content, tool_usage_log)
+            
+            # Generate observations using separate AI call
+            observations = await self._generate_observations(thinking_content, tool_usage_log)
+            
+            # Extract tool information
+            tools_used = [tool['tool'] for tool in tool_usage_log]
+            errors = []
+            for tool in tool_usage_log:
+                if not tool['success']:
+                    errors.append({
+                        "error_type": "tool_execution_failure",
+                        "error_message": f"Tool {tool['tool']} failed: {tool.get('error', 'Unknown error')}",
+                        "tool": tool['tool']
+                    })
+            
+            success = len(errors) < len(tool_usage_log) / 2  # Success if less than half the tools failed
+            
+            execution_args = {
+                "message_id": message_id,
+                "explanation": "Automatically storing execution details for pattern learning and optimization",
+                "execution_summary": execution_summary,
+                "tools_used": tools_used,
+                "errors": errors,
+                "observations": observations,
+                "success": success,
+                "meta_data": {
+                    "source": "automatic_background_storage",
+                    "total_tools": len(tool_usage_log),
+                    "failed_tools": len(errors),
+                    "thinking_blocks": len(thinking_content)
+                }
+            }
+            
+            result = await self.tool_executor.execute_command("memory.add_execution", execution_args, user_id=user_id)
+            if result.get("success"):
+                logger.info(f"EXECUTION-MEMORY: Successfully stored for message_id={message_id}")
+            else:
+                logger.warning(f"EXECUTION-MEMORY: Failed to store: {result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"EXECUTION-MEMORY: Exception during storage: {e}")
+    
+    async def _generate_observations(self, thinking_content: list, tool_usage_log: list) -> str:
+        """Generate observations about reasoning approach and strategy using Gemini Flash 2.5"""
+        try:
+            import google.generativeai as genai
+            
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                logger.warning("OBSERVATIONS: GEMINI_API_KEY not set, using fallback")
+                return self._fallback_observations(thinking_content, tool_usage_log)
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            
+            # Prepare context
+            thinking_text = "\n".join(thinking_content) if thinking_content else "No detailed thinking recorded"
+            tool_summary = f"Used {len(tool_usage_log)} tools: {', '.join([t['tool'] for t in tool_usage_log])}" if tool_usage_log else "No tools used"
+            
+            prompt = f"""Analyze this AI agent execution and generate concise observations about the reasoning approach and problem-solving strategy.
+
+THINKING PROCESS:
+{thinking_text[:1500]}
+
+TOOL USAGE:
+{tool_summary}
+
+Generate 1-2 sentences that capture:
+1. The reasoning approach used (systematic, exploratory, direct, etc.)
+2. Problem-solving strategy (tool selection logic, error handling, etc.)
+3. Key insights about the execution pattern
+
+Focus on the methodology, not the specific content. Be concise and analytical.
+
+Example: "Used systematic tool discovery approach to find weather services, with fallback error handling when initial tools failed. Demonstrated exploratory problem-solving by testing multiple API endpoints before finding working solution."
+
+Observations:"""
+
+            response = model.generate_content(prompt)
+            observations = response.text.strip()
+            
+            # Clean up and ensure reasonable length
+            if len(observations) > 500:
+                observations = observations[:500].rsplit('.', 1)[0] + '.'
+            
+            logger.info(f"OBSERVATIONS: Generated AI observations: {observations[:100]}...")
+            return observations
+            
+        except Exception as e:
+            logger.error(f"OBSERVATIONS: Gemini generation failed: {e}")
+            return self._fallback_observations(thinking_content, tool_usage_log)
+    
+    def _fallback_observations(self, thinking_content: list, tool_usage_log: list) -> str:
+        """Fallback observations when Gemini is unavailable"""
+        if not tool_usage_log:
+            return "Direct response approach without external tool usage. Relied on existing knowledge and reasoning."
+        
+        failed_tools = [t for t in tool_usage_log if not t['success']]
+        if failed_tools:
+            return f"Multi-tool execution approach with error recovery. Successfully adapted when {len(failed_tools)} of {len(tool_usage_log)} tools encountered issues."
+        else:
+            return f"Systematic tool-based problem solving using {len(tool_usage_log)} tools. Efficient execution with successful tool selection and coordination."
 
     
     async def _generate_run_summary(self, thinking_content: list, tool_usage_log: list) -> str:
