@@ -9,7 +9,6 @@ import anthropic
 import logging
 import os
 import time
-import uuid
 from typing import Dict, Any, Optional
 import asyncio
 from dotenv import load_dotenv
@@ -473,60 +472,23 @@ class ClientAgent:
             final_response = "Maximum iterations reached. Unable to complete the request."
             final_iteration = max_iterations
         
-        # ALWAYS store conversation and update buffer (regardless of tool usage or max iterations)
-        logger.info(f"CONTROL-FLOW: Storing memory and updating buffer - Response: {final_response[:100]}...")
-        
-        if streaming_callback:
-            await streaming_callback("Storing conversation to memory...", "memory")
-        
-        # 1. Store Q&A pair to MemoryOS (immediate)
-        message_id = await self._store_conversation_memory(user_message, final_response, user_id)
+        # Update local buffer for context management
+        logger.info(f"CONTROL-FLOW: Updating local buffer - Response: {final_response[:100]}...")
         
         if streaming_callback:
             await streaming_callback("Updating local conversation buffer...", "memory")
         
-        # 2. Update local buffer (immediate)
+        # Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
         
-        # 3. Process execution details asynchronously (non-blocking)
-        if tool_usage_log:  # Only if there were tools used
-            asyncio.create_task(self._store_execution_memory(tool_usage_log, all_thinking_content, user_id, message_id))
-        
-        # 4. Update insights asynchronously using Conversation Insights Agent (non-blocking)
+        # Update insights asynchronously using Conversation Insights Agent (non-blocking)
         asyncio.create_task(self.insights_agent.analyze_interaction(
             user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
         ))
         
         return final_response
     
-    async def _store_conversation_memory(self, user_message: str, agent_response: str, user_id: str):
-        """Store Q&A pair to MemoryOS conversation memory"""
-        # Store all conversations in memory
-        logger.info(f"CONVERSATION-MEMORY: Storing Q&A pair for user {user_id}")
-        try:
-            # Generate unique message ID for linking
-            import uuid
-            message_id = f"auto_{uuid.uuid4().hex[:12]}"
-            
-            # Store conversation memory
-            await self.tool_executor.execute_command("memory.conversation.add", {
-                "message_id": message_id,
-                "explanation": "Automatic conversation storage with agent response",
-                "user_input": user_message,
-                "agent_response": agent_response.strip(),
-                "meta_data": {
-                    "auto_stored": True,
-                    "user_id": user_id
-                }
-            }, user_id=user_id)
-            logger.info(f"CONVERSATION-MEMORY: Successfully stored Q&A pair for user {user_id}")
-            return message_id  # Return for linking execution memory
-            
-        except Exception as e:
-            logger.error(f"CONVERSATION-MEMORY: Failed to store Q&A pair for user {user_id}: {e}")
-            import traceback
-            logger.error(f"CONVERSATION-MEMORY: Traceback: {traceback.format_exc()}")
-            return None
+
     
     async def _generate_run_summary(self, thinking_content: list, tool_usage_log: list) -> str:
         """Generate a 2-line run summary using Gemini Flash 2.5"""
@@ -938,56 +900,7 @@ Generate summary:"""
         self.user_buffers[user_id]['last_updated'] = time.time()
         logger.info(f"BUFFER: Buffer timestamp updated for user {user_id}")
     
-    async def _store_execution_memory(self, tool_usage_log: list, thinking_content: list, user_id: str, message_id: str = None):
-        """Process execution details and store to MemoryOS"""
-        if not tool_usage_log:  # No execution to store
-            return
-        
-        try:
-            logger.info(f"EXECUTION-MEMORY: Processing execution details for user {user_id}")
-            
-            # Generate execution summary + observations using Gemini Flash 2.5
-            run_summary = await self._generate_run_summary(thinking_content, tool_usage_log)
-            
-            # Extract tool usage details
-            tools_used = [tool['tool'] for tool in tool_usage_log]
-            tool_failures = [
-                f"{tool['tool']} error: {tool['result_preview'][:100]}" 
-                for tool in tool_usage_log 
-                if not tool['success']
-            ]
-            
-            # Determine reasoning approach
-            reasoning_approach = "direct_response"
-            if len(tools_used) > 0:
-                if any("reg_" in tool for tool in tools_used):
-                    reasoning_approach = "tool_discovery"
-                elif any("memory_conversation_retrieve" in tool or "memory_execution_retrieve" in tool for tool in tools_used):
-                    reasoning_approach = "context_retrieval"
-                else:
-                    reasoning_approach = "tool_execution"
-            
-            # Store execution memory with detailed execution info
-            start_time = getattr(self, '_conversation_start_time', None)
-            duration_ms = int((time.time() - start_time) * 1000) if start_time else None
-            
-            await self.tool_executor.execute_command("memory.execution.add", {
-                "message_id": message_id or f"auto_{user_id}_{int(time.time())}",
-                "explanation": "Automatic execution details storage with tools and reasoning",
-                "execution_summary": run_summary,
-                "tools_used": tools_used,
-                "errors": [{"error_type": "tool_failure", "error_message": f"Tool {tool} failed", "tool": tool} for tool in tool_failures],
-                "observations": f"Used {reasoning_approach} approach with {len(tool_usage_log)} tool(s) and {len(thinking_content)} thinking blocks",
-                "success": len(tool_failures) == 0,
-                "duration_ms": duration_ms
-            }, user_id=user_id)
-            
-            logger.info(f"EXECUTION-MEMORY: Successfully stored execution details for user {user_id}")
-            
-        except Exception as e:
-            logger.error(f"EXECUTION-MEMORY: Failed to store execution details for user {user_id}: {e}")
-            import traceback
-            logger.error(f"EXECUTION-MEMORY: Traceback: {traceback.format_exc()}")
+
     
 
     
