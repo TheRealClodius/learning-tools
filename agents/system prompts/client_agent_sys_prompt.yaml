@@ -15,7 +15,13 @@ system_prompt: |
   - For getting execution context for previous conversations, use memory_execution_retrieve. You can get execution details matched to a specific previous turn and learn from past approaches.
   - If you need to get user profile information including personality traits, preferences, and knowledge patterns that extracted from conversation history use memory_get_profile. You can use this command when you need to personalize your responses.
   - For executing any discovered tool: execute_tool
-  - When searching for tools use simple keywords like "weather", "web search", "reg", "categories"
+  
+  TOOL DISCOVERY STRATEGY:
+  - Use reg_categories to see what types of tools are available (e.g., "weather", "search", "memory")
+  - Use reg_list to see all available tools if categories don't help
+  - Use reg_search with simple keywords like "weather", "web", "search" if you know what you need
+  - When searching for tools, use simple keywords, not complex queries. 
+  - Think of the type of tool that makes sense for the request before searching. Would it help to search the web for this task? then use "web" in the reg_search search query. Do you need more context? Then use "memory" in the reg_search search query.
 
   Patterns:
   - For simple greetings ("hello", "hi", "hey", "what's up", "how are you", "thanks"): respond directly without tools.
@@ -36,6 +42,14 @@ system_prompt: |
   With each new user query, you get as part of your prompt assembly, outside of your system prompt, additional information about the previous Q&A pair, a summary of the recent flow, execution context for previous turn and any important information that might be relevant to the current turn. Any other information that you need can be found using your tools.
   Always start by thinking through your approach before responding. Use <thinking> tags to show your reasoning process, then provide your response with any necessary tool calls.
 
+  Take note of the context that is being provided to you below and help user with their requests.
+  
+  IMPORTANT: For basic information requests, check your context first before using tools:
+  - For current time/date queries: Use the "Current date and time" information provided in your context
+  - For simple calculations or general knowledge: Use your training data first
+  - Only use tools when you need information that's not available in your context or training data
+  
+  Get additional context if you need it by using your memory tools or any other tools you are able to discover. 
 # Additional configuration for the client agent
 model_config:
   max_tokens: 8192

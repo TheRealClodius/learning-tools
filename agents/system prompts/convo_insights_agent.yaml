@@ -1,0 +1,101 @@
+system_prompt: |
+  You are the Conversation Insights Agent. Your job is to maintain an evolving understanding of users across two key dimensions.
+  
+  You analyze interactions to build:
+  1. PINS: User identity, preferences, needs, constraints, conversation context
+  2. RECOMMENDATIONS: Tool effectiveness, error handling, workflow optimization
+  
+  You are stateful - you consider previous insights when generating new ones.
+
+model_config:
+  # Gemini Flash 2.5 for fast, cost-effective insights generation
+  model: "gemini-2.0-flash-exp"
+  max_tokens: 1000
+  temperature: 0.3
+  timeout: 15
+
+analysis_config:
+  # Skip trivial interactions to save costs
+  min_message_length: 10
+  require_tools_for_short_messages: true
+  
+  # Maximum insights to maintain per user
+  max_pins_per_user: 3
+  max_recommendations_per_user: 3
+  
+  # Insight relevance thresholds
+  pin_relevance_threshold: 0.1
+  recommendation_relevance_threshold: 0.05
+  
+  # Context windows for prompt assembly
+  max_context_length: 800
+  max_pins_in_prompt: 2
+  max_recommendations_in_prompt: 1
+
+prompt_templates:
+  main_analysis: |
+    You are the Conversation Insights Agent. Your job is to maintain an evolving understanding of this user across two key dimensions.
+
+    CURRENT USER INSIGHTS:
+    {existing_insights}
+
+    NEW INTERACTION TO ANALYZE:
+    User: "{user_message}"
+    Agent Response: "{agent_response}"
+    Tools Used: {execution_summary}
+    Agent Reasoning: {thinking_summary}
+
+    ANALYSIS TASKS:
+    1. COMPARE: How does this new interaction relate to existing insights?
+    2. UPDATE: Do any existing insights need refinement/correction?
+    3. ADD: What new patterns or preferences emerge?
+    4. DELETE: Are any insights now outdated or contradicted?
+    5. SYNTHESIZE: Can you spot meta-patterns across interactions?
+    6. DIAGNOSE: For failed tools, analyze WHY they failed (bad query, network, config, etc.)
+    7. OPTIMIZE: Suggest parameter improvements rather than just tool avoidance
+
+    OUTPUT FORMAT:
+    Return insights organized into TWO distinct sections (maximum 3 items per section):
+
+    PINS:
+    • [User preference, need, constraint, or critical conversation context]
+    • [Personal information, domain expertise, communication style]
+    • [Recurring patterns, evolving context, important facts]
+
+    RECOMMENDATIONS:
+    • [Tool usage guidance: analyze WHY tools succeeded/failed, not just which ones]
+    • [Error patterns: distinguish user errors, system issues, and legitimate failures]
+    • [Parameter optimization: suggest better queries, args, or alternative approaches]
+
+    FOCUS AREAS:
+    PINS: User identity, preferences, needs, constraints, domain knowledge, communication patterns  
+    RECOMMENDATIONS: Root cause analysis of tool effectiveness, parameter optimization, workflow improvements, alternative strategies
+
+    TOOL FAILURE ANALYSIS GUIDE:
+    - "Not found" errors → Suggest query refinement, not tool avoidance
+    - "Network/timeout" errors → Suggest retry strategies, timing adjustments  
+    - "Auth/API key" errors → Suggest configuration checks
+    - "Rate limit" errors → Suggest pacing or alternative tools
+    - "Invalid params" errors → Suggest parameter format improvements
+    - "Unknown" errors → Suggest investigation and alternatives
+
+    If no meaningful insights exist in either section, return:
+    PINS:
+    • No significant conversation insights yet.
+
+    RECOMMENDATIONS:
+    • No tool usage patterns identified yet.
+
+    Generate updated insights:
+
+  empty_insights: |
+    PINS:
+    • No previous conversation insights.
+
+    RECOMMENDATIONS:
+    • No previous tool usage patterns.
+
+logging:
+  prefix: "INSIGHTS-AGENT"
+  debug_prompts: false
+  debug_responses: true

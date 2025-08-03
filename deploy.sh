@@ -72,7 +72,7 @@ case $PLATFORM in
         fi
         
         # Set start command
-        railway variables set START_COMMAND="$START_CMD"
+        railway variables --set "START_COMMAND=$START_CMD"
         
         # Deploy
         railway up
@@ -131,7 +131,13 @@ case $PLATFORM in
         
         # Set config vars from .env.local
         echo "Setting environment variables..."
-        heroku config:set $(cat .env.local | grep -v '^#' | xargs)
+        if [ -f ".env.local" ]; then
+            while IFS='=' read -r key value; do
+                if [[ ! "$key" =~ ^#.* ]] && [[ "$key" =~ [A-Za-z_][A-Za-z0-9_]* ]]; then
+                    heroku config:set "$key=$value"
+                fi
+            done < .env.local
+        fi
         
         # Deploy
         git push heroku main

@@ -87,6 +87,9 @@ def _get_mcp_client() -> McpMemoryClient:
     if _mcp_client is None:
         _mcp_client = McpMemoryClient()
         logger.info(f"MCP MemoryOS client initialized for server: {_mcp_client.server_url}")
+        logger.info(f"MCP MemoryOS client config - API Key: {'SET' if _mcp_client.api_key else 'NOT SET'}")
+        logger.info(f"MCP MemoryOS client config - User ID: {_mcp_client.user_id}")
+        logger.info(f"MCP MemoryOS client config - Timeout: {_mcp_client.timeout}")
     
     return _mcp_client
 
@@ -128,29 +131,30 @@ async def conversation_add(input_data: Dict[str, Any], user_id: str) -> Dict[str
         if not user_id:
             raise ValueError("user_id is required for memory operations - cannot store conversations without user identification")
         
+        # MCP server expects user_id at the root level, not nested in params
         mcp_params = {
             "arguments": {
-                "params": {
-                    "user_id": user_id,
-                    "message_id": input_data["message_id"],
-                    "explanation": input_data["explanation"],
-                    "user_input": input_data["user_input"],
-                    "agent_response": input_data["agent_response"]
-                }
+                "user_id": user_id,
+                "message_id": input_data["message_id"],
+                "explanation": input_data["explanation"],
+                "user_input": input_data["user_input"],
+                "agent_response": input_data["agent_response"]
             }
         }
         
-        # Optional fields
+        # Optional fields  
         if input_data.get("timestamp"):
-            mcp_params["arguments"]["params"]["timestamp"] = input_data["timestamp"]
+            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
         if input_data.get("meta_data"):
-            mcp_params["arguments"]["params"]["meta_data"] = input_data["meta_data"]
+            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
         
         # Call MCP server
+        logger.info(f"MEMORY-CONVERSATION-ADD: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
         result = await client._make_mcp_request("tools/call", {
             "name": "add_conversation_memory",
             **mcp_params
         })
+        logger.info(f"MEMORY-CONVERSATION-ADD: MCP response: {result}")
         
         # Parse server response from MCP content format
         if result.get("content") and isinstance(result["content"][0], dict) and "text" in result["content"][0]:
@@ -245,28 +249,46 @@ async def conversation_retrieve(input_data: Dict[str, Any], user_id: str = None)
         
         logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Using user_id='{user_id}' (explicit)")
         
+        # Determine retrieval strategy based on query context
+        query = input_data["query"]
+        retrieval_strategy = "recent"  # Default to recent (no embeddings needed)
+        
+        # Use keyword search for specific term queries
+        query_words = query.lower().split()
+        if len(query_words) > 2 and any(len(word) > 4 for word in query_words):
+            retrieval_strategy = "keyword"
+        
+        # Only use hybrid (semantic) for complex conceptual queries
+        semantic_indicators = ["explain", "concept", "understand", "meaning", "similar", "related", "like", "about"]
+        if any(indicator in query.lower() for indicator in semantic_indicators):
+            retrieval_strategy = "hybrid"
+        
+        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Using retrieval_strategy='{retrieval_strategy}' for query: '{query[:50]}...'")
+        
+        # MCP server expects user_id at the root level, not nested in params
         mcp_params = {
             "arguments": {
-                "params": {
-                    "user_id": user_id,
-                    "explanation": input_data["explanation"],
-                    "query": input_data["query"],
-                    "max_results": input_data.get("max_results", 10)
-                }
+                "user_id": user_id,
+                "explanation": input_data["explanation"],
+                "query": query,
+                "max_results": input_data.get("max_results", 10),
+                "retrieval_strategy": retrieval_strategy
             }
         }
         
         # Optional fields
         if input_data.get("message_id"):
-            mcp_params["arguments"]["params"]["message_id"] = input_data["message_id"]
+            mcp_params["arguments"]["message_id"] = input_data["message_id"]
         if input_data.get("time_range"):
-            mcp_params["arguments"]["params"]["time_range"] = input_data["time_range"]
+            mcp_params["arguments"]["time_range"] = input_data["time_range"]
         
         # Call MCP server
+        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
         result = await client._make_mcp_request("tools/call", {
             "name": "retrieve_conversation_memory",
             **mcp_params
         })
+        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: MCP response: {result}")
         
         # Get current timestamp
         from datetime import datetime
@@ -276,7 +298,12 @@ async def conversation_retrieve(input_data: Dict[str, Any], user_id: str = None)
         conversation_data = result.get("content", [])
         if conversation_data and isinstance(conversation_data[0], dict) and "text" in conversation_data[0]:
             try:
-                parsed_conversations = json.loads(conversation_data[0]["text"])
+                parsed_response = json.loads(conversation_data[0]["text"])
+                # Handle nested data structure
+                if "data" in parsed_response:
+                    parsed_conversations = parsed_response["data"]
+                else:
+                    parsed_conversations = parsed_response
             except json.JSONDecodeError:
                 parsed_conversations = {"conversations": [], "total_found": 0}
         else:
@@ -391,29 +418,28 @@ async def execution_add(input_data: Dict[str, Any], user_id: str) -> Dict[str, A
         if not user_id:
             raise ValueError("user_id is required for memory operations - cannot store executions without user identification")
         
+        # MCP server expects user_id at the root level, not nested in params
         mcp_params = {
             "arguments": {
-                "params": {
-                    "user_id": user_id,
-                    "message_id": input_data["message_id"],
-                    "explanation": input_data["explanation"],
-                    # Flat structure for better LLM processing
-                    "execution_summary": input_data["execution_summary"],
-                    "tools_used": input_data["tools_used"],
-                    "errors": input_data["errors"],
-                    "observations": input_data["observations"],
-                    "success": input_data["success"]
-                }
+                "user_id": user_id,
+                "message_id": input_data["message_id"],
+                "explanation": input_data["explanation"],
+                # Flat structure for better LLM processing
+                "execution_summary": input_data["execution_summary"],
+                "tools_used": input_data["tools_used"],
+                "errors": input_data["errors"],
+                "observations": input_data["observations"],
+                "success": input_data["success"]
             }
         }
         
         # Optional fields
         if input_data.get("duration_ms") is not None:
-            mcp_params["arguments"]["params"]["duration_ms"] = input_data["duration_ms"]
+            mcp_params["arguments"]["duration_ms"] = input_data["duration_ms"]
         if input_data.get("timestamp"):
-            mcp_params["arguments"]["params"]["timestamp"] = input_data["timestamp"]
+            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
         if input_data.get("meta_data"):
-            mcp_params["arguments"]["params"]["meta_data"] = input_data["meta_data"]
+            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -515,20 +541,36 @@ async def execution_retrieve(input_data: Dict[str, Any], user_id: str = None) ->
         
         logger.info(f"MEMORY-EXECUTION-RETRIEVE: Using user_id='{user_id}' (explicit)")
         
+        # Determine retrieval strategy based on query context  
+        query = input_data["query"]
+        retrieval_strategy = "recent"  # Default to recent (no embeddings needed)
+        
+        # Use keyword search for specific term queries
+        query_words = query.lower().split()
+        if len(query_words) > 2 and any(len(word) > 4 for word in query_words):
+            retrieval_strategy = "keyword"
+        
+        # Only use hybrid (semantic) for complex conceptual queries
+        semantic_indicators = ["explain", "concept", "understand", "meaning", "similar", "related", "like", "about", "pattern"]
+        if any(indicator in query.lower() for indicator in semantic_indicators):
+            retrieval_strategy = "hybrid"
+        
+        logger.info(f"MEMORY-EXECUTION-RETRIEVE: Using retrieval_strategy='{retrieval_strategy}' for query: '{query[:50]}...'")
+        
+        # MCP server expects user_id at the root level, not nested in params
         mcp_params = {
             "arguments": {
-                "params": {
-                    "user_id": user_id,
-                    "explanation": input_data["explanation"],
-                    "query": input_data["query"],
-                    "max_results": input_data.get("max_results", 10)
-                }
+                "user_id": user_id,
+                "explanation": input_data["explanation"],
+                "query": query,
+                "max_results": input_data.get("max_results", 10),
+                "retrieval_strategy": retrieval_strategy
             }
         }
         
         # Optional fields
         if input_data.get("message_id"):
-            mcp_params["arguments"]["params"]["message_id"] = input_data["message_id"]
+            mcp_params["arguments"]["message_id"] = input_data["message_id"]
         
         # Call MCP server
         result = await client._make_mcp_request("tools/call", {
@@ -544,7 +586,12 @@ async def execution_retrieve(input_data: Dict[str, Any], user_id: str = None) ->
         execution_data = result.get("content", [])
         if execution_data and isinstance(execution_data[0], dict) and "text" in execution_data[0]:
             try:
-                parsed_executions = json.loads(execution_data[0]["text"])
+                parsed_response = json.loads(execution_data[0]["text"])
+                # Handle nested data structure
+                if "data" in parsed_response:
+                    parsed_executions = parsed_response["data"]
+                else:
+                    parsed_executions = parsed_response
             except json.JSONDecodeError:
                 parsed_executions = {"executions": [], "total_found": 0}
         else:
@@ -614,18 +661,23 @@ async def execution_retrieve(input_data: Dict[str, Any], user_id: str = None) ->
         }
 
 
-async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_profile(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
     Retrieve user profile information from MemoryOS via MCP
+    
+    IMPORTANT: Profile memories are agent-generated embeddings from past interactions.
+    This function performs semantic/embeddings search only - no real-time user data.
+    Profile content is built by AI agents based on conversation patterns and user preferences.
     
     Args:
         input_data: Dictionary with explanation, include_knowledge (optional), 
                    include_assistant_knowledge (optional)
+        user_id: Dynamic user ID to use (required for user-specific profile)
         
     Returns:
-        Dictionary with user profile data matching profile_output.json schema
+        Dictionary with agent-generated profile data via embeddings search
     """
-    logger.info(f"Retrieving user profile via MCP: {input_data.get('explanation', 'No explanation provided')}")
+    logger.info(f"Retrieving agent-generated profile via embeddings search: {input_data.get('explanation', 'No explanation provided')}")
     
     try:
         client = _get_mcp_client()
@@ -640,7 +692,7 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     "data": {
                         "status": "error",
                         "timestamp": "",
-                        "user_id": client.user_id,
+                        "user_id": user_id,
                         "assistant_id": "signal",
                         "user_profile": "",
                         "user_knowledge": [],
@@ -650,22 +702,28 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 }
         
-        # Prepare MCP parameters - only what MCP server expects
+        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        if not user_id:
+            raise ValueError("user_id is required for memory operations - cannot retrieve profile without user identification")
+        
+        logger.info(f"MEMORY-PROFILE-RETRIEVE: Using user_id='{user_id}' (explicit)")
+        
+        # MCP server expects user_id at the root level, not nested in params  
         mcp_params = {
             "arguments": {
-                "params": {
-                    "user_id": client.user_id,  # Required by MCP server
-                    "include_knowledge": input_data.get("include_knowledge", True),
-                    "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
-                }
+                "user_id": user_id,  # Required by MCP server
+                "include_knowledge": input_data.get("include_knowledge", True),
+                "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
             }
         }
         
         # Call MCP server
+        logger.info(f"MEMORY-PROFILE-RETRIEVE: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
         result = await client._make_mcp_request("tools/call", {
             "name": "get_user_profile",
             **mcp_params
         })
+        logger.info(f"MEMORY-PROFILE-RETRIEVE: MCP response: {result}")
         
         # Get current timestamp
         from datetime import datetime
@@ -694,11 +752,11 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "message": f"Retrieved user profile with {len(user_knowledge)} knowledge items via MCP server",
+            "message": f"Retrieved agent-generated profile with {len(user_knowledge)} embeddings-based knowledge items via MCP server",
             "data": {
                 "status": "success",
                 "timestamp": timestamp,
-                "user_id": client.user_id,
+                "user_id": user_id,
                 "assistant_id": "signal",
                 "user_profile": parsed_profile.get("user_profile", ""),
                 "user_knowledge": user_knowledge,
@@ -716,7 +774,7 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "data": {
                 "status": "error",
                 "timestamp": "",
-                "user_id": client.user_id,
+                "user_id": user_id,
                 "assistant_id": "signal",
                 "user_profile": "",
                 "user_knowledge": [],
@@ -726,14 +784,14 @@ async def profile_retrieve(input_data: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.error(f"Unexpected error in profile_retrieve: {e}")
+        logger.error(f"Unexpected error in get_profile: {e}")
         return {
             "success": False,
             "message": f"User profile retrieval failed: {str(e)}",
             "data": {
                 "status": "error",
                 "timestamp": "",
-                "user_id": client.user_id,
+                "user_id": user_id,
                 "assistant_id": "signal",
                 "user_profile": "",
                 "user_knowledge": [],

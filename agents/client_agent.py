@@ -17,6 +17,7 @@ import re
 import yaml
 
 from runtime.tool_executor import ToolExecutor
+from agents.convo_insights_agent import ConvoInsightsAgent
 
 # Load environment variables from .env.local file
 load_dotenv('.env.local')
@@ -240,6 +241,9 @@ class ClientAgent:
         # Initialize tool executor for dynamic tool discovery
         self.tool_executor = ToolExecutor()
         
+        # Initialize conversation insights agent
+        self.insights_agent = ConvoInsightsAgent()
+        
         # Enhanced user buffers for prompt assembly
         self.user_buffers: Dict[str, Dict[str, Any]] = {}
         self.buffer_expiry_minutes = 30  # Buffer expires after 30 minutes
@@ -247,7 +251,7 @@ class ClientAgent:
         # Load system prompt from YAML configuration
         self.system_prompt = self.config.get('system_prompt', '')
         
-        logger.info("ClientAgent initialized with Claude")
+        logger.info("ClientAgent initialized with Claude and ConvoInsightsAgent")
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -312,7 +316,12 @@ class ClientAgent:
             if context:
                 platform = context.get('platform', 'unknown')
                 timestamp = context.get('timestamp', 'unknown')
-                full_message += f"\n\n[Context: Platform={platform}, Time={timestamp}]"
+                user_timezone = context.get('user_timezone', '')
+                
+                if user_timezone and user_timezone != 'UTC':
+                    full_message += f"\n\n[Context: Platform={platform}, Current time for user: {timestamp} ({user_timezone})]"
+                else:
+                    full_message += f"\n\n[Context: Platform={platform}, Current time: {timestamp}]"
             
             # Run the agent loop with iterative tool calling and user isolation
             logger.info(f"CLIENT-AGENT-BUFFER: Calling run_agent_loop with user_id='{user_id}'")
@@ -483,46 +492,40 @@ class ClientAgent:
         if tool_usage_log:  # Only if there were tools used
             asyncio.create_task(self._store_execution_memory(tool_usage_log, all_thinking_content, user_id, message_id))
         
-        # 4. Update recent flow and important sections asynchronously (non-blocking)
-        asyncio.create_task(self._update_recent_flow(user_id))
-        asyncio.create_task(self._update_important(user_message, final_response, tool_usage_log, all_thinking_content, user_id))
+        # 4. Update insights asynchronously using Conversation Insights Agent (non-blocking)
+        asyncio.create_task(self.insights_agent.analyze_interaction(
+            user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
+        ))
         
         return final_response
     
     async def _store_conversation_memory(self, user_message: str, agent_response: str, user_id: str):
         """Store Q&A pair to MemoryOS conversation memory"""
-        # Automatically store Q&A pair in memory (unless it's a simple greeting)
-        clean_user_message = user_message.strip().lower()
-        simple_greetings = ["hi", "hello", "hey", "thanks", "thank you", "bye", "goodbye"]
-        
-        if not any(greeting in clean_user_message for greeting in simple_greetings):
-            logger.info(f"CONVERSATION-MEMORY: Storing Q&A pair for user {user_id}")
-            try:
-                # Generate unique message ID for linking
-                import uuid
-                message_id = f"auto_{uuid.uuid4().hex[:12]}"
-                
-                # Store conversation memory
-                await self.tool_executor.execute_command("memory.conversation.add", {
-                    "message_id": message_id,
-                    "explanation": "Automatic conversation storage with agent response",
-                    "user_input": user_message,
-                    "agent_response": agent_response.strip(),
-                    "meta_data": {
-                        "auto_stored": True,
-                        "user_id": user_id
-                    }
-                }, user_id=user_id)
-                logger.info(f"CONVERSATION-MEMORY: Successfully stored Q&A pair for user {user_id}")
-                return message_id  # Return for linking execution memory
-                
-            except Exception as e:
-                logger.error(f"CONVERSATION-MEMORY: Failed to store Q&A pair for user {user_id}: {e}")
-                import traceback
-                logger.error(f"CONVERSATION-MEMORY: Traceback: {traceback.format_exc()}")
-                return None
-        else:
-            logger.info(f"CONVERSATION-MEMORY: Skipping storage for greeting: {clean_user_message}")
+        # Store all conversations in memory
+        logger.info(f"CONVERSATION-MEMORY: Storing Q&A pair for user {user_id}")
+        try:
+            # Generate unique message ID for linking
+            import uuid
+            message_id = f"auto_{uuid.uuid4().hex[:12]}"
+            
+            # Store conversation memory
+            await self.tool_executor.execute_command("memory.conversation.add", {
+                "message_id": message_id,
+                "explanation": "Automatic conversation storage with agent response",
+                "user_input": user_message,
+                "agent_response": agent_response.strip(),
+                "meta_data": {
+                    "auto_stored": True,
+                    "user_id": user_id
+                }
+            }, user_id=user_id)
+            logger.info(f"CONVERSATION-MEMORY: Successfully stored Q&A pair for user {user_id}")
+            return message_id  # Return for linking execution memory
+            
+        except Exception as e:
+            logger.error(f"CONVERSATION-MEMORY: Failed to store Q&A pair for user {user_id}: {e}")
+            import traceback
+            logger.error(f"CONVERSATION-MEMORY: Traceback: {traceback.format_exc()}")
             return None
     
     async def _generate_run_summary(self, thinking_content: list, tool_usage_log: list) -> str:
@@ -656,7 +659,7 @@ Generate summary:"""
             logger.info(f"Executing Claude tool: {function_name}, Args: {args}")
             
             if streaming_callback:
-                await streaming_callback(f"Running {function_name} with args: {str(args)[:100]}...", "tool_details")
+                await streaming_callback(f"Running {function_name} with args: {str(args)[:200]}...", "tool_details")
             
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
@@ -707,7 +710,7 @@ Generate summary:"""
             else:
                 error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_execution_retrieve, memory_get_profile, execute_tool"
                 if streaming_callback:
-                    await streaming_callback(f"ERROR: {error_msg}", "error")
+                    await streaming_callback(error_msg, "error")
                 return error_msg
             
             logger.info(f"Tool executor result: {result}")
@@ -718,16 +721,23 @@ Generate summary:"""
                     success = result.get("success", False)
                     message = result.get("message", "No message")
                     if success:
-                        await streaming_callback(f"✅ {function_name} succeeded: {message}", "result")
+                        await streaming_callback(f"{function_name} succeeded: {message}", "result")
                         # Also stream key data if available
                         data = result.get("data", {})
                         if isinstance(data, dict):
                             if "total_results" in data:
                                 await streaming_callback(f"Found {data['total_results']} results", "result_detail")
                             elif "answer" in data:
-                                await streaming_callback(f"Got answer: {str(data['answer'])[:100]}...", "result_detail")
+                                # Clean up answer display - remove think tags and show clean preview
+                                answer_text = str(data['answer'])
+                                # Remove <think> tags and their content
+                                import re
+                                clean_answer = re.sub(r'<think>.*?</think>', '', answer_text, flags=re.DOTALL)
+                                clean_answer = clean_answer.strip()
+                                preview = clean_answer[:150] + "..." if len(clean_answer) > 150 else clean_answer
+                                await streaming_callback(f"Retrieved analysis: {preview}", "result_detail")
                     else:
-                        await streaming_callback(f"❌ {function_name} failed: {message}", "error")
+                        await streaming_callback(f"{function_name} failed: {message}", "error")
                 else:
                     await streaming_callback(f"Got result: {str(result)[:150]}...", "result")
             
@@ -753,82 +763,147 @@ Generate summary:"""
     
     async def assemble_from_local_buffer(self, user_message: str, user_id: str) -> str:
         """
-        Assemble enriched prompt with context from local buffer
+        ENHANCED: Assemble enriched prompt with two-section insights from Conversation Insights Agent
+        
+        Conversations and executions are now retrieved via memory.conversation.retrieve
+        and memory.execution.retrieve with "recent" strategy instead of local buffer.
+        
+        This method handles insights from the stateful Conversation Insights Agent in two sections:
+        - PINS: User preferences, needs, constraints, conversation context (max 2 items)
+        - RECOMMENDATIONS: Tool usage guidance, error patterns, workflow optimization (max 1 item)
         
         Args:
             user_message: Current user message
             user_id: User identifier for buffer isolation
             
         Returns:
-            Enriched message with conversation and execution context
+            Enriched message with relevant pins and recommendations sections
         """
-        logger.info(f"PROMPT-ASSEMBLY: Assembling context for user {user_id}")
+        logger.info(f"PROMPT-ASSEMBLY: Assembling pins + recommendations for user {user_id}")
         
-        # Check if buffer is fresh (30-minute expiry)
+        # Early exit if buffer expired
         if not self._is_buffer_fresh(user_id):
             logger.info(f"PROMPT-ASSEMBLY: Buffer expired for user {user_id}, using message as-is")
             return user_message
         
         buffer = self.user_buffers.get(user_id, {})
-        context_parts = [user_message]
+        if not buffer:
+            return user_message
         
-        # Prioritize context based on relevance and recency
-        conversations = buffer.get('conversations', [])
-        executions = buffer.get('executions', [])
-        recent_flow = buffer.get('recent_flow', {})
+        # Only process important items
         important = buffer.get('important', {})
+        if not important:
+            return user_message
         
-        # Only add context if it's meaningful and recent
-        context_weight = 0
+        current_time = time.time()
         
-        # Add most recent conversation (high priority)
-        if conversations:
-            last_conv = conversations[-1]
-            # Only include if recent (within last hour)
-            if time.time() - last_conv.get('timestamp', 0) < 3600:
-                context_parts.append("\n=== RECENT CONTEXT ===")
-                context_parts.append(f"Previous: {last_conv['user_input'][:100]}{'...' if len(last_conv['user_input']) > 100 else ''}")
-                context_parts.append(f"Response: {last_conv['agent_response'][:150]}{'...' if len(last_conv['agent_response']) > 150 else ''}")
-                context_weight += 1
+        # Pre-filter by recency (30 minutes) - avoid processing old items
+        recency_threshold = current_time - 1800  # 30 minutes
+        recent_items = {
+            k: v for k, v in important.items() 
+            if v.get('timestamp', 0) > recency_threshold
+        }
         
-        # Add execution summary only if tools were used (medium priority)
-        if executions and context_weight < 2:
-            last_exec = executions[-1]
-            if last_exec.get('tools_used'):
-                context_parts.append("\n=== TOOLS USED ===")
-                context_parts.append(f"Recent tools: {', '.join(last_exec['tools_used'][:3])}")
-                if last_exec.get('execution_summary'):
-                    context_parts.append(f"Summary: {last_exec['execution_summary'][:200]}...")
-                context_weight += 1
+        if not recent_items:
+            return user_message
         
-        # Add flow pattern only if established (low priority)
-        if recent_flow.get('summary') and context_weight < 2:
-            context_parts.append("\n=== INTERACTION PATTERN ===")
-            context_parts.append(f"Recent pattern: {recent_flow['summary'][:200]}...")
-            context_weight += 0.5
+        # Separate pins and recommendations for different treatment
+        pins = []
+        recommendations = []
         
-        # Add only most critical important items (high priority)
-        if important and context_weight < 2:
-            sorted_important = sorted(
-                important.items(), 
+        # Sort by timestamp once (most recent first)
+        sorted_items = sorted(
+            recent_items.items(), 
                 key=lambda x: x[1]['timestamp'], 
                 reverse=True
             )
-            # Only show if very recent (within last 30 minutes)
-            recent_important = [
-                item for item in sorted_important 
-                if time.time() - item[1]['timestamp'] < 1800
-            ]
+        
+        # Process items with relevance scoring, separated by type
+        for note_id, note_data in sorted_items:
+            notes = note_data.get('notes', '')
+            related_question = note_data.get('related_question', '')
+            insight_type = note_data.get('insight_type', 'pin')  # Default to pin
             
-            if recent_important:
-                context_parts.append("\n=== KEY POINTS ===")
-                for note_id, note_data in recent_important[:2]:  # Only top 2 most recent
-                    notes_text = note_data['notes'][:150] + ('...' if len(note_data['notes']) > 150 else '')
-                    context_parts.append(f"• {notes_text}")
-                context_weight += 1
+            # Calculate relevance based on keyword overlap
+            user_words = set(user_message.lower().split())
+            note_words = set((notes + ' ' + related_question).lower().split())
+            
+            overlap = (len(user_words.intersection(note_words)) / len(user_words) 
+                     if user_words else 0)
+            
+            # Boost if related to current context
+            context_boost = 0.2 if any(word in notes.lower() 
+                                     for word in user_message.lower().split()[:3]) else 0
+            
+            relevance = overlap + context_boost
+            
+            # Different relevance thresholds for different types
+            relevance_threshold = 0.05 if insight_type == 'recommendation' else 0.1  # Lower bar for recommendations
+            
+            if relevance > relevance_threshold:
+                content = f"• {notes[:150]}{'...' if len(notes) > 150 else ''}"
+                
+                candidate = {
+                    'content': content,
+                    'relevance_score': relevance,
+                    'timestamp': note_data.get('timestamp', 0),
+                    'insight_type': insight_type
+                }
+                
+                if insight_type == 'recommendation':
+                    recommendations.append(candidate)
+                else:
+                    pins.append(candidate)
+        
+        # Sort each type by relevance
+        pins.sort(key=lambda x: x['relevance_score'], reverse=True)
+        recommendations.sort(key=lambda x: x['relevance_score'], reverse=True)
+        
+        # Build context with length limit, prioritizing pins for conversation context
+        context_parts = [user_message]
+        current_length = len(user_message)
+        max_context_length = 800
+        
+        # Determine what we'll include
+        relevant_pins = pins[:2]  # Max 2 most relevant pins
+        relevant_recommendations = recommendations[:1]  # Max 1 most relevant recommendation
+        
+        # Add pins section if we have relevant pins
+        if relevant_pins:
+            pins_header = "\n=== KEY INSIGHTS ==="
+            if current_length + len(pins_header) < max_context_length:
+                context_parts.append(pins_header)
+                current_length += len(pins_header)
+                
+                for pin in relevant_pins:
+                    if current_length + len(pin['content']) > max_context_length:
+                        break
+                    context_parts.append(pin['content'])
+                    current_length += len(pin['content'])
+        
+        # Add recommendations section if we have relevant ones and space
+        if relevant_recommendations and current_length < max_context_length - 100:  # Leave some space
+            rec_header = "\n=== TOOL GUIDANCE ==="
+            if current_length + len(rec_header) < max_context_length:
+                context_parts.append(rec_header)
+                current_length += len(rec_header)
+                
+                for rec in relevant_recommendations:
+                    if current_length + len(rec['content']) > max_context_length:
+                        break
+                    context_parts.append(rec['content'])
+                    current_length += len(rec['content'])
+        
+        # Only add context if we found something relevant
+        if len(context_parts) == 1:  # Only user_message, no context added
+            return user_message
         
         enriched_message = "\n".join(context_parts)
-        logger.info(f"PROMPT-ASSEMBLY: Assembled {len(context_parts)-1} context sections for user {user_id}")
+        
+        pins_count = len(relevant_pins) if relevant_pins else 0
+        recs_count = len(relevant_recommendations) if relevant_recommendations else 0
+        logger.info(f"PROMPT-ASSEMBLY: Added {pins_count} pins + {recs_count} recommendations, "
+                   f"length: {current_length}")
         
         return enriched_message
     
@@ -846,72 +921,22 @@ Generate summary:"""
 
     
     def _update_buffer(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, user_id: str):
-        """Update local buffer with conversation and execution data"""
+        """Update local buffer - simplified to only handle important items"""
         logger.info(f"BUFFER: Updating buffer for user {user_id}")
         
-        # Initialize user buffer if not exists
+        # Initialize user buffer if not exists - only important items now
         if user_id not in self.user_buffers:
             logger.info(f"BUFFER-NEW-USER: Creating new buffer for user_id='{user_id}'")
             self.user_buffers[user_id] = {
-                'conversations': [],
-                'executions': [],
                 'important': {},
-                'recent_flow': {},
                 'last_updated': time.time()
             }
         else:
             logger.info(f"BUFFER-EXISTING-USER: Using existing buffer for user_id='{user_id}'")
         
-        # Add conversation to buffer
-        conversation_entry = {
-            'user_input': user_message,
-            'agent_response': agent_response,
-            'timestamp': time.time()
-        }
-        self.user_buffers[user_id]['conversations'].append(conversation_entry)
-        
-        # Keep only last 3 conversations
-        if len(self.user_buffers[user_id]['conversations']) > 3:
-            self.user_buffers[user_id]['conversations'].pop(0)
-        
-        # Add execution context if there were tools used
-        if tool_usage_log:
-            tools_used = [tool['tool'] for tool in tool_usage_log]
-            tool_failures = [
-                f"{tool['tool']} error: {tool['result_preview'][:100]}" 
-                for tool in tool_usage_log 
-                if not tool['success']
-            ]
-            
-            # Determine reasoning approach
-            reasoning_approach = "direct_response"
-            if len(tools_used) > 0:
-                if any("reg_" in tool for tool in tools_used):
-                    reasoning_approach = "tool_discovery"
-                elif any("memory_conversation_retrieve" in tool or "memory_execution_retrieve" in tool for tool in tools_used):
-                    reasoning_approach = "context_retrieval"
-                else:
-                    reasoning_approach = "tool_execution"
-            
-            execution_entry = {
-                'execution_summary': "Processing execution summary...",  # Will be updated async
-                'tools_used': tools_used,
-                'errors': tool_failures,
-                'observations': f"Used {reasoning_approach} approach with {len(tool_usage_log)} tool(s) and {len(thinking_content)} thinking blocks",
-                'success': len(tool_failures) == 0,
-                'timestamp': time.time(),
-                'reasoning_approach': reasoning_approach
-            }
-            
-            self.user_buffers[user_id]['executions'].append(execution_entry)
-            
-            # Keep only last 1 execution (since we only use executions[-1])
-            if len(self.user_buffers[user_id]['executions']) > 1:
-                self.user_buffers[user_id]['executions'].pop(0)
-        
-        # Update timestamp
+        # Update timestamp (important items are added via separate async method)
         self.user_buffers[user_id]['last_updated'] = time.time()
-        logger.info(f"BUFFER: Buffer updated for user {user_id}")
+        logger.info(f"BUFFER: Buffer timestamp updated for user {user_id}")
     
     async def _store_execution_memory(self, tool_usage_log: list, thinking_content: list, user_id: str, message_id: str = None):
         """Process execution details and store to MemoryOS"""
@@ -957,10 +982,6 @@ Generate summary:"""
                 "duration_ms": duration_ms
             }, user_id=user_id)
             
-            # Update buffer execution entry with generated summary
-            if user_id in self.user_buffers and self.user_buffers[user_id]['executions']:
-                self.user_buffers[user_id]['executions'][-1]['execution_summary'] = run_summary
-            
             logger.info(f"EXECUTION-MEMORY: Successfully stored execution details for user {user_id}")
             
         except Exception as e:
@@ -968,146 +989,37 @@ Generate summary:"""
             import traceback
             logger.error(f"EXECUTION-MEMORY: Traceback: {traceback.format_exc()}")
     
-    async def _update_recent_flow(self, user_id: str):
-        """Update recent flow summary with sliding window of multiple past turns"""
-        try:
-            logger.info(f"RECENT-FLOW: Updating recent flow summary for user {user_id}")
-            
-            if user_id not in self.user_buffers:
-                return
-            
-            conversations = self.user_buffers[user_id].get('conversations', [])
-            executions = self.user_buffers[user_id].get('executions', [])
-            
-            # Only generate recent flow if we have multiple conversations
-            if len(conversations) < 2:
-                return
-            
-            # Prepare conversation history for analysis (last 3 conversations)
-            conversation_history = []
-            for conv in conversations[-3:]:
-                conversation_history.append(f"Q: {conv['user_input']}")
-                conversation_history.append(f"A: {conv['agent_response']}")
-            
-            # Prepare execution patterns
-            execution_patterns = []
-            for exec_entry in executions[-3:] if executions else []:
-                if exec_entry.get('tools_used'):
-                    execution_patterns.append(f"Tools: {', '.join(exec_entry['tools_used'])}")
-                if exec_entry.get('reasoning_approach'):
-                    execution_patterns.append(f"Approach: {exec_entry['reasoning_approach']}")
-            
-            # Generate flow summary using Gemini Flash 2.5
-            import google.generativeai as genai
-            api_key = os.getenv("GEMINI_API_KEY")
-            
-            if not api_key:
-                logger.warning("RECENT-FLOW: GEMINI_API_KEY not set, using fallback summary")
-                recent_flow_summary = self._generate_fallback_flow_summary(conversations, executions)
-            else:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.0-flash-exp')
-                
-                prompt = f"""Analyze this conversation flow and create a brief summary of the recent interaction pattern (2-3 sentences max):
 
-RECENT CONVERSATIONS:
-{chr(10).join(conversation_history)}
-
-EXECUTION PATTERNS:
-{chr(10).join(execution_patterns)}
-
-Create a summary that captures:
-- The overall conversation theme or topic progression
-- Problem-solving approach or tool usage patterns
-- Any evolving user needs or context
-
-Format: Natural language summary focusing on flow and patterns, not individual details.
-
-Generate summary:"""
-
-                try:
-                    response = model.generate_content(prompt)
-                    recent_flow_summary = response.text.strip().replace('\n', ' ')
-                except Exception as gemini_error:
-                    logger.warning(f"RECENT-FLOW: Gemini API failed ({gemini_error}), using fallback")
-                    recent_flow_summary = self._generate_fallback_flow_summary(conversations, executions)
-            
-            # Update buffer
-            self.user_buffers[user_id]['recent_flow'] = {
-                'summary': recent_flow_summary,
-                'conversation_count': len(conversations),
-                'last_updated': time.time()
-            }
-            
-            logger.info(f"RECENT-FLOW: Updated recent flow for user {user_id}")
-            
-        except Exception as e:
-            logger.error(f"RECENT-FLOW: Failed to update recent flow for user {user_id}: {e}")
-            import traceback
-            logger.error(f"RECENT-FLOW: Traceback: {traceback.format_exc()}")
     
-    def _generate_fallback_flow_summary(self, conversations: list, executions: list) -> str:
-        """Generate a simple flow summary without using Gemini API"""
-        if not conversations:
-            return "No conversation history available"
-        
-        # Analyze conversation patterns
-        recent_convs = conversations[-3:]  # Last 3 conversations
-        topics = []
-        
-        for conv in recent_convs:
-            user_input = conv.get('user_input', '').lower()
-            
-            # Extract key topics based on common patterns
-            if any(word in user_input for word in ['weather', 'temperature', 'forecast']):
-                topics.append('weather')
-            elif any(word in user_input for word in ['search', 'find', 'lookup', 'information']):
-                topics.append('information_search')
-            elif any(word in user_input for word in ['memory', 'remember', 'recall', 'context']):
-                topics.append('memory_operations')
-            elif any(word in user_input for word in ['help', 'assist', 'support']):
-                topics.append('assistance')
-            elif any(word in user_input for word in ['prompt', 'assembly', 'stack', 'context']):
-                topics.append('system_inquiry')
-            else:
-                topics.append('general_inquiry')
-        
-        # Analyze execution patterns
-        tool_usage = []
-        if executions:
-            recent_exec = executions[-1]
-            tools_used = recent_exec.get('tools_used', [])
-            if tools_used:
-                if any('memory' in tool for tool in tools_used):
-                    tool_usage.append('memory_retrieval')
-                if any('perplexity' in tool for tool in tools_used):
-                    tool_usage.append('web_search')
-                if any('weather' in tool for tool in tools_used):
-                    tool_usage.append('weather_data')
-                if any('reg_' in tool for tool in tools_used):
-                    tool_usage.append('tool_discovery')
-        
-        # Generate summary
-        unique_topics = list(set(topics))
-        topic_text = ', '.join(unique_topics[:2]) if unique_topics else 'general discussion'
-        
-        if tool_usage:
-            tool_text = f" using {', '.join(set(tool_usage))}"
-        else:
-            tool_text = " with direct responses"
-        
-        conversation_count = len(conversations)
-        
-        return f"Recent pattern: {conversation_count} conversations focused on {topic_text}{tool_text}. User appears to be exploring system capabilities and memory functionality."
-    
+    # =============================================================================
+    # CONVERSATION INSIGHTS METHODS - MOVED TO ConvoInsightsAgent
+    # =============================================================================
+    # 
+    # The following methods have been refactored into a separate ConvoInsightsAgent:
+    # - _update_important() -> insights_agent.analyze_interaction()
+    # - _get_current_insights() -> moved to ConvoInsightsAgent
+    # - _replace_insights() -> moved to ConvoInsightsAgent  
+    # - _generate_stateful_fallback_insights() -> moved to ConvoInsightsAgent
+    #
+    # These methods are now called via:
+    #   self.insights_agent.analyze_interaction(user_message, agent_response, tool_usage_log, thinking_content, user_id, self.user_buffers)
+    #
+    # =============================================================================
+
+    # DEPRECATED: This method has been replaced by ConvoInsightsAgent.analyze_interaction()
     async def _update_important(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, user_id: str):
-        """Generate important cliffnotes from Q&A pair and execution trace"""
+        """Stateful Conversation Insights Agent - builds evolving understanding of user"""
         try:
-            logger.info(f"IMPORTANT: Generating important cliffnotes for user {user_id}")
+            logger.info(f"INSIGHTS-AGENT: Analyzing interaction for user {user_id}")
             
             # Only generate important notes if there's significant activity
             if not tool_usage_log and len(user_message.split()) < 10:
+                logger.info(f"INSIGHTS-AGENT: Skipping trivial interaction for user {user_id}")
                 return
+            
+            # Get existing insights for comparison and evolution
+            existing_insights = self._get_current_insights(user_id)
+            logger.info(f"INSIGHTS-AGENT: Found {len(existing_insights.split('•')) - 1 if existing_insights != 'No previous insights.' else 0} existing insights")
             
             # Prepare execution details
             execution_summary = ""
@@ -1125,79 +1037,306 @@ Generate summary:"""
                 key_thoughts = [thinking[:200] for thinking in thinking_content[:2]]
                 thinking_summary = " ".join(key_thoughts)
             
-            # Generate important notes using Gemini Flash 2.5
+            # Generate updated insights using stateful Conversation Insights Agent
             import google.generativeai as genai
             api_key = os.getenv("GEMINI_API_KEY")
             
             if not api_key:
-                logger.warning("IMPORTANT: GEMINI_API_KEY not set, using fallback notes")
-                important_notes = self._generate_fallback_important_notes(user_message, agent_response, tool_usage_log, thinking_content)
+                logger.warning("INSIGHTS-AGENT: GEMINI_API_KEY not set, using fallback analysis")
+                updated_insights = self._generate_stateful_fallback_insights(
+                    user_message, agent_response, tool_usage_log, thinking_content, existing_insights, user_id
+                )
             else:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-2.0-flash-exp')
                 
-                prompt = f"""Extract the most important highlights from this interaction for future reference (1-2 bullet points max):
+                prompt = f"""You are the Conversation Insights Agent. Your job is to maintain an evolving understanding of this user across two key dimensions.
 
-USER QUESTION:
-{user_message}
+CURRENT USER INSIGHTS:
+{existing_insights}
 
-AGENT RESPONSE:
-{agent_response}
+NEW INTERACTION TO ANALYZE:
+User: "{user_message}"
+Agent Response: "{agent_response}"
+Tools Used: {execution_summary if execution_summary else "No tools used"}
+Agent Reasoning: {thinking_summary if thinking_summary else "No detailed reasoning captured"}
 
-EXECUTION DETAILS:
-{execution_summary}
+ANALYSIS TASKS:
+1. COMPARE: How does this new interaction relate to existing insights?
+2. UPDATE: Do any existing insights need refinement/correction?
+3. ADD: What new patterns or preferences emerge?
+4. DELETE: Are any insights now outdated or contradicted?
+5. SYNTHESIZE: Can you spot meta-patterns across interactions?
 
-AGENT THINKING:
-{thinking_summary}
+OUTPUT FORMAT:
+Return insights organized into TWO distinct sections (maximum 3 items per section):
 
-Create concise cliffnotes that capture:
-- Key user needs or specific requirements mentioned
-- Important facts, preferences, or constraints discovered
-- Critical errors or limitations encountered
-- Significant achievements or successful approaches
+PINS:
+• [User preference, need, constraint, or critical conversation context]
+• [Personal information, domain expertise, communication style]
+• [Recurring patterns, evolving context, important facts]
 
-Format: Bullet points, focus on what's worth remembering for future interactions.
+RECOMMENDATIONS:
+• [Tool usage guidance: which tools work best for this user]
+• [Error patterns: what approaches to avoid or retry]
+• [Action space optimization: preferred workflows, successful strategies]
 
-Generate important notes:"""
+FOCUS AREAS:
+PINS: User identity, preferences, needs, constraints, domain knowledge, communication patterns
+RECOMMENDATIONS: Tool effectiveness, error handling, workflow optimization, technical approaches
+
+If no meaningful insights exist in either section, return:
+PINS:
+• No significant conversation insights yet.
+RECOMMENDATIONS:
+• No tool usage patterns identified yet.
+
+Generate updated insights:"""
 
                 try:
                     response = model.generate_content(prompt)
-                    important_notes = response.text.strip()
+                    updated_insights = response.text.strip()
+                    logger.info(f"INSIGHTS-AGENT: Generated stateful insights for user {user_id}")
                 except Exception as gemini_error:
-                    logger.warning(f"IMPORTANT: Gemini API failed ({gemini_error}), using fallback")
-                    important_notes = self._generate_fallback_important_notes(user_message, agent_response, tool_usage_log, thinking_content)
+                    logger.warning(f"INSIGHTS-AGENT: Gemini API failed ({gemini_error}), using fallback")
+                    updated_insights = self._generate_stateful_fallback_insights(
+                        user_message, agent_response, tool_usage_log, thinking_content, existing_insights, user_id
+                    )
             
-            # Update buffer (keep only recent important items)
-            if user_id not in self.user_buffers:
-                return
+            # Replace entire insights set with evolved understanding
+            self._replace_insights(user_id, updated_insights)
             
-            current_important = self.user_buffers[user_id].get('important', {})
-            
-            # Add new important item with timestamp
-            import uuid
-            note_id = f"note_{uuid.uuid4().hex[:8]}"
-            current_important[note_id] = {
-                'notes': important_notes,
-                'timestamp': time.time(),
-                'related_question': user_message[:100]  # First 100 chars for context
-            }
-            
-            # Keep only last 5 important items (sliding window)
-            if len(current_important) > 5:
-                oldest_key = min(current_important.keys(), key=lambda k: current_important[k]['timestamp'])
-                del current_important[oldest_key]
-            
-            self.user_buffers[user_id]['important'] = current_important
-            
-            logger.info(f"IMPORTANT: Generated important notes for user {user_id}")
+            logger.info(f"INSIGHTS-AGENT: Updated insights for user {user_id}")
             
         except Exception as e:
-            logger.error(f"IMPORTANT: Failed to generate important notes for user {user_id}: {e}")
+            logger.error(f"INSIGHTS-AGENT: Failed to update insights for user {user_id}: {e}")
             import traceback
-            logger.error(f"IMPORTANT: Traceback: {traceback.format_exc()}")
+            logger.error(f"INSIGHTS-AGENT: Traceback: {traceback.format_exc()}")
+    
+    def _get_current_insights(self, user_id: str) -> str:
+        """Get formatted previous insights for the Conversation Insights Agent to review"""
+        if user_id not in self.user_buffers:
+            return "PINS:\n• No previous conversation insights.\n\nRECOMMENDATIONS:\n• No previous tool usage patterns."
+        
+        important_items = self.user_buffers[user_id].get('important', {})
+        if not important_items:
+            return "PINS:\n• No previous conversation insights.\n\nRECOMMENDATIONS:\n• No previous tool usage patterns."
+        
+        # Separate insights by type and sort by recency
+        pins = []
+        recommendations = []
+        
+        sorted_items = sorted(
+            important_items.items(), 
+            key=lambda x: x[1]['timestamp'], 
+            reverse=True
+        )
+        
+        for note_id, note_data in sorted_items:
+            timestamp = note_data.get('timestamp', 0)
+            age_minutes = (time.time() - timestamp) / 60
+            insight_type = note_data.get('insight_type', 'pin')  # Default to pin for backward compatibility
+            notes = note_data.get('notes', '')
+            
+            formatted_insight = f"• {notes} (noted {age_minutes:.0f}m ago)"
+            
+            if insight_type == 'recommendation':
+                recommendations.append(formatted_insight)
+        else:
+                pins.append(formatted_insight)
+        
+        # Format in two sections
+        pins_section = "PINS:\n" + ("\n".join(pins) if pins else "• No previous conversation insights.")
+        recommendations_section = "RECOMMENDATIONS:\n" + ("\n".join(recommendations) if recommendations else "• No previous tool usage patterns.")
+        
+        return f"{pins_section}\n\n{recommendations_section}"
+    
+    def _replace_insights(self, user_id: str, updated_insights: str):
+        """Replace entire insights set with evolved understanding (two-section format)"""
+        if user_id not in self.user_buffers:
+            return
+        
+        # Clear existing insights
+        self.user_buffers[user_id]['important'] = {}
+        
+        # Handle case where agent returns no insights
+        if not updated_insights or "No significant insights yet" in updated_insights:
+            logger.info(f"INSIGHTS-AGENT: No significant insights to store for user {user_id}")
+            return
+            
+        # Parse two-section format
+        sections = updated_insights.split('\n\n')
+        pins_section = ""
+        recommendations_section = ""
+        
+        for section in sections:
+            if section.strip().startswith('PINS:'):
+                pins_section = section.strip()
+            elif section.strip().startswith('RECOMMENDATIONS:'):
+                recommendations_section = section.strip()
+        
+        import uuid
+        insights_count = 0
+        
+        # Process PINS section
+        if pins_section:
+            pin_lines = [line.strip() for line in pins_section.split('\n') if line.strip().startswith('•')]
+            for i, pin_line in enumerate(pin_lines[:3]):  # Max 3 pins
+                pin_text = pin_line[1:].strip()  # Remove '•' and whitespace
+                
+                if pin_text and "No significant conversation insights" not in pin_text:
+                    note_id = f"pin_{uuid.uuid4().hex[:8]}"
+                    self.user_buffers[user_id]['important'][note_id] = {
+                        'notes': pin_text,
+                        'timestamp': time.time(),
+                        'insight_type': 'pin',
+                        'related_question': f"Conversation insight #{i+1}"
+                    }
+                    insights_count += 1
+        
+        # Process RECOMMENDATIONS section
+        if recommendations_section:
+            rec_lines = [line.strip() for line in recommendations_section.split('\n') if line.strip().startswith('•')]
+            for i, rec_line in enumerate(rec_lines[:3]):  # Max 3 recommendations
+                rec_text = rec_line[1:].strip()  # Remove '•' and whitespace
+                
+                if rec_text and "No tool usage patterns" not in rec_text:
+                    note_id = f"rec_{uuid.uuid4().hex[:8]}"
+                    self.user_buffers[user_id]['important'][note_id] = {
+                        'notes': rec_text,
+                        'timestamp': time.time(),
+                        'insight_type': 'recommendation',
+                        'related_question': f"Tool recommendation #{i+1}"
+                    }
+                    insights_count += 1
+        
+        pins_count = len([item for item in self.user_buffers[user_id]['important'].values() 
+                         if item.get('insight_type') == 'pin'])
+        recs_count = len([item for item in self.user_buffers[user_id]['important'].values() 
+                         if item.get('insight_type') == 'recommendation'])
+        
+        logger.info(f"INSIGHTS-AGENT: Stored {pins_count} pins + {recs_count} recommendations for user {user_id}")
+    
+    def _generate_stateful_fallback_insights(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, existing_insights: str, user_id: str) -> str:
+        """Generate stateful insights without using Gemini API - compares against existing insights (two-section format)"""
+        logger.info(f"INSIGHTS-AGENT: Using stateful fallback analysis for user {user_id}")
+        
+        # Parse existing insights to understand what we already know
+        existing_patterns = set()
+        existing_pins = []
+        existing_recommendations = []
+        
+        # Parse existing insights by section
+        if "PINS:" in existing_insights:
+            sections = existing_insights.split('\n\n')
+            for section in sections:
+                if section.strip().startswith('PINS:'):
+                    existing_pins = [line.strip() for line in section.split('\n')[1:] if line.strip().startswith('•')]
+                elif section.strip().startswith('RECOMMENDATIONS:'):
+                    existing_recommendations = [line.strip() for line in section.split('\n')[1:] if line.strip().startswith('•')]
+            
+            # Extract patterns from existing insights
+            all_existing_text = ' '.join(existing_pins + existing_recommendations).lower()
+            if 'personal' in all_existing_text or 'preference' in all_existing_text:
+                existing_patterns.add('personal_info')
+            if 'requirement' in all_existing_text or 'need' in all_existing_text:
+                existing_patterns.add('user_requirements')
+            if 'system' in all_existing_text or 'tool' in all_existing_text or 'error' in all_existing_text:
+                existing_patterns.add('system_issues')
+            if 'memory' in all_existing_text or 'context' in all_existing_text:
+                existing_patterns.add('memory_operations')
+        
+        # Analyze current interaction for new patterns
+        new_pins = []
+        new_recommendations = []
+        user_lower = user_message.lower()
+        
+        # === PINS ANALYSIS ===
+        # Personal information or preferences (only if not already captured)
+        if 'personal_info' not in existing_patterns:
+            if any(word in user_lower for word in ['my name is', 'i am', 'call me', 'i prefer']):
+                new_pins.append(f"• **Personal Info**: User shared: {user_message[:100]}...")
+        
+        # User requirements (check if it's a new/different requirement)
+        if any(word in user_lower for word in ['need', 'want', 'require', 'must', 'should']):
+            new_pins.append(f"• **User Requirement**: {user_message[:80]}...")
+        
+        # System investigations 
+        if any(word in user_lower for word in ['prompt', 'memory', 'context', 'assembly', 'debug', 'issue']):
+            new_pins.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
+        
+        # === RECOMMENDATIONS ANALYSIS ===
+        if tool_usage_log:
+            tools_used = [tool['tool'] for tool in tool_usage_log]
+            failed_tools = [tool['tool'] for tool in tool_usage_log if not tool['success']]
+            successful_tools = [tool['tool'] for tool in tool_usage_log if tool['success']]
+            
+            # Tool failure patterns
+            if failed_tools:
+                new_recommendations.append(f"• **Avoid**: Tools that failed: {', '.join(failed_tools[:2])}")
+            
+            # Successful tool patterns
+            if successful_tools:
+                new_recommendations.append(f"• **Prefer**: Successful tools for this user: {', '.join(successful_tools[:2])}")
+            
+            # Specific tool usage recommendations
+            if any('memory' in tool for tool in tools_used):
+                new_recommendations.append(f"• **Memory Usage**: User actively accesses conversation/execution history")
+            
+            if any('perplexity' in tool for tool in tools_used):
+                new_recommendations.append(f"• **Web Search**: User benefits from current information lookup")
+            
+            if any('weather' in tool for tool in tools_used):
+                new_recommendations.append(f"• **Weather Tools**: User requires weather information access")
+        
+        # Agent response analysis for recommendations
+        response_lower = agent_response.lower()
+        if any(phrase in response_lower for phrase in ['sorry', 'error', 'unable', 'cannot', 'failed']):
+            new_recommendations.append(f"• **Retry Strategy**: Current approach failed, consider alternative tools/methods")
+        
+        # Preserve existing insights and merge intelligently
+        final_pins = []
+        final_recommendations = []
+        
+        # Add new insights first (prioritize fresh learnings)
+        final_pins.extend(new_pins[:2])  # Max 2 new pins
+        final_recommendations.extend(new_recommendations[:2])  # Max 2 new recommendations
+        
+        # Add most relevant existing insights if we have room
+        remaining_pin_slots = 3 - len(final_pins)
+        remaining_rec_slots = 3 - len(final_recommendations)
+        
+        if remaining_pin_slots > 0 and existing_pins:
+            # Filter out "no insights" messages and take most recent
+            valid_pins = [pin for pin in existing_pins if "No previous conversation insights" not in pin]
+            final_pins.extend(valid_pins[:remaining_pin_slots])
+        
+        if remaining_rec_slots > 0 and existing_recommendations:
+            # Filter out "no patterns" messages and take most recent
+            valid_recs = [rec for rec in existing_recommendations if "No previous tool usage patterns" not in rec]
+            final_recommendations.extend(valid_recs[:remaining_rec_slots])
+        
+        # Default insights if nothing meaningful found
+        if not final_pins:
+            if len(tool_usage_log) > 0:
+                final_pins.append(f"• **Interaction**: User query requiring {len(tool_usage_log)} tool operations")
+            else:
+                final_pins.append(f"• **Simple Exchange**: Direct Q&A about {user_message[:40]}...")
+        
+        if not final_recommendations:
+            if len(tool_usage_log) > 0:
+                final_recommendations.append(f"• **Tool Pattern**: User interaction involved {len(tool_usage_log)} tools")
+            else:
+                final_recommendations.append(f"• **Direct Response**: No tools needed for this user query")
+        
+        # Format in two sections
+        pins_section = "PINS:\n" + "\n".join(final_pins)
+        recommendations_section = "RECOMMENDATIONS:\n" + "\n".join(final_recommendations)
+        
+        return f"{pins_section}\n\n{recommendations_section}"
     
     def _generate_fallback_important_notes(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list) -> str:
-        """Generate important notes without using Gemini API"""
+        """LEGACY: Generate important notes without using Gemini API (stateless fallback)"""
         notes = []
         
         # Analyze user message for key information

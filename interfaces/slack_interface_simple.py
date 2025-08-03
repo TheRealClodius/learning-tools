@@ -253,11 +253,10 @@ class SlackStreamingHandler:
         self.channel_id = channel_id
         self.thread_ts = thread_ts
         self.message_ts: Optional[str] = None
-        self.thinking_steps = []
-        self.current_tool = None
-        self.tools_executed = []
-        self.operation_log = []  # For detailed operations
-        self.current_status = None
+        self.content_blocks = []  # Chronological list of thinking and tool blocks
+        self.current_tool_block = None  # Currently active tool block
+        self.all_thinking = []  # All thinking content accumulated
+        self.execution_summary = []  # Store execution details for modal
         
     async def start_streaming(self):
         """Post initial thinking message"""
@@ -265,140 +264,240 @@ class SlackStreamingHandler:
             channel=self.channel_id,
             blocks=[
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "🤔 *Thinking...*"
-                    }
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": "_Reasoning..._"
+                        }
+                    ]
                 }
             ],
-            text="🤔 Thinking...",
+            text="Reasoning...",
             thread_ts=self.thread_ts
         )
         self.message_ts = response["ts"]
         
     async def update_thinking(self, thinking_line: str):
-        """Add a new thinking step and update message"""
-        if not self.message_ts:
+        """Add thinking content - accumulate all thinking in current block"""
+        if not self.message_ts or not thinking_line.strip():
             return
             
-        # Only add non-empty thinking lines
-        if thinking_line.strip():
-            self.thinking_steps.append(thinking_line.strip())
-        
+        self.all_thinking.append(thinking_line.strip())
         await self._update_display()
         
-    async def add_status(self, status: str):
-        """Add a status update"""
-        self.current_status = status
+    async def start_tool(self, tool_name: str):
+        """Start a new tool execution block"""
+        # End any current thinking block by moving it to completed blocks
+        if self.all_thinking:
+            thinking_text = "\n".join(self.all_thinking)
+            self.content_blocks.append(("thinking", thinking_text))
+            # Store thinking in execution summary too
+            self.execution_summary.append(("thinking", thinking_text))
+            self.all_thinking = []  # Clear current thinking
+        
+        # Start new tool block
+        self.current_tool_block = {
+            "name": tool_name,
+            "operations": [],
+            "status": "running"
+        }
         await self._update_display()
         
-    async def add_operation_detail(self, detail: str, emoji: str):
-        """Add an operation detail with emoji"""
-        self.operation_log.append(f"{emoji} {detail}")
-        # Keep only last 5 operations to avoid message bloat
-        if len(self.operation_log) > 5:
-            self.operation_log = self.operation_log[-5:]
-        await self._update_display()
+    async def add_tool_operation(self, operation: str):
+        """Add operation to current tool block"""
+        if self.current_tool_block:
+            self.current_tool_block["operations"].append(operation)
+            await self._update_display()
+    
+    async def complete_tool(self, result_summary: str):
+        """Complete current tool and add result summary"""
+        if self.current_tool_block:
+            self.current_tool_block["status"] = "completed"
+            if result_summary:
+                # Create a human-readable summary
+                summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
+                if summary:
+                    self.current_tool_block["operations"].append(summary)
+            
+            # Add completed tool block to content blocks and execution summary
+            completed_tool = self.current_tool_block.copy()
+            self.content_blocks.append(("tool", completed_tool))
+            self.execution_summary.append(("tool", completed_tool))
+            self.current_tool_block = None  # Clear current tool
+            # Note: Don't clear all_thinking here - let new thinking accumulate naturally
+            await self._update_display()
+    
+    def _create_result_summary(self, tool_name: str, result_data: str) -> str:
+        """Create a human-readable summary of tool results"""
+        if not result_data.strip():
+            return ""
+            
+        # Clean up the result data
+        result_data = result_data.strip()
+        
+        # Handle different tool types with appropriate summaries
+        if "reg_search" in tool_name or "registry" in tool_name.lower():
+            if "found" in result_data.lower() or "tools" in result_data.lower():
+                return f"found relevant tools and capabilities"
+            elif "no" in result_data.lower() and "results" in result_data.lower():
+                return "no matching tools found"
+            else:
+                return "searched tool registry"
+                
+        elif "memory" in tool_name.lower():
+            if "conversation" in tool_name.lower():
+                return f"retrieved conversation history"
+            elif "execution" in tool_name.lower():
+                return f"retrieved execution history"
+            else:
+                return "accessed memory system"
+                
+        elif "weather" in tool_name.lower():
+            return f"retrieved weather information"
+            
+        elif "perplexity" in tool_name.lower() or "search" in tool_name.lower():
+            # Extract more meaningful info from perplexity results
+            if "answer" in result_data.lower():
+                return f"found comprehensive answer via web search"
+            elif "think" in result_data.lower():
+                return f"retrieved analytical response from web search"  
+            else:
+                return f"completed web search with results"
+            
+        else:
+            # Generic summary - try to extract key info
+            if len(result_data) > 100:
+                return f"completed with results"
+            else:
+                return f"returned: {result_data[:50]}..."
         
     async def _update_display(self):
-        """Update the streaming message display with complete transparency"""
+        """Update the streaming message display with chronological thinking and tool blocks"""
         if not self.message_ts:
             return
             
         blocks = []
         
-        # Main status with current operation
-        main_text = "🤔 *Agent Working...*"
-        if self.current_status:
-            main_text = f"🤖 *{self.current_status}*"
-        elif self.current_tool:
-            main_text = f"🔧 *Executing: {self.current_tool}*"
-            
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": main_text
-            }
-        })
-        
-        # Recent thinking steps
-        if self.thinking_steps:
-            recent_thinking = self.thinking_steps[-2:]  # Last 2 thinking steps
-            thinking_text = "\n".join([f"💭 {step}" for step in recent_thinking])
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*Reasoning:*\n" + thinking_text
-                }
-            })
-        
-        # Operation details (registry searches, memory ops, etc.) - using smaller context blocks
-        if self.operation_log:
-            # Add a label for operations
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*Operations:*"
-                }
-            })
-            
-            # Add operations in smaller context blocks (2 operations per block for readability)
-            recent_operations = self.operation_log[-4:]  # Last 4 operations
-            for i in range(0, len(recent_operations), 2):
-                operation_batch = recent_operations[i:i+2]
-                context_elements = []
-                for op in operation_batch:
-                    context_elements.append({
-                        "type": "mrkdwn",
-                        "text": op
-                    })
+        # Add all completed content blocks chronologically
+        for block_type, content in self.content_blocks:
+            if block_type == "thinking":
+                # Thinking block: small font, italics - handle multi-line properly
+                thinking_lines = content.split('\n')
+                thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
+                blocks.append({
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": thinking_formatted
+                        }
+                    ]
+                })
+            elif block_type == "tool":
+                # Tool block: small font, italics, bold tool name  
+                tool_info = content
+                tool_lines = [f"*{tool_info['name']}*"]
+                
+                for operation in tool_info['operations']:
+                    tool_lines.append(operation.strip())
+                
+                # Add status indicator (only if we have operations)
+                if tool_info.get('operations'):
+                    if tool_info['status'] == 'completed':
+                        pass  # No extra indicator for completed - operations already show completion
+                    else:
+                        tool_lines.append("...")
+                
+                # Format each line with italics
+                tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
                 
                 blocks.append({
                     "type": "context",
-                    "elements": context_elements
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": tool_formatted
+                        }
+                    ]
                 })
         
-        # Tools completed summary - using smaller context blocks
-        if self.tools_executed:
-            completed_tools = ", ".join(self.tools_executed[-3:])  # Last 3 tools
+        # Add current thinking block if we have ongoing thinking (only when no tool is running)
+        if self.all_thinking and not self.current_tool_block:
+            thinking_lines = self.all_thinking
+            thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
             blocks.append({
                 "type": "context",
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": f"✅ *Completed:* {completed_tools}"
+                        "text": thinking_formatted
                     }
                 ]
             })
+        
+        # Add current tool block if we have one running
+        if self.current_tool_block:
+            tool_info = self.current_tool_block
+            tool_lines = [f"*{tool_info['name']}*"]
+            
+            for operation in tool_info['operations']:
+                tool_lines.append(operation.strip())
+            
+            # Add running indicator (only if we have operations)
+            if tool_info.get('operations'):
+                tool_lines.append("...")
+            
+            # Format each line with italics
+            tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+            
+            blocks.append({
+                "type": "context", 
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": tool_formatted
+                    }
+                ]
+            })
+        
+        # If no blocks yet, show initial message
+        if not blocks:
+            blocks = [{
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn", 
+                        "text": "_Reasoning..._"
+                    }
+                ]
+            }]
         
         await self.app_client.chat_update(
             channel=self.channel_id,
             ts=self.message_ts,
             blocks=blocks,
-            text="🤖 Agent working..."
+            text="Agent working..."
         )
+
         
-    async def set_executing_tool(self, tool_name: str):
-        """Update to show tool being executed"""
-        self.current_tool = tool_name
-        await self._update_display()  # Trigger update without new thinking
-        
-    async def tool_completed(self, tool_name: str, result_preview: str):
-        """Mark tool as completed"""
-        self.current_tool = None
-        self.tools_executed.append(tool_name)
-        
-        # Brief update to show completion
-        await self.update_thinking(f"Got result from {tool_name}: {result_preview[:50]}...")
-        
-    async def finish_with_response(self, final_response: str):
-        """Replace thinking message with final response using proper markdown parsing"""
+    async def finish_with_response(self, final_response: str, slack_interface=None):
+        """Replace thinking message with final response and add execution details button"""
         if not self.message_ts:
             return
+        
+        # Store any remaining thinking in execution summary
+        if self.all_thinking:
+            thinking_text = "\n".join(self.all_thinking)
+            self.execution_summary.append(("thinking", thinking_text))
+        
+        # Store any current tool in execution summary
+        if self.current_tool_block:
+            self.execution_summary.append(("tool", self.current_tool_block.copy()))
+        
+        # Store execution details in the interface cache for button access
+        if slack_interface and self.execution_summary:
+            slack_interface.execution_details_cache[self.message_ts] = self.execution_summary.copy()
         
         # Parse the response as markdown and convert to Slack blocks
         try:
@@ -413,6 +512,25 @@ class SlackStreamingHandler:
                         "text": final_response or "No response generated"
                     }
                 }]
+            
+            # Add discrete execution details link if we have execution data
+            if self.execution_summary:
+                # Use small gray button (no "primary" style = default gray)
+                execution_button_block = {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "view flow"
+                            },
+                            "action_id": "view_execution_details",
+                            "value": self.message_ts
+                        }
+                    ]
+                }
+                response_blocks.append(execution_button_block)
             
             await self.app_client.chat_update(
                 channel=self.channel_id,
@@ -454,6 +572,9 @@ class SlackInterface:
         # Initialize agent
         self.agent = ClientAgent()
         
+        # Store execution details for button access
+        self.execution_details_cache = {}  # message_ts -> execution_summary
+        
         # Setup handlers
         self._setup_handlers()
         
@@ -470,6 +591,115 @@ class SlackInterface:
         @self.app.event("app_mention")
         async def handle_mention(event, say, logger):
             await self._handle_message(event, say, logger)
+        
+        @self.app.action("view_execution_details")
+        async def handle_execution_details_button(ack, body, client):
+            await ack()
+            await self._show_execution_details_modal(body, client)
+    
+    async def _show_execution_details_modal(self, body, client):
+        """Show execution details in a modal"""
+        try:
+            # Get the message timestamp from the button value
+            message_ts = body["actions"][0]["value"]
+            
+            # Get execution details from cache
+            execution_details = self.execution_details_cache.get(message_ts, [])
+            
+            if not execution_details:
+                await client.chat_postEphemeral(
+                    channel=body["channel"]["id"],
+                    user=body["user"]["id"],
+                    text="Execution details not found or expired."
+                )
+                return
+            
+            # Build modal blocks from execution details
+            modal_blocks = []
+            
+            for block_type, content in execution_details:
+                if block_type == "thinking":
+                    # Add thinking block
+                    thinking_lines = content.split('\n') if isinstance(content, str) else [content]
+                    thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
+                    modal_blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*Reasoning:*\n{thinking_formatted}"
+                        }
+                    })
+                elif block_type == "tool":
+                    # Add tool block
+                    tool_info = content
+                    tool_lines = [f"*{tool_info['name']}*"]
+                    
+                    for operation in tool_info.get('operations', []):
+                        tool_lines.append(operation.strip())
+                    
+                    # Add status indicator (only if we have operations)
+                    if tool_info.get('operations'):
+                        if tool_info.get('status') == 'completed':
+                            pass  # No extra indicator needed
+                        else:
+                            tool_lines.append("...")
+                    
+                    # Format each line with italics
+                    tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+                    
+                    modal_blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": tool_formatted
+                        }
+                    })
+                
+                # Add divider between blocks
+                modal_blocks.append({"type": "divider"})
+            
+            # Remove last divider
+            if modal_blocks and modal_blocks[-1]["type"] == "divider":
+                modal_blocks.pop()
+            
+            # Limit blocks to Slack's modal limit (100 blocks)
+            if len(modal_blocks) > 95:
+                modal_blocks = modal_blocks[:95]
+                modal_blocks.append({
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "_... (execution details truncated for display)_"
+                    }
+                })
+            
+            # Show modal
+            await client.views_open(
+                trigger_id=body["trigger_id"],
+                view={
+                    "type": "modal",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "Execution Details"
+                    },
+                    "blocks": modal_blocks,
+                    "close": {
+                        "type": "plain_text",
+                        "text": "Close"
+                    }
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error showing execution details modal: {e}")
+            try:
+                await client.chat_postEphemeral(
+                    channel=body["channel"]["id"],
+                    user=body["user"]["id"],
+                    text="Error displaying execution details."
+                )
+            except:
+                pass  # Ignore ephemeral message errors
     
     async def _handle_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming messages - simplified version"""
@@ -526,36 +756,53 @@ class SlackInterface:
             # Start streaming display
             await streaming_handler.start_streaming()
             
-            # Create comprehensive streaming callback
+            # Create simple streaming callback
             async def slack_streaming_callback(content: str, content_type: str):
                 if content_type == "thinking" and content.strip():
                     await streaming_handler.update_thinking(content.strip())
-                elif content_type == "status":
-                    await streaming_handler.add_status(content)
                 elif content_type == "tool_start":
-                    await streaming_handler.set_executing_tool(content)
+                    await streaming_handler.start_tool(content)
                 elif content_type == "tool_details":
-                    await streaming_handler.add_operation_detail(content, "🔧")
+                    await streaming_handler.add_tool_operation(content)
                 elif content_type == "operation":
-                    await streaming_handler.add_operation_detail(content, "⚙️")
+                    await streaming_handler.add_tool_operation(content)
                 elif content_type == "memory":
-                    await streaming_handler.add_operation_detail(content, "💾")
+                    await streaming_handler.add_tool_operation(content)
                 elif content_type == "result":
-                    await streaming_handler.add_operation_detail(content, "✅")
+                    await streaming_handler.add_tool_operation(content)
                 elif content_type == "result_detail":
-                    await streaming_handler.add_operation_detail(content, "📊")
+                    await streaming_handler.add_tool_operation(content) 
                 elif content_type == "error":
-                    await streaming_handler.add_operation_detail(content, "❌")
+                    await streaming_handler.add_tool_operation(content)
                 elif content_type == "tool_result":
+                    # Extract and summarize the result
                     tool_name, result_preview = content.split(":", 1) if ":" in content else (content, "")
-                    await streaming_handler.tool_completed(tool_name.strip(), result_preview.strip())
+                    await streaming_handler.complete_tool(result_preview.strip())
             
             # Process through agent with streaming
+            import datetime
+            from zoneinfo import ZoneInfo
+            
+            # Get user's timezone from Slack profile
+            user_timezone = await self._get_user_timezone(user_id)
+            
+            try:
+                user_tz = ZoneInfo(user_timezone)
+                current_time = datetime.datetime.now(user_tz)
+                timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except Exception as e:
+                logger.warning(f"Failed to get user timezone {user_timezone}: {e}")
+                # Fallback to UTC
+                current_time = datetime.datetime.now(datetime.timezone.utc)
+                timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+            
             context = {
                 "platform": "slack",
                 "user_id": user_id,
                 "channel_id": channel_id,
-                "thread_ts": thread_ts
+                "thread_ts": thread_ts,
+                "timestamp": timestamp,
+                "user_timezone": user_timezone
             }
             
             response = await self.agent.process_request(
@@ -571,7 +818,7 @@ class SlackInterface:
             response_text = self._convert_mentions_to_slack(response_text, mention_mappings)
             
             # Replace thinking message with final response
-            await streaming_handler.finish_with_response(response_text)
+            await streaming_handler.finish_with_response(response_text, self)
             
             logger.info(f"Sent response to {user_id}: {response_text[:50]}...")
             
@@ -582,9 +829,56 @@ class SlackInterface:
             if streaming_handler and streaming_handler.message_ts:
                 try:
                     error_text = f"❌ **Error Processing Request**\n\nSorry, I encountered an error while processing your message:\n\n`{str(e)}`"
-                    await streaming_handler.finish_with_response(error_text)
+                    await streaming_handler.finish_with_response(error_text, self)
                 except:
                     pass  # Fallback failed, just log
+    
+    async def _get_user_timezone(self, user_id: str) -> str:
+        """Get user's timezone from their Slack profile"""
+        try:
+            # Call Slack API to get user info
+            response = await self.app.client.users_info(user=user_id)
+            
+            if response["ok"]:
+                user_info = response["user"]
+                
+                # Try to get timezone from user profile
+                timezone = user_info.get("tz")
+                if timezone:
+                    logger.info(f"Found timezone for user {user_id}: {timezone}")
+                    return timezone
+                
+                # Fallback: try to get from tz_label 
+                tz_label = user_info.get("tz_label")
+                if tz_label:
+                    logger.info(f"Using tz_label for user {user_id}: {tz_label}")
+                    # Map common timezone labels to IANA timezone identifiers
+                    timezone_mapping = {
+                        "Eastern Standard Time": "America/New_York",
+                        "Eastern Daylight Time": "America/New_York", 
+                        "Central Standard Time": "America/Chicago",
+                        "Central Daylight Time": "America/Chicago",
+                        "Mountain Standard Time": "America/Denver",
+                        "Mountain Daylight Time": "America/Denver",
+                        "Pacific Standard Time": "America/Los_Angeles",
+                        "Pacific Daylight Time": "America/Los_Angeles",
+                        "Greenwich Mean Time": "UTC",
+                        "Central European Time": "Europe/Paris",
+                        "Central European Summer Time": "Europe/Paris",
+                        "Eastern European Time": "Europe/Bucharest",
+                        "Eastern European Summer Time": "Europe/Bucharest"
+                    }
+                    
+                    mapped_tz = timezone_mapping.get(tz_label, "UTC")
+                    logger.info(f"Mapped {tz_label} to {mapped_tz} for user {user_id}")
+                    return mapped_tz
+                    
+            logger.warning(f"Could not get timezone for user {user_id}, using UTC")
+            return "UTC"
+            
+        except Exception as e:
+            logger.error(f"Error getting user timezone for {user_id}: {e}")
+            return "UTC"
     
     async def _clean_message(self, text: str) -> tuple[str, dict]:
         """Clean message text and resolve mentions to readable names
@@ -657,6 +951,8 @@ class SlackInterface:
         
         for channel_id, channel_name in channel_mentions:
             try:
+                logger.info(f"Processing channel mention: channel_id={channel_id}, channel_name={channel_name}")
+                
                 if channel_name:
                     # Channel name is already provided in the mention
                     name = channel_name
@@ -672,20 +968,32 @@ class SlackInterface:
                         name = channel_id
                         logger.warning(f"Failed to get channel info for {channel_id}")
                 
-                # Store mapping for reverse conversion
-                mention_mappings['channels'][name] = channel_id
+                # Store mapping for reverse conversion with the original channel name if available
+                display_name = channel_name if channel_name else name
+                mention_mappings['channels'][display_name] = channel_id
                 
                 # Replace the mention with readable name
                 mention_pattern = f'<#{channel_id}' + (f'|{re.escape(channel_name)}' if channel_name else '') + '>'
-                text = text.replace(mention_pattern, f'#{name}')
+                logger.info(f"Trying to replace pattern: '{mention_pattern}' with '#{display_name}'")
+                logger.info(f"Text before replacement: {repr(text)}")
+                
+                original_text = text
+                text = text.replace(mention_pattern, f'#{display_name}')
+                
+                if text == original_text:
+                    logger.warning(f"Channel mention replacement failed! Pattern '{mention_pattern}' not found in text")
+                else:
+                    logger.info(f"Successfully replaced channel mention")
+                
+                logger.info(f"Text after replacement: {repr(text)}")
                 
             except Exception as e:
                 logger.error(f"Error resolving channel {channel_id}: {e}")
                 # Fallback: just show #channel_id
-                name = channel_id
-                mention_mappings['channels'][name] = channel_id
+                fallback_name = channel_name if channel_name else channel_id
+                mention_mappings['channels'][fallback_name] = channel_id
                 mention_pattern = f'<#{channel_id}' + (f'|{re.escape(channel_name)}' if channel_name else '') + '>'
-                text = text.replace(mention_pattern, f'#{channel_id}')
+                text = text.replace(mention_pattern, f'#{fallback_name}')
         
         # Handle special mentions like @everyone, @here, @channel
         text = re.sub(r'<!everyone>', '@everyone', text)
@@ -711,10 +1019,11 @@ class SlackInterface:
             pattern = f'@{re.escape(name)}'
             text = re.sub(pattern, f'<@{user_id}>', text)
         
-        # Convert channel mentions: #channel-name -> <#C123456789>
+        # Convert channel mentions: #channel-name -> <#C123456789|channel-name>
         for name, channel_id in mention_mappings.get('channels', {}).items():
             pattern = f'#{re.escape(name)}'
-            text = re.sub(pattern, f'<#{channel_id}>', text)
+            # Include the channel name in the link for better display
+            text = re.sub(pattern, f'<#{channel_id}|{name}>', text)
         
         logger.info(f"Converted mentions back to Slack format: {repr(text)}")
         return text

@@ -314,6 +314,7 @@ class ToolRegistry:
         # Search based on type
         query_lower = query.lower()
         
+        # First pass: exact phrase matching
         for tool in tools:
             match_score = 0
             
@@ -321,7 +322,8 @@ class ToolRegistry:
                 # Search in description and capabilities
                 desc = " ".join(tool.get("description", [])).lower()
                 caps = " ".join(tool.get("capabilities", [])).lower()
-                if query_lower in desc or query_lower in caps:
+                tags = " ".join(tool.get("tags", [])).lower()
+                if query_lower in desc or query_lower in caps or query_lower in tags:
                     match_score = 1
                     
             elif search_type == "capability":
@@ -345,6 +347,56 @@ class ToolRegistry:
             
             if match_score > 0:
                 results.append(tool)
+        
+        # If no results found with exact phrase, fallback to individual word matching
+        if not results and len(query.split()) > 1:
+            query_words = [word.strip() for word in query_lower.split() if len(word.strip()) > 2]  # Skip short words
+            
+            for tool in tools:
+                match_score = 0
+                
+                if search_type == "description":
+                    # Search in description, capabilities, and tags
+                    desc = " ".join(tool.get("description", [])).lower()
+                    caps = " ".join(tool.get("capabilities", [])).lower()
+                    tags = " ".join(tool.get("tags", [])).lower()
+                    search_text = f"{desc} {caps} {tags}"
+                    
+                    # Count how many words match
+                    matched_words = sum(1 for word in query_words if word in search_text)
+                    if matched_words > 0:
+                        match_score = matched_words / len(query_words)  # Score based on word match ratio
+                        
+                elif search_type == "capability":
+                    # Search in capabilities and use_cases
+                    caps = " ".join(tool.get("capabilities", [])).lower()
+                    use_cases = " ".join(tool.get("use_cases", [])).lower()
+                    search_text = f"{caps} {use_cases}"
+                    
+                    matched_words = sum(1 for word in query_words if word in search_text)
+                    if matched_words > 0:
+                        match_score = matched_words / len(query_words)
+                        
+                elif search_type == "name":
+                    # Search in name and display_name
+                    name = tool.get("name", "").lower()
+                    display_name = tool.get("display_name", "").lower()
+                    search_text = f"{name} {display_name}"
+                    
+                    matched_words = sum(1 for word in query_words if word in search_text)
+                    if matched_words > 0:
+                        match_score = matched_words / len(query_words)
+                
+                if match_score > 0:
+                    tool["_match_score"] = match_score
+                    results.append(tool)
+            
+            # Sort by match score (best matches first)
+            results.sort(key=lambda x: x.get("_match_score", 0), reverse=True)
+            
+            # Remove the temporary score field
+            for tool in results:
+                tool.pop("_match_score", None)
         
         # Sort by relevance and limit results
         return results[:limit]
@@ -410,6 +462,10 @@ async def registry_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
         limit = input_data.get("limit", 10)
         include_schemas = input_data.get("include_schemas", False)
         
+        # Check if we would need fallback search (for logging purposes)
+        query_words = query.lower().split()
+        uses_fallback = len(query_words) > 1
+        
         # Search for tools
         tools = _registry.search_tools(
             query=query,
@@ -418,10 +474,33 @@ async def registry_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
             limit=limit
         )
         
+        # Determine search strategy message
+        if len(tools) == 0:
+            message = f"Found 0 tools matching query '{query}'"
+        elif uses_fallback and len(query_words) > 1:
+            # Check if exact phrase would have returned results by doing a simple substring check
+            all_tools = _registry._discover_tools()
+            exact_matches = 0
+            query_lower = query.lower()
+            for tool in all_tools:
+                desc = " ".join(tool.get("description", [])).lower()
+                caps = " ".join(tool.get("capabilities", [])).lower()
+                tags = " ".join(tool.get("tags", [])).lower()
+                if query_lower in desc or query_lower in caps or query_lower in tags:
+                    exact_matches += 1
+                    break
+            
+            if exact_matches == 0:
+                message = f"Found {len(tools)} tools using word-based search for '{query}'"
+            else:
+                message = f"Found {len(tools)} tools matching query '{query}'"
+        else:
+            message = f"Found {len(tools)} tools matching query '{query}'"
+        
         # Format response
         response_data = {
             "success": True,
-            "message": f"Found {len(tools)} tools matching query '{query}'",
+            "message": message,
             "data": {
                 "query": query,
                 "total_results": len(tools),

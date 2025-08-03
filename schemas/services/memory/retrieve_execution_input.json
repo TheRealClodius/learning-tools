@@ -26,6 +26,13 @@
       "maximum": 50,
       "default": 10,
       "description": "Maximum number of execution records to return"
+    },
+
+    "retrieval_strategy": {
+      "type": "string",
+      "enum": ["hybrid", "recent", "keyword"],
+      "default": "hybrid",
+      "description": "Strategy for execution memory retrieval: hybrid (semantic search), recent (pure recency), keyword (pure keyword matching)"
     }
   },
   "required": ["explanation", "query"],

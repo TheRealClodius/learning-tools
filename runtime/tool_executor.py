@@ -42,7 +42,7 @@ class ToolExecutor:
                 "memory.conversation.retrieve": "tools.memory:conversation_retrieve",
                 "memory.execution.add": "tools.memory:execution_add",
                 "memory.execution.retrieve": "tools.memory:execution_retrieve",
-                "memory.get_profile": "tools.memory:profile_retrieve"
+                "memory.get_profile": "tools.memory:get_profile"
             },
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
@@ -85,7 +85,7 @@ class ToolExecutor:
                 conversation_retrieve,
                 execution_add,
                 execution_retrieve,
-                profile_retrieve
+                get_profile
             )
             
             self.available_tools.update({
@@ -93,7 +93,7 @@ class ToolExecutor:
                 "memory.conversation.retrieve": conversation_retrieve,
                 "memory.execution.add": execution_add,
                 "memory.execution.retrieve": execution_retrieve,
-                "memory.get_profile": profile_retrieve
+                "memory.get_profile": get_profile
             })
             
             self.loaded_services.add("memory")
@@ -142,7 +142,7 @@ class ToolExecutor:
             tool_func = self.available_tools[command]
             
             # For memory tools, require user_id - no silent fallbacks
-            if command.startswith("memory.") and command.endswith((".retrieve", ".add")):
+            if command.startswith("memory."):
                 if not user_id:
                     raise ValueError(f"user_id is required for memory operation {command} - cannot proceed without user identification")
                 logger.info(f"TOOL-EXECUTOR: Passing user_id='{user_id}' to {command}")

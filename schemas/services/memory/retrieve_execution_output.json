@@ -33,6 +33,11 @@
           "enum": ["general", "specific_message", "pattern_search"],
           "description": "Type of execution query performed"
         },
+        "retrieval_strategy": {
+          "type": "string",
+          "enum": ["hybrid", "recent", "keyword"],
+          "description": "Strategy that was used for retrieval"
+        },
         "requested_message_id": {
           "type": "string",
           "description": "Message ID that was specifically requested, if any"
@@ -119,7 +124,7 @@
           "description": "Whether results were limited by max_results parameter"
         }
       },
-      "required": ["status", "query", "explanation", "query_type", "retrieval_timestamp", "executions", "total_found", "returned_count", "max_results_applied"]
+      "required": ["status", "query", "explanation", "query_type", "retrieval_strategy", "retrieval_timestamp", "executions", "total_found", "returned_count", "max_results_applied"]
     }
   },
   "required": ["success", "message", "data"],

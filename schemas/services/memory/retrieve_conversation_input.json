@@ -47,6 +47,13 @@
       "maximum": 50,
       "default": 10,
       "description": "Maximum number of results to return from each memory type"
+    },
+
+    "retrieval_strategy": {
+      "type": "string",
+      "enum": ["hybrid", "recent", "keyword"],
+      "default": "hybrid",
+      "description": "Strategy for short-term memory retrieval: hybrid (current keyword scoring + recency), recent (pure recency), keyword (pure keyword matching)"
     }
   },
 
