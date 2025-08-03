@@ -520,7 +520,7 @@ class ClientAgent:
             
             logger.info("GEMINI: Configuring with API key...")
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             
             # Prepare thinking content
             thinking_text = "\n".join(thinking_content) if thinking_content else "No thinking recorded"
@@ -961,7 +961,7 @@ Generate summary:"""
                 )
             else:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
                 prompt = f"""You are the Conversation Insights Agent. Your job is to maintain an evolving understanding of this user across two key dimensions.
 
