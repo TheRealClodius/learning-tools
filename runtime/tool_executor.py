@@ -2,6 +2,7 @@ from typing import Dict, Any, Callable, List, Optional, Set
 import logging
 import importlib
 from pathlib import Path
+import time
 
 from execute import execute_reg_search_input
 from tools.registry import registry_search, registry_describe, registry_list, registry_categories
@@ -18,12 +19,19 @@ class ToolExecutor:
     - Dynamic tool discovery via registry
     - Tool loading and execution
     - Service management
+    - Tool schema caching for performance
     """
     
     def __init__(self):
         # Only registry tools loaded at startup
         self.available_tools: Dict[str, Callable] = {}
         self.loaded_services: Set[str] = set()
+        
+        # Tool schema cache to avoid redundant registry calls
+        self.tool_schema_cache: Dict[str, Dict[str, Any]] = {}
+        self.search_result_cache: Dict[str, Dict[str, Any]] = {}
+        self.cache_timestamps: Dict[str, float] = {}
+        self.cache_ttl: float = 300.0  # 5 minutes TTL for cache entries
         
         # Tool type mappings for dynamic loading
         self.service_tool_mappings = {
@@ -102,6 +110,49 @@ class ToolExecutor:
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
     
+    def _is_cache_valid(self, cache_key: str) -> bool:
+        """Check if a cache entry is still valid based on TTL"""
+        if cache_key not in self.cache_timestamps:
+            return False
+        return (time.time() - self.cache_timestamps[cache_key]) < self.cache_ttl
+    
+    def _cache_tool_schema(self, tool_name: str, schema_data: Dict[str, Any]) -> None:
+        """Cache tool schema data from reg.describe"""
+        self.tool_schema_cache[tool_name] = schema_data
+        self.cache_timestamps[f"schema_{tool_name}"] = time.time()
+        logger.debug(f"Cached schema for tool: {tool_name}")
+    
+    def _cache_search_result(self, query: str, search_type: str, categories: List[str], result: Dict[str, Any]) -> None:
+        """Cache search result from reg.search"""
+        cache_key = f"{query}_{search_type}_{','.join(sorted(categories))}"
+        self.search_result_cache[cache_key] = result
+        self.cache_timestamps[f"search_{cache_key}"] = time.time()
+        logger.debug(f"Cached search result for query: {query}")
+    
+    def _get_cached_tool_schema(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """Get cached tool schema if available and valid"""
+        cache_key = f"schema_{tool_name}"
+        if self._is_cache_valid(cache_key) and tool_name in self.tool_schema_cache:
+            logger.debug(f"Using cached schema for tool: {tool_name}")
+            return self.tool_schema_cache[tool_name]
+        return None
+    
+    def _get_cached_search_result(self, query: str, search_type: str, categories: List[str]) -> Optional[Dict[str, Any]]:
+        """Get cached search result if available and valid"""
+        cache_key = f"{query}_{search_type}_{','.join(sorted(categories))}"
+        search_cache_key = f"search_{cache_key}"
+        if self._is_cache_valid(search_cache_key) and cache_key in self.search_result_cache:
+            logger.debug(f"Using cached search result for query: {query}")
+            return self.search_result_cache[cache_key]
+        return None
+    
+    def clear_cache(self) -> None:
+        """Clear all cached data"""
+        self.tool_schema_cache.clear()
+        self.search_result_cache.clear()
+        self.cache_timestamps.clear()
+        logger.info("Tool schema cache cleared")
+
     async def execute_command(self, command: str, input_data: Any, user_id: str = None) -> Any:
         """
         Main command execution flow with dynamic discovery
@@ -115,6 +166,12 @@ class ToolExecutor:
             Tool execution result (Pydantic model instance)
         """
         logger.info(f"Executing command: {command}")
+        
+        # Handle caching for registry commands
+        if command == "reg.search":
+            return await self._execute_cached_search(input_data)
+        elif command == "reg.describe":
+            return await self._execute_cached_describe(input_data)
         
         # Check if tool is already loaded
         if command in self.available_tools:
@@ -157,6 +214,47 @@ class ToolExecutor:
             logger.error(f"Error executing {command}: {str(e)}")
             raise
     
+    async def _execute_cached_search(self, input_data: Any) -> Any:
+        """Execute reg.search with caching support"""
+        # Extract search parameters
+        query = input_data.get("query", "")
+        search_type = input_data.get("search_type", "description")
+        categories = input_data.get("categories", [])
+        
+        # Check cache first
+        cached_result = self._get_cached_search_result(query, search_type, categories)
+        if cached_result:
+            logger.info(f"CACHE HIT: Using cached search result for query: '{query}' (type: {search_type})")
+            return cached_result
+        
+        # Cache miss - execute actual search
+        logger.info(f"CACHE MISS: Executing reg.search for query: '{query}' (type: {search_type})")
+        result = await self._execute_tool("reg.search", input_data)
+        
+        # Cache the result
+        self._cache_search_result(query, search_type, categories, result)
+        
+        return result
+    
+    async def _execute_cached_describe(self, input_data: Any) -> Any:
+        """Execute reg.describe with caching support"""
+        tool_name = input_data.get("tool_name", "")
+        
+        # Check cache first
+        cached_schema = self._get_cached_tool_schema(tool_name)
+        if cached_schema:
+            logger.info(f"CACHE HIT: Using cached schema for tool: '{tool_name}'")
+            return cached_schema
+        
+        # Cache miss - execute actual describe
+        logger.info(f"CACHE MISS: Executing reg.describe for tool: '{tool_name}'")
+        result = await self._execute_tool("reg.describe", input_data)
+        
+        # Cache the result
+        self._cache_tool_schema(tool_name, result)
+        
+        return result
+
     async def _discover_and_load_service(self, service: str):
         """Use registry to discover and load service tools"""
         logger.info(f"Discovering tools for service: {service}")
@@ -166,9 +264,6 @@ class ToolExecutor:
             return
         
         try:
-            # Import registry input model (when execute.py exists)
-            # from execute import registry_search_input
-            
             # Search for tools by service category
             discovery_query = {
                 "explanation": f"Agent needs to load {service} service tools",
@@ -177,9 +272,21 @@ class ToolExecutor:
                 "categories": [service] if service else []
             }
             
-            # Query registry for service capabilities
-            registry_result = await self.available_tools["reg.search"](discovery_query)
-            logger.info(f"Registry search result: {registry_result}")
+            # Check cache first, then query registry
+            cached_result = self._get_cached_search_result(
+                service, "category", [service] if service else []
+            )
+            
+            if cached_result:
+                logger.info(f"Using cached search result for service discovery: {service}")
+                registry_result = cached_result
+            else:
+                # Query registry for service capabilities
+                registry_result = await self.available_tools["reg.search"](discovery_query)
+                logger.info(f"Registry search result: {registry_result}")
+                
+                # Cache the search result
+                self._cache_search_result(service, "category", [service] if service else [], registry_result)
             
             # Load discovered tools - handle both Pydantic and dict responses
             tools_to_load = []
@@ -237,16 +344,29 @@ class ToolExecutor:
             return []
         
         try:
-            discovery_query = {
-                "explanation": f"Discovering tools for query: {query}",
-                "query": query,
-                "search_type": "capability" if not category else "category"
-            }
+            search_type = "capability" if not category else "category"
+            categories = [category] if category else []
             
-            if category:
-                discovery_query["categories"] = [category]
+            # Check cache first
+            cached_result = self._get_cached_search_result(query, search_type, categories)
             
-            result = await self.available_tools["reg.search"](discovery_query)
+            if cached_result:
+                logger.info(f"Using cached discovery result for query: {query}")
+                result = cached_result
+            else:
+                discovery_query = {
+                    "explanation": f"Discovering tools for query: {query}",
+                    "query": query,
+                    "search_type": search_type
+                }
+                
+                if category:
+                    discovery_query["categories"] = [category]
+                
+                result = await self.available_tools["reg.search"](discovery_query)
+                
+                # Cache the result
+                self._cache_search_result(query, search_type, categories, result)
             
             # Extract tool information
             if hasattr(result, 'data') and hasattr(result.data, 'tools'):
@@ -291,4 +411,38 @@ class ToolExecutor:
     
     def is_tool_loaded(self, tool_name: str) -> bool:
         """Check if a specific tool is loaded"""
-        return tool_name in self.available_tools 
+        return tool_name in self.available_tools
+    
+    def get_tool_schema_from_cache(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """Get tool schema from cache without hitting registry"""
+        return self._get_cached_tool_schema(tool_name)
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics for monitoring"""
+        current_time = time.time()
+        valid_schema_count = sum(
+            1 for key in self.cache_timestamps 
+            if key.startswith("schema_") and (current_time - self.cache_timestamps[key]) < self.cache_ttl
+        )
+        valid_search_count = sum(
+            1 for key in self.cache_timestamps 
+            if key.startswith("search_") and (current_time - self.cache_timestamps[key]) < self.cache_ttl
+        )
+        
+        return {
+            "total_cached_schemas": len(self.tool_schema_cache),
+            "total_cached_searches": len(self.search_result_cache),
+            "valid_cached_schemas": valid_schema_count,
+            "valid_cached_searches": valid_search_count,
+            "cache_ttl_seconds": self.cache_ttl
+        }
+    
+    def populate_schema_cache(self, tool_name: str, schema_data: Dict[str, Any]) -> None:
+        """Pre-populate the cache with a tool schema (useful for batch loading)"""
+        self._cache_tool_schema(tool_name, schema_data)
+        logger.info(f"Pre-populated cache with schema for: {tool_name}")
+    
+    def set_cache_ttl(self, ttl_seconds: float) -> None:
+        """Update the cache TTL setting"""
+        self.cache_ttl = ttl_seconds
+        logger.info(f"Cache TTL updated to {ttl_seconds} seconds") 
