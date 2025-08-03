@@ -230,9 +230,9 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 
 **How It Works**:
 - **Agent Decision**: The AI agent decides when memory storage would be valuable
-- **LLM-Generated Content**: Agent creates execution summaries and observations when storing
+- **Background AI Generation**: Gemini 2.5 Flash creates execution summaries and observations in the background
+- **Agent Storage**: Once summaries are generated, agent calls memory_execution_add to store the data
 - **Strategic Storage**: Agent stores important conversations and complex problem-solving sessions
-- **Rich Context**: Each storage includes detailed reasoning approach and outcomes
 
 **Available Memory Functions**:
 - `memory_conversation_add`: Store Q&A pairs for future retrieval
