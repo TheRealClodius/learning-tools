@@ -721,12 +721,12 @@ Generate summary:"""
                 if streaming_callback:
                     await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.conversation.retrieve", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.retrieve_conversation", args, user_id=user_id)
             elif function_name == "memory_execution_retrieve":
                 if streaming_callback:
                     await streaming_callback(f"Retrieving execution memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.execution.retrieve", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.retrieve_execution", args, user_id=user_id)
             elif function_name == "memory_get_profile":
                 if streaming_callback:
                     await streaming_callback("Getting user profile from memory", "memory")
@@ -736,11 +736,11 @@ Generate summary:"""
             elif function_name == "memory_conversation_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing conversation: {args.get('message_id', 'N/A')}", "memory")
-                result = await self.tool_executor.execute_command("memory.conversation.add", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.add_conversation", args, user_id=user_id)
             elif function_name == "memory_execution_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing execution details: {args.get('message_id', 'N/A')}", "memory")
-                result = await self.tool_executor.execute_command("memory.execution.add", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
             elif function_name == "execute_tool":
                 # Execute any discovered tool dynamically - completely generic
                 tool_name = args["tool_name"]

@@ -37,11 +37,11 @@ class ToolExecutor:
                 "perplexity.research": "tools.perplexity:perplexity_research"
             },
             "memory": {
-                # Dual memory system functions
-                "memory.conversation.add": "tools.memory:conversation_add",
-                "memory.conversation.retrieve": "tools.memory:conversation_retrieve",
-                "memory.execution.add": "tools.memory:execution_add",
-                "memory.execution.retrieve": "tools.memory:execution_retrieve",
+                # Dual memory system functions - updated to match registry schema naming
+                "memory.add_conversation": "tools.memory:conversation_add",
+                "memory.retrieve_conversation": "tools.memory:conversation_retrieve",
+                "memory.add_execution": "tools.memory:execution_add",
+                "memory.retrieve_execution": "tools.memory:execution_retrieve",
                 "memory.get_profile": "tools.memory:get_profile"
             },
             "slack": {
