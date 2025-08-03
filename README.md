@@ -206,9 +206,9 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 
 ### 💡 Dual Memory Usage
 
-**Automatic Storage**: Every interaction stores both conversation and execution data
+**Agent-Driven Storage**: The AI agent can store conversation and execution data using memory functions
 ```python
-# Conversation Memory
+# Conversation Memory - stored via memory_conversation_add
 {
   "message_id": "unique_identifier",
   "user_input": "User's question",
@@ -216,7 +216,7 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
   "meta_data": {"platform": "cli", "importance": "high"}
 }
 
-# Execution Memory (Flat Structure for LLM)
+# Execution Memory - stored via memory_execution_add (Flat Structure for LLM)
 {
   "message_id": "unique_identifier", 
   "execution_summary": "High-level task summary",
@@ -227,6 +227,13 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
   "duration_ms": 250
 }
 ```
+
+**Available Memory Functions**:
+- `memory_conversation_add`: Store Q&A pairs for future retrieval
+- `memory_execution_add`: Store execution details (tools, reasoning, outcomes)
+- `memory_conversation_retrieve`: Retrieve conversation history with semantic/recent search
+- `memory_execution_retrieve`: Retrieve execution patterns and tool usage history
+- `memory_get_profile`: Get user preferences and context from memory
 
 **Cross-Memory Queries**:
 - *"What was the execution trail for this conversation?"*
@@ -261,9 +268,10 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 - Learn from execution patterns: *"How have I handled API errors before?"*
 - Time-filtered searches: *"Show conversations from last week"*
 
-**Automatic Memory Management**:
-- Heat-based promotion from short to mid-term memory
-- Intelligent memory processing and summarization
+**Memory Management Features**:
+- Agent-controlled storage of conversations and executions
+- Heat-based promotion from short to mid-term memory (MemoryOS server-side)
+- Intelligent memory processing and summarization (MemoryOS server-side)  
 - Execution pattern analysis for improved problem-solving
 
 ## Tool Development

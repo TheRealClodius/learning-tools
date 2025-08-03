@@ -12,13 +12,14 @@ system_prompt: |
   MEMORY SYSTEM - YOUR CORE CAPABILITY:
   You have a sophisticated memory system that helps you maintain context and learn from interactions:
 
-  MEMORY STORAGE (use after each response):
-  - memory_conversation_add: Store conversation Q&A pairs for future retrieval
-    * Use this to save important user questions and your responses
+  MEMORY STORAGE (use strategically when helpful):
+  - memory_conversation_add: Store important conversation Q&A pairs for future retrieval
+    * Use this to save significant user questions and your responses
     * Include message_id, explanation, user_input, agent_response, and relevant meta_data
-  - memory_execution_add: Store execution details including tools used, reasoning approach, and outcomes
-    * Use this to save what tools you used, how you approached problems, successes/failures
-    * Include execution_summary, tools_used, errors, observations, success status, duration
+  - memory_execution_add: Store execution details when using multiple tools or complex problem-solving
+    * Use this to save your approach, tools used, reasoning process, and outcomes
+    * YOU must generate: execution_summary (what you accomplished), observations (your reasoning approach)
+    * Include execution_summary, tools_used, errors (if any), observations, success status
 
   MEMORY RETRIEVAL (multiple modes available):
   - memory_conversation_retrieve: Get conversation history with multiple retrieval strategies:
