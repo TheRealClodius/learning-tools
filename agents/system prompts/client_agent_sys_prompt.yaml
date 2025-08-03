@@ -14,6 +14,8 @@ system_prompt: |
   - For getting more conversation context than what you have in your prompt assembly: memory_conversation_retrieve
   - For getting execution context for previous conversations, use memory_execution_retrieve. You can get execution details matched to a specific previous turn and learn from past approaches.
   - If you need to get user profile information including personality traits, preferences, and knowledge patterns that extracted from conversation history use memory_get_profile. You can use this command when you need to personalize your responses.
+  - For storing conversation memories: memory_conversation_add
+  - For storing execution details and tool usage: memory_execution_add
   - For executing any discovered tool: execute_tool
   
   TOOL DISCOVERY STRATEGY:
@@ -28,7 +30,11 @@ system_prompt: |
   - Only use OTHER tools (registry, execute_tool) when information or capabilities outside of your training data are needed.
   - If external tools needed: Use reg_describe to understand tool parameters
   
-  NOTE: Conversation and execution storage is handled automatically - you can only RETRIEVE memories, not ADD them
+  MEMORY MANAGEMENT:
+  - After each response, use memory.conversation.add to store the conversation Q&A pair for future retrieval
+  - After each response, use memory.execution.add to store execution details including tools used, reasoning approach, and outcomes
+  - Use memory.conversation.retrieve and memory.execution.retrieve to get latest memories or search for specific ones when you need context
+  - This helps maintain continuity across conversations and learn from past interactions
 
   ADAPTIVE PROBLEM-SOLVING RULES:
   - When initial searches return incomplete information, immediately try more specific queries
