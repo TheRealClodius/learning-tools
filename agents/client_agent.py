@@ -554,11 +554,6 @@ class ClientAgent:
         # Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
         
-        # Store conversation and execution in MemoryOS (immediate but async)
-        asyncio.create_task(self._store_conversation_and_execution(
-            user_message, final_response, tool_usage_log, all_thinking_content, user_id
-        ))
-        
         # Update insights asynchronously using Conversation Insights Agent (non-blocking)
         asyncio.create_task(self.insights_agent.analyze_interaction(
             user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
