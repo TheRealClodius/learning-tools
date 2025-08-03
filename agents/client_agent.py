@@ -214,6 +214,79 @@ class ClientAgent:
                 }
             },
             {
+                "name": "memory_conversation_add",
+                "description": "Store a conversation pair (user input + agent response) in MemoryOS dual memory system for future retrieval.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation of why this conversation is being stored"
+                        },
+                        "message_id": {
+                            "type": "string",
+                            "description": "Unique identifier for this conversation turn"
+                        },
+                        "user_input": {
+                            "type": "string",
+                            "description": "The user's input message"
+                        },
+                        "agent_response": {
+                            "type": "string",
+                            "description": "The agent's response message"
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional: ISO timestamp of the conversation (defaults to current time)"
+                        },
+                        "meta_data": {
+                            "type": "object",
+                            "description": "Optional: Additional metadata about the conversation (tools used, etc.)"
+                        }
+                    },
+                    "required": ["explanation", "message_id", "user_input", "agent_response"]
+                }
+            },
+            {
+                "name": "memory_execution_add",
+                "description": "Store execution details (tool usage, reasoning, outcomes) in MemoryOS dual memory system for learning from past approaches.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation of why this execution is being stored"
+                        },
+                        "message_id": {
+                            "type": "string",
+                            "description": "Unique identifier linking to the conversation turn"
+                        },
+                        "run_summary": {
+                            "type": "string",
+                            "description": "Summary of the execution approach and outcomes"
+                        },
+                        "tools_used": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of tools that were used in this execution"
+                        },
+                        "success": {
+                            "type": "boolean",
+                            "description": "Whether the execution was successful"
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "description": "Optional: ISO timestamp of the execution (defaults to current time)"
+                        },
+                        "meta_data": {
+                            "type": "object",
+                            "description": "Optional: Additional execution metadata (errors, performance metrics, etc.)"
+                        }
+                    },
+                    "required": ["explanation", "message_id", "run_summary", "tools_used", "success"]
+                }
+            },
+            {
                 "name": "execute_tool",
                 "description": "Execute any discovered tool dynamically. Use this after discovering tools through registry search to actually run weather, perplexity, or other tools.",
                 "input_schema": {
@@ -648,18 +721,26 @@ Generate summary:"""
                 if streaming_callback:
                     await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.conversation.retrieve", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.retrieve_conversation", args, user_id=user_id)
             elif function_name == "memory_execution_retrieve":
                 if streaming_callback:
                     await streaming_callback(f"Retrieving execution memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
                 args.setdefault("max_results", 10)
-                result = await self.tool_executor.execute_command("memory.execution.retrieve", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("memory.retrieve_execution", args, user_id=user_id)
             elif function_name == "memory_get_profile":
                 if streaming_callback:
                     await streaming_callback("Getting user profile from memory", "memory")
                 args.setdefault("include_knowledge", True)
                 args.setdefault("include_assistant_knowledge", False)
                 result = await self.tool_executor.execute_command("memory.get_profile", args)
+            elif function_name == "memory_conversation_add":
+                if streaming_callback:
+                    await streaming_callback(f"Storing conversation: {args.get('message_id', 'N/A')}", "memory")
+                result = await self.tool_executor.execute_command("memory.add_conversation", args, user_id=user_id)
+            elif function_name == "memory_execution_add":
+                if streaming_callback:
+                    await streaming_callback(f"Storing execution details: {args.get('message_id', 'N/A')}", "memory")
+                result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
             elif function_name == "execute_tool":
                 # Execute any discovered tool dynamically - completely generic
                 tool_name = args["tool_name"]
@@ -670,7 +751,7 @@ Generate summary:"""
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_execution_retrieve, memory_get_profile, execute_tool"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_execution_retrieve, memory_get_profile, memory_conversation_add, memory_execution_add, execute_tool"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg
