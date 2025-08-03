@@ -97,10 +97,10 @@ class ToolExecutor:
             )
             
             self.available_tools.update({
-                "memory.conversation.add": conversation_add,
-                "memory.conversation.retrieve": conversation_retrieve,
-                "memory.execution.add": execution_add,
-                "memory.execution.retrieve": execution_retrieve,
+                "memory.add_conversation": conversation_add,
+                "memory.retrieve_conversation": conversation_retrieve,
+                "memory.add_execution": execution_add,
+                "memory.retrieve_execution": execution_retrieve,
                 "memory.get_profile": get_profile
             })
             
