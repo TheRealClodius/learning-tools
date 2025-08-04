@@ -261,14 +261,33 @@ class ClientAgent:
                             "type": "string",
                             "description": "Unique identifier linking to the conversation turn"
                         },
-                        "run_summary": {
+                        "execution_summary": {
                             "type": "string",
-                            "description": "Summary of the execution approach and outcomes"
+                            "description": "High-level summary of what was executed and accomplished"
                         },
                         "tools_used": {
                             "type": "array",
                             "items": {"type": "string"},
                             "description": "List of tools that were used in this execution"
+                        },
+                        "errors": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "error_type": {"type": "string"},
+                                    "error_message": {"type": "string"},
+                                    "tool": {"type": "string"}
+                                },
+                                "required": ["error_type", "error_message"]
+                            },
+                            "description": "Any errors that occurred during execution",
+                            "default": []
+                        },
+                        "observations": {
+                            "type": "string",
+                            "description": "Reasoning approach, problem-solving strategy, and key insights from execution",
+                            "default": ""
                         },
                         "success": {
                             "type": "boolean",
@@ -283,7 +302,7 @@ class ClientAgent:
                             "description": "Optional: Additional execution metadata (errors, performance metrics, etc.)"
                         }
                     },
-                    "required": ["explanation", "message_id", "run_summary", "tools_used", "success"]
+                    "required": ["explanation", "message_id", "execution_summary", "tools_used", "errors", "observations", "success"]
                 }
             },
             {
@@ -742,6 +761,12 @@ Generate summary:"""
             elif function_name == "memory_execution_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing execution details: {args.get('message_id', 'N/A')}", "memory")
+                # Map run_summary to execution_summary for backward compatibility
+                if "run_summary" in args and "execution_summary" not in args:
+                    args["execution_summary"] = args.pop("run_summary")
+                # Ensure required fields are present with defaults if missing
+                args.setdefault("errors", [])
+                args.setdefault("observations", "")
                 result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
             elif function_name == "execute_tool":
                 # Execute any discovered tool dynamically - completely generic
@@ -1259,8 +1284,8 @@ Generate updated insights:"""
             new_pins.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
         
         # === RECOMMENDATIONS ANALYSIS ===
-            if tool_usage_log:
-                tools_used = [tool['tool'] for tool in tool_usage_log]
+        if tool_usage_log:
+            tools_used = [tool['tool'] for tool in tool_usage_log]
             failed_tools = [tool['tool'] for tool in tool_usage_log if not tool['success']]
             successful_tools = [tool['tool'] for tool in tool_usage_log if tool['success']]
             
