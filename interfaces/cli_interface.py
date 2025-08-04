@@ -7,8 +7,8 @@ from datetime import datetime
 import signal
 from dotenv import load_dotenv
 
-# Load environment variables from .env.local
-load_dotenv('.env.local')
+# Load environment variables from .env.local (override=True to pick up changes)
+load_dotenv('.env.local', override=True)
 
 # Import agent and runtime components
 from agents.client_agent import ClientAgent

@@ -38,7 +38,7 @@ Stores user prompts and agent responses for building persistent dialogue history
 
 ### Execution Memory  
 Stores detailed execution information for learning and pattern analysis:
-- **Input**: Tools used (chronological), errors, reasoning observations
+- **Input**: Tools used (chronological), errors, duration, success status
 - **Output**: Success status, execution details, performance metrics
 - **Linking**: Uses `message_id` to connect with conversation memory
 

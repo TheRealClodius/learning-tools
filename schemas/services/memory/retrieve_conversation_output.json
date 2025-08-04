@@ -1,124 +1,103 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Conversation Memory Retrieve Output",
-  "description": "Results from conversation memory retrieval with user prompts and agent responses, linked to execution memories via message_id",
+  "description": "Results from a memory retrieval query, including conversation details, execution data, and relevance scores.",
   "type": "object",
   "properties": {
-    "success": {
-      "type": "boolean",
-      "description": "Whether the conversation retrieval was successful"
-    },
-    "message": {
+    "status": {
       "type": "string",
-      "description": "Human-readable result message"
+      "description": "Operation status (success/error)"
     },
-    "data": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["success", "error"],
-          "description": "Operation status"
-        },
-        "query": {
-          "type": "string",
-          "description": "The original search query"
-        },
-        "explanation": {
-          "type": "string",
-          "description": "Echo of the explanation provided in the request"
-        },
-        "query_type": {
-          "type": "string",
-          "enum": ["general", "specific_message", "time_filtered"],
-          "description": "Type of query performed"
-        },
-        "retrieval_strategy": {
-          "type": "string",
-          "enum": ["hybrid", "recent", "keyword"],
-          "description": "Strategy that was used for retrieval"
-        },
-        "requested_message_id": {
-          "type": "string",
-          "description": "Message ID that was specifically requested, if any"
-        },
-        "retrieval_timestamp": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When this retrieval was performed (ISO 8601)"
-        },
-        "time_range": {
-          "type": "object",
-          "properties": {
-            "start": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "end": {
-              "type": "string",
-              "format": "date-time"
-            }
+    "query": {
+      "type": "string",
+      "description": "Original search query"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Unique identifier for the memory entry"
           },
-          "description": "Time range filter used, if any"
-        },
-        "conversations": {
-          "type": "array",
-          "items": {
+          "timestamp": {
+            "type": "string",
+            "description": "ISO timestamp of the memory entry"
+          },
+          "user_input": {
+            "type": "string",
+            "description": "User's input text"
+          },
+          "agent_response": {
+            "type": "string",
+            "description": "Agent's response text"
+          },
+          "meta_data": {
+            "type": "object",
+            "description": "Additional metadata about the memory entry"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags associated with this memory entry"
+          },
+          "execution": {
             "type": "object",
             "properties": {
-              "message_id": {
-                "type": "string",
-                "description": "Unique ID linking to execution memory"
+              "tools_used": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of tools used during execution"
               },
-              "conversation_timestamp": {
-                "type": "string",
-                "format": "date-time",
-                "description": "When this conversation happened"
+              "errors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "error_type": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "description": "List of errors encountered during execution"
               },
-              "user_input": {
-                "type": "string",
-                "description": "User's question or prompt"
+              "duration_ms": {
+                "type": "integer",
+                "description": "Execution duration in milliseconds"
               },
-              "agent_response": {
-                "type": "string",
-                "description": "Agent's response"
-              },
-              "meta_data": {
-                "type": "object",
-                "additionalProperties": true,
-                "description": "Metadata about the conversation context that was stored (platform, importance, etc.)"
-              },
-              "has_execution_memory": {
+              "success": {
                 "type": "boolean",
-                "description": "Whether execution memory exists for this message_id"
-              },
-              "relevance_score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Relevance to the search query"
+                "description": "Whether the execution was successful"
               }
-            },
-            "required": ["message_id", "conversation_timestamp", "user_input", "agent_response", "meta_data", "has_execution_memory"]
+            }
           },
-          "description": "Retrieved conversation pairs"
+          "relevance_score": {
+            "type": "number",
+            "description": "Relevance score for this memory entry"
+          }
         },
-        "total_found": {
-          "type": "integer",
-          "description": "Total conversations matching criteria"
-        },
-        "returned_count": {
-          "type": "integer",
-          "description": "Number returned (limited by max_results)"
-        },
-        "max_results_applied": {
-          "type": "boolean",
-          "description": "Whether results were limited by max_results parameter"
-        }
-      },
-      "required": ["status", "query", "explanation", "query_type", "retrieval_strategy", "retrieval_timestamp", "conversations", "total_found", "returned_count", "max_results_applied"]
+        "required": [
+          "message_id",
+          "timestamp",
+          "user_input",
+          "agent_response",
+          "meta_data",
+          "tags"
+        ]
+      }
     }
   },
-  "required": ["success", "message", "data"],
-  "additionalProperties": false
-} 
+  "required": [
+    "status",
+    "query",
+    "results"
+  ]
+}

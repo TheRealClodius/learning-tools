@@ -341,15 +341,24 @@ class execute_weather_forecast_output(BaseModel):
 # MEMORY TOOL MODELS (MemoryOS)
 # =============================================================================
 
+class ExecutionDetails(BaseModel):
+    """Execution details for conversation memories"""
+    tools_used: Optional[List[str]] = Field(default=None, description="List of tools that were executed, in chronological order")
+    errors: Optional[List[Dict[str, str]]] = Field(default=None, description="Any errors that occurred during execution")
+    duration_ms: Optional[int] = Field(default=None, ge=0, description="How long the execution took in milliseconds")
+    success: Optional[bool] = Field(default=None, description="Whether the overall execution was successful")
+
 # Conversation Memory Models
 class execute_memory_conversation_add_input(BaseModel):
-    """Input model for adding conversation memories to MemoryOS dual memory system"""
-    message_id: str = Field(..., min_length=1, max_length=100, description="Unique identifier for this conversation pair, used to link with execution memory")
-    explanation: str = Field(..., description="One sentence explanation of why this memory is being stored")
-    user_input: str = Field(..., min_length=1, max_length=10000, description="The user's input, question, or message to be stored")
-    agent_response: str = Field(..., min_length=1, max_length=10000, description="The agent's response or reply to the user input")
-    timestamp: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", description="Optional timestamp in ISO 8601 format (auto-generated if not provided)")
-    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata about the conversation context (platform, importance, etc.)")
+    """Input model for adding conversation memories with optional execution data to MemoryOS"""
+    user_input: str = Field(..., description="The user's input or question.")
+    agent_response: str = Field(..., description="The agent's response.")
+    user_id: str = Field(..., description="User identifier for memory isolation.")
+    message_id: Optional[str] = Field(default=None, description="Optional unique message ID for linking memories.")
+    timestamp: Optional[str] = Field(default=None, description="Optional ISO format timestamp.")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata dictionary.")
+    execution_details: Optional[ExecutionDetails] = Field(default=None, description="Optional execution details for this conversation")
+    tags: Optional[List[str]] = Field(default=None, description="Optional tags for filtering (e.g., ['conversation', 'execution'])")
 
 class execute_memory_conversation_add_output(BaseModel):
     """Output model for conversation memory add operation"""
@@ -358,51 +367,19 @@ class execute_memory_conversation_add_output(BaseModel):
     data: Dict[str, Any] = Field(..., description="Operation result details")
 
 class execute_memory_conversation_retrieve_input(BaseModel):
-    """Input model for retrieving conversation memories from MemoryOS dual memory system"""
-    explanation: str = Field(..., description="One sentence explanation of why this memory retrieval is being performed")
-    query: str = Field(..., min_length=1, max_length=4000, description="The search query to find relevant memories and context")
-    message_id: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Unique identifier linking conversation and execution memories for this interaction")
-    time_range: Optional[Dict[str, str]] = Field(default=None, description="Optional time range to filter conversations with start and end datetime strings")
-    max_results: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return from each memory type")
+    """Input model for retrieving conversation memories from MemoryOS"""
+    query: str = Field(..., description="The search query for retrieving memories.")
+    user_id: str = Field(..., description="User identifier for memory isolation.")
+    message_id: Optional[str] = Field(default=None, description="Optional specific message ID to retrieve a single memory.")
+    max_results: int = Field(default=10, description="Maximum number of results to return.")
+    tags_filter: Optional[List[str]] = Field(default=None, description="Optional list of tags to filter memories (e.g., [\"conversation\", \"execution\"])")
 
 class execute_memory_conversation_retrieve_output(BaseModel):
     """Output model for conversation memory retrieval operation"""
-    success: bool = Field(..., description="Whether the conversation retrieval was successful")
-    message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Retrieved conversations with linking information")
+    status: str = Field(..., description="Operation status (success/error)")
+    query: str = Field(..., description="Original search query")
+    results: List[Dict[str, Any]] = Field(..., description="Retrieved conversation details")
 
-# Execution Memory Models
-class execute_memory_execution_add_input(BaseModel):
-    """Input model for adding execution memories to MemoryOS dual memory system"""
-    message_id: str = Field(..., min_length=1, max_length=100, description="Unique identifier linking this execution to its conversation pair")
-    explanation: str = Field(..., description="One sentence explanation of why this execution memory is being stored")
-    execution_summary: str = Field(..., min_length=1, max_length=2000, description="High-level summary of what was executed and accomplished")
-    tools_used: List[str] = Field(..., description="List of tools that were executed, in chronological order")
-    errors: List[Dict[str, str]] = Field(..., description="Any errors that occurred during execution")
-    observations: str = Field(..., max_length=5000, description="Reasoning approach, problem-solving strategy, and key insights from execution")
-    success: bool = Field(..., description="Whether the overall execution was successful")
-    duration_ms: Optional[int] = Field(default=None, ge=0, description="How long the execution took in milliseconds")
-    timestamp: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", description="When this execution happened (ISO 8601 format)")
-    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata about the execution context")
-
-class execute_memory_execution_add_output(BaseModel):
-    """Output model for execution memory add operation"""
-    success: bool = Field(..., description="Whether the execution memory addition was successful")
-    message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Operation result details")
-
-class execute_memory_execution_retrieve_input(BaseModel):
-    """Input model for retrieving execution memories from MemoryOS dual memory system"""
-    explanation: str = Field(..., description="One sentence explanation of why this execution retrieval is being performed")
-    query: str = Field(..., min_length=1, max_length=4000, description="Search query for execution patterns to learn from")
-    message_id: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Specific message ID to get execution details for a specific user prompt and agent response pair")
-    max_results: int = Field(default=10, ge=1, le=50, description="Maximum number of execution records to return")
-
-class execute_memory_execution_retrieve_output(BaseModel):
-    """Output model for execution memory retrieval operation"""
-    success: bool = Field(..., description="Whether the execution retrieval was successful")
-    message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Retrieved execution records containing actionable insights and patterns")
 
 class execute_memory_get_profile_input(BaseModel):
     """Input model for getting agent-generated user profile from MemoryOS embeddings search"""

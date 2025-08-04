@@ -19,7 +19,7 @@ from runtime.tool_executor import ToolExecutor
 from agents.convo_insights_agent import ConvoInsightsAgent
 
 # Load environment variables from .env.local file
-load_dotenv('.env.local')
+load_dotenv('.env.local', override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -134,61 +134,32 @@ class ClientAgent:
 
             {
                 "name": "memory_conversation_retrieve",
-                "description": "Retrieve conversation memories from MemoryOS dual memory system to get user prompts and agent responses with execution linking info.",
+                "description": "Retrieve memories from MemoryOS using a search query and optional filters.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this memory retrieval is being performed"
-                        },
                         "query": {
                             "type": "string",
                             "description": "The search query to find relevant memories and context"
                         },
                         "message_id": {
                             "type": "string",
-                            "description": "Optional: Specific message ID to retrieve (for linked queries)"
-                        },
-                        "time_range": {
-                            "type": "object",
-                            "description": "Optional time range to filter conversations"
+                            "description": "Optional: Specific message ID to retrieve"
                         },
                         "max_results": {
                             "type": "integer",
                             "description": "Maximum number of results to return"
+                        },
+                        "tags_filter": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional list of tags to filter memories"
                         }
                     },
-                    "required": ["explanation", "query"]
+                    "required": ["query"]
                 }
             },
 
-            {
-                "name": "memory_execution_retrieve",
-                "description": "Retrieve execution memories from MemoryOS dual memory system to learn from past problem-solving approaches, tools used, and error patterns.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this execution retrieval is being performed"
-                        },
-                        "query": {
-                            "type": "string",
-                            "description": "Search query for execution patterns to learn from (e.g., 'weather tool usage', 'error handling strategies')"
-                        },
-                        "message_id": {
-                            "type": "string",
-                            "description": "Optional: Specific message ID to get execution details for"
-                        },
-                        "max_results": {
-                            "type": "integer",
-                            "description": "Maximum number of execution records to return"
-                        }
-                    },
-                    "required": ["explanation", "query"]
-                }
-            },
             {
                 "name": "memory_get_profile",
                 "description": "Retrieve user profile information from MemoryOS dual memory system including personality traits, preferences, and knowledge extracted from conversation patterns.",
@@ -215,18 +186,10 @@ class ClientAgent:
             },
             {
                 "name": "memory_conversation_add",
-                "description": "Store a conversation pair (user input + agent response) in MemoryOS dual memory system for future retrieval.",
+                "description": "Store a conversation pair (user input + agent response) in MemoryOS for future retrieval.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this conversation is being stored"
-                        },
-                        "message_id": {
-                            "type": "string",
-                            "description": "Unique identifier for this conversation turn"
-                        },
                         "user_input": {
                             "type": "string",
                             "description": "The user's input message"
@@ -235,74 +198,29 @@ class ClientAgent:
                             "type": "string",
                             "description": "The agent's response message"
                         },
-                        "timestamp": {
-                            "type": "string",
-                            "description": "Optional: ISO timestamp of the conversation (defaults to current time)"
-                        },
-                        "meta_data": {
-                            "type": "object",
-                            "description": "Optional: Additional metadata about the conversation (tools used, etc.)"
-                        }
-                    },
-                    "required": ["explanation", "message_id", "user_input", "agent_response"]
-                }
-            },
-            {
-                "name": "memory_execution_add",
-                "description": "Store execution details (tool usage, reasoning, outcomes) in MemoryOS dual memory system for learning from past approaches.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why this execution is being stored"
-                        },
                         "message_id": {
                             "type": "string",
-                            "description": "Unique identifier linking to the conversation turn"
-                        },
-                        "execution_summary": {
-                            "type": "string",
-                            "description": "High-level summary of what was executed and accomplished"
-                        },
-                        "tools_used": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "List of tools that were used in this execution"
-                        },
-                        "errors": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "error_type": {"type": "string"},
-                                    "error_message": {"type": "string"},
-                                    "tool": {"type": "string"}
-                                },
-                                "required": ["error_type", "error_message"]
-                            },
-                            "description": "Any errors that occurred during execution",
-                            "default": []
-                        },
-                        "observations": {
-                            "type": "string",
-                            "description": "Reasoning approach, problem-solving strategy, and key insights from execution",
-                            "default": ""
-                        },
-                        "success": {
-                            "type": "boolean",
-                            "description": "Whether the execution was successful"
+                            "description": "Optional unique identifier for this conversation turn"
                         },
                         "timestamp": {
                             "type": "string",
-                            "description": "Optional: ISO timestamp of the execution (defaults to current time)"
+                            "description": "Optional: ISO timestamp of the conversation"
                         },
                         "meta_data": {
                             "type": "object",
-                            "description": "Optional: Additional execution metadata (errors, performance metrics, etc.)"
+                            "description": "Optional: Additional metadata about the conversation"
+                        },
+                        "execution_details": {
+                            "type": "object",
+                            "description": "Optional: Execution details associated with this conversation"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional: Tags for filtering"
                         }
                     },
-                    "required": ["explanation", "message_id", "execution_summary", "tools_used", "errors", "observations", "success"]
+                    "required": ["user_input", "agent_response"]
                 }
             },
             {
@@ -587,110 +505,7 @@ class ClientAgent:
     
 
     
-    async def _generate_run_summary(self, thinking_content: list, tool_usage_log: list) -> str:
-        """Generate a 2-line run summary using Gemini Flash 2.5"""
-        logger.info("=== RUN SUMMARY GENERATION DEBUG ===")
-        logger.info(f"Input thinking_content: {len(thinking_content)} blocks")
-        logger.info(f"Input tool_usage_log: {len(tool_usage_log)} entries")
-        
-        for i, thinking in enumerate(thinking_content):
-            logger.info(f"Thinking {i+1}: {thinking[:200]}...")
-            
-        for i, tool in enumerate(tool_usage_log):
-            logger.info(f"Tool {i+1}: {tool['tool']} - Success: {tool['success']} - Preview: {tool['result_preview'][:100]}...")
-        
-        try:
-            import google.generativeai as genai
-            
-            # Configure Gemini
-            api_key = os.getenv("GEMINI_API_KEY")
-            logger.info(f"GEMINI: API key status: {'✅ SET' if api_key else '❌ NOT SET'}")
-            if api_key:
-                logger.info(f"GEMINI: API key length: {len(api_key)}")
-                logger.info(f"GEMINI: API key prefix: {api_key[:10]}...")
-            
-            if not api_key:
-                logger.warning("GEMINI_API_KEY not set, using fallback summary")
-                fallback = self._fallback_run_summary(thinking_content, tool_usage_log)
-                logger.info(f"FALLBACK SUMMARY: {fallback}")
-                return fallback
-            
-            logger.info("GEMINI: Configuring with API key...")
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            
-            # Prepare thinking content
-            thinking_text = "\n".join(thinking_content) if thinking_content else "No thinking recorded"
-            logger.info(f"GEMINI: Thinking text length: {len(thinking_text)}")
-            
-            # Prepare tool usage summary
-            tool_summary = []
-            for tool in tool_usage_log:
-                status = "✅" if tool["success"] else "❌"
-                tool_summary.append(f"{status} {tool['tool']}")
-            tool_text = ", ".join(tool_summary) if tool_summary else "No tools used"
-            logger.info(f"GEMINI: Tool summary: {tool_text}")
-            
-            # Create summarization prompt
-            prompt = f"""Generate a natural language summary of this agent's problem-solving process (2-3 sentences max):
 
-THINKING PROCESS:
-{thinking_text}
-
-TOOLS USED:
-{tool_text}
-
-Requirements:
-- Describe the approach/strategy used in natural language
-- Mention key tools that worked or failed and why
-- Include specific error details when tools failed
-- Focus on the problem-solving workflow and outcomes
-- Be concise but informative
-
-Example format: "Discovered correct tools to use for weather. Ran into a One Call 3.0 limitation for forecasting because system has no paid plan and then got forecast from the web instead."
-
-Generate summary:"""
-
-            logger.info("=== GEMINI PROMPT ===")
-            logger.info(prompt)
-            logger.info("=== END PROMPT ===")
-            
-            logger.info("GEMINI: Sending request to Gemini Flash 2.5...")
-            response = model.generate_content(prompt)
-            summary = response.text.strip()
-            logger.info(f"GEMINI: Raw response: {summary}")
-            
-            # Clean up the summary (remove any extra formatting)
-            final_summary = summary.replace('\n', ' ').strip()
-            logger.info(f"GEMINI: Final summary: {final_summary}")
-            return final_summary
-            
-        except Exception as e:
-            logger.error(f"GEMINI: Summarization failed: {e}")
-            import traceback
-            logger.error(f"GEMINI: Traceback: {traceback.format_exc()}")
-            fallback = self._fallback_run_summary(thinking_content, tool_usage_log)
-            logger.info(f"GEMINI: Using fallback: {fallback}")
-            return fallback
-    
-    def _fallback_run_summary(self, thinking_content: list, tool_usage_log: list) -> str:
-        """Fallback summary when Gemini is unavailable"""
-        logger.info("=== FALLBACK SUMMARY GENERATION ===")
-        tool_names = [tool['tool'] for tool in tool_usage_log]
-        failed_tools = [tool['tool'] for tool in tool_usage_log if not tool['success']]
-        
-        logger.info(f"FALLBACK: Tool names: {tool_names}")
-        logger.info(f"FALLBACK: Failed tools: {failed_tools}")
-        
-        if not tool_names:
-            final = "Provided direct response without using external tools."
-        elif failed_tools:
-            final = f"Used tool discovery approach with {len(tool_names)} tools. Encountered failures with {', '.join(failed_tools[:2])} but completed the task successfully."
-        else:
-            final = f"Successfully used tool discovery approach with {len(tool_names)} tools including {', '.join(tool_names[:3])}."
-        
-        logger.info(f"FALLBACK: Generated summary: {final}")
-        return final
     
     # Removed dynamic tool loading methods - agent now relies purely on registry discovery
     # All tool execution is handled by tool_executor with dynamic loading
@@ -744,47 +559,31 @@ Generate summary:"""
             elif function_name == "memory_conversation_retrieve":
                 if streaming_callback:
                     await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
-                args.setdefault("max_results", 10)
-                args.setdefault("explanation", f"Looking for previous conversation context to understand what needs to be incremented")
+                
+                # Add user_id to the arguments
+                args["user_id"] = user_id
+                
                 result = await self.tool_executor.execute_command("memory.retrieve_conversation", args, user_id=user_id)
-            elif function_name == "memory_execution_retrieve":
-                if streaming_callback:
-                    await streaming_callback(f"Retrieving execution memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
-                args.setdefault("max_results", 10)
-                args.setdefault("explanation", f"Retrieving execution patterns and tool usage history for context")
-                result = await self.tool_executor.execute_command("memory.retrieve_execution", args, user_id=user_id)
+
             elif function_name == "memory_get_profile":
                 if streaming_callback:
                     await streaming_callback("Getting user profile from memory", "memory")
                 args.setdefault("include_knowledge", True)
                 args.setdefault("include_assistant_knowledge", False)
-                result = await self.tool_executor.execute_command("memory.get_profile", args)
+                result = await self.tool_executor.execute_command("memory.get_profile", args, user_id=user_id)
             elif function_name == "memory_conversation_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing conversation: {args.get('message_id', 'N/A')}", "memory")
-                # Execute memory operation asynchronously to avoid blocking user response
+                
+                # Add user_id to the arguments
+                args["user_id"] = user_id
+
+                # Execute memory operation asynchronously
                 asyncio.create_task(self._store_conversation_async(args, user_id))
-                # Return immediate success to Claude so it can respond to user
+                
                 result = {
                     "success": True,
                     "message": "Conversation memory queued for storage",
-                    "data": {"message_id": args.get("message_id", ""), "status": "queued"}
-                }
-            elif function_name == "memory_execution_add":
-                if streaming_callback:
-                    await streaming_callback(f"Storing execution details: {args.get('message_id', 'N/A')}", "memory")
-                # Map run_summary to execution_summary for backward compatibility
-                if "run_summary" in args and "execution_summary" not in args:
-                    args["execution_summary"] = args.pop("run_summary")
-                # Ensure required fields are present with defaults if missing
-                args.setdefault("errors", [])
-                args.setdefault("observations", "")
-                # Execute memory operation asynchronously to avoid blocking user response
-                asyncio.create_task(self._store_execution_async(args, user_id))
-                # Return immediate success to Claude so it can respond to user
-                result = {
-                    "success": True,
-                    "message": "Execution memory queued for storage",
                     "data": {"message_id": args.get("message_id", ""), "status": "queued"}
                 }
             elif function_name == "execute_tool":
@@ -797,7 +596,7 @@ Generate summary:"""
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_execution_retrieve, memory_get_profile, memory_conversation_add, memory_execution_add, execute_tool"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_get_profile, memory_conversation_add, execute_tool"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg
@@ -1427,7 +1226,20 @@ Generate updated insights:"""
         """Store conversation in memory asynchronously (non-blocking)"""
         try:
             logger.info(f"ASYNC-MEMORY: Starting conversation storage for user {user_id}")
-            result = await self.tool_executor.execute_command("memory.add_conversation", args, user_id=user_id)
+            
+            # Construct the payload for the new schema
+            payload = {
+                "user_id": user_id,
+                "user_input": args.get("user_input"),
+                "agent_response": args.get("agent_response"),
+                "message_id": args.get("message_id"),
+                "timestamp": args.get("timestamp"),
+                "meta_data": args.get("meta_data"),
+                "execution_details": args.get("execution_details"),
+                "tags": args.get("tags")
+            }
+            
+            result = await self.tool_executor.execute_command("memory.add_conversation", payload, user_id=user_id)
             if result.get("success"):
                 logger.info(f"ASYNC-MEMORY: Conversation stored successfully for user {user_id}")
             else:
@@ -1435,18 +1247,6 @@ Generate updated insights:"""
         except Exception as e:
             logger.error(f"ASYNC-MEMORY: Conversation storage error for user {user_id}: {e}")
     
-    async def _store_execution_async(self, args: Dict[str, Any], user_id: str):
-        """Store execution details in memory asynchronously (non-blocking)"""
-        try:
-            logger.info(f"ASYNC-MEMORY: Starting execution storage for user {user_id}")
-            result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
-            if result.get("success"):
-                logger.info(f"ASYNC-MEMORY: Execution stored successfully for user {user_id}")
-            else:
-                logger.warning(f"ASYNC-MEMORY: Execution storage failed for user {user_id}: {result.get('message', 'Unknown error')}")
-        except Exception as e:
-            logger.error(f"ASYNC-MEMORY: Execution storage error for user {user_id}: {e}")
-
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""
         return {

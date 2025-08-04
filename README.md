@@ -178,7 +178,7 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
 
 #### 2. **Execution Memory** 
 - Tracks tools used, errors encountered, reasoning approaches
-- Captures problem-solving strategies and observations
+- Captures problem-solving strategies and tool usage
 - Enables learning from past execution patterns
 - Links to conversations for complete task understanding
 
@@ -216,15 +216,18 @@ The agent uses **MemoryOS MCP Server** with a revolutionary **dual memory archit
   "meta_data": {"platform": "cli", "importance": "high"}
 }
 
-# Execution Memory (Flat Structure for LLM)
+# Memory with Execution Data (Flat Structure for LLM)
 {
-  "message_id": "unique_identifier", 
-  "execution_summary": "High-level task summary",
-  "tools_used": ["weather_api", "search_tool"],
-  "errors": [{"error_type": "timeout", "tool": "weather_api"}],
-  "observations": "Reasoning and strategy insights",
-  "success": true,
-  "duration_ms": 250
+  "message_id": "unique_identifier",
+  "user_input": "User's question",
+  "agent_response": "Agent's response",
+  "execution": {
+    "tools_used": ["weather_api", "search_tool"],
+    "errors": [{"error_type": "timeout", "tool": "weather_api"}],
+    "duration_ms": 250,
+    "success": true
+  },
+  "tags": ["conversation", "execution"]
 }
 ```
 

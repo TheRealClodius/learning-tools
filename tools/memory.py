@@ -2,20 +2,22 @@ import os
 import logging
 import json
 import time
-import httpx
+import asyncio
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
+import httpx
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
 
 # Load environment variables from .env.local
 load_dotenv('.env.local')
 
 from execute import (
-    # Dual memory system models
+    # Unified memory system models
     execute_memory_conversation_add_input, execute_memory_conversation_add_output,
     execute_memory_conversation_retrieve_input, execute_memory_conversation_retrieve_output,
-    execute_memory_execution_add_input, execute_memory_execution_add_output,
-    execute_memory_execution_retrieve_input, execute_memory_execution_retrieve_output,
     execute_memory_get_profile_input, execute_memory_get_profile_output
+    # DEPRECATED: Removed execution models - use conversation models with execution data instead
 )
 
 logger = logging.getLogger(__name__)
@@ -25,123 +27,150 @@ class MemoryError(Exception):
     pass
 
 class McpMemoryClient:
-    """MCP client for connecting to remote MemoryOS server with persistent connection pooling"""
+    """MCP client for connecting to Railway-deployed MemoryOS server via SSE"""
     
     def __init__(self):
-        self.server_url = os.getenv("MEMORYOS_SERVER_URL", "http://localhost:5000")
-        self.api_key = os.getenv("MEMORYOS_API_KEY")
+        self.server_url = os.getenv("MEMORYOS_SERVER_URL", "http://localhost:5000/sse")
         self.user_id = os.getenv("MEMORY_USER_ID", "default_user")
-        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "30"))  # Server fixed, back to 30s safety margin
+        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "30"))
         
-        # Create persistent HTTP client with connection pooling
-        self._http_client: Optional[httpx.AsyncClient] = None
+        # SSE-based MCP client components
+        self.session: Optional[ClientSession] = None
+        self.transport = None
+        self._connected = False
         
-        if not self.api_key:
-            logger.warning("MEMORYOS_API_KEY not set - memory operations may fail")
+        # Ensure URL has /sse endpoint
+        if not self.server_url.endswith('/sse'):
+            if self.server_url.endswith('/'):
+                self.server_url += 'sse'
+            else:
+                self.server_url += '/sse'
+        
+        logger.info(f"🧠 MemoryOS Client initialized for: {self.server_url}")
     
-    async def _get_http_client(self) -> httpx.AsyncClient:
-        """Get or create the persistent HTTP client"""
-        if self._http_client is None:
-            # Create client with connection pooling and keep-alive
-            self._http_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout),
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
-                # Note: HTTP/2 disabled to avoid h2 dependency requirement
-            )
-            logger.info(f"MEMORY-CLIENT: Created persistent HTTP client with {self.timeout}s timeout")
-        return self._http_client
+    async def connect(self) -> bool:
+        """Connect to the MemoryOS MCP server via SSE"""
+        try:
+            logger.info(f"🌐 Connecting to MemoryOS server: {self.server_url}")
+            
+            self.transport = sse_client(self.server_url)
+            read_stream, write_stream = await self.transport.__aenter__()
+            self.session = ClientSession(read_stream, write_stream)
+            
+            await self.session.initialize()
+            self._connected = True
+            
+            logger.info("✅ Connected to MemoryOS MCP Server via SSE")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to connect to MemoryOS: {e}")
+            self._connected = False
+            return False
     
     async def close(self):
-        """Close the HTTP client and clean up connections"""
-        if self._http_client:
-            await self._http_client.aclose()
-            self._http_client = None
-            logger.info("MEMORY-CLIENT: Closed persistent HTTP client")
+        """Properly close the SSE connection"""
+        if self.session:
+            await self.session.close()
+        if self.transport:
+            await self.transport.__aexit__(None, None, None)
+        self._connected = False
+        logger.info("🔌 Disconnected from MemoryOS")
     
     def __del__(self):
         """Cleanup on deletion"""
-        if self._http_client:
-            logger.warning("MEMORY-CLIENT: HTTP client not properly closed - use await close()")
+        if self._connected:
+            logger.warning("MEMORY-CLIENT: Connection not properly closed - use await close()")
     
-    async def _make_mcp_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Make an MCP JSON-RPC request to the MemoryOS server with timing monitoring"""
+    def _ensure_connected(self):
+        """Ensure client is connected before making requests"""
+        if not self._connected or not self.session:
+            raise RuntimeError("Not connected to MemoryOS. Call connect() first.")
+    
+    async def _make_mcp_request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Make an MCP tool call request to the MemoryOS server with timing monitoring"""
         
         # Start timing for monitoring
         start_time = time.time()
         
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": 1
-        }
-        
         try:
-            # Use persistent HTTP client with connection pooling
-            client = await self._get_http_client()
+            self._ensure_connected()
             
-            logger.info(f"MEMORY-REQUEST: Starting {method} to {self.server_url}")
+            logger.info(f"MEMORY-REQUEST: Starting {tool_name} to {self.server_url}")
             
-            response = await client.post(
-                f"{self.server_url}/mcp/",
-                headers=headers,
-                json=request_data
-            )
+            result = await self.session.call_tool(tool_name, arguments=arguments)
             
             # Calculate and log timing
             duration = time.time() - start_time
-            logger.info(f"MEMORY-TIMING: {method} completed in {duration:.3f}s (status: {response.status_code})")
+            logger.info(f"MEMORY-TIMING: {tool_name} completed in {duration:.3f}s")
             
-            if response.status_code != 200:
-                raise MemoryError(f"MCP server returned status {response.status_code}: {response.text}")
-            
-            result = response.json()
-            
-            if "error" in result:
-                raise MemoryError(f"MCP error: {result['error']}")
-            
-            logger.info(f"MEMORY-SUCCESS: {method} completed successfully in {duration:.3f}s")
-            return result.get("result", {})
+            # Extract response content
+            if result.content and len(result.content) > 0:
+                response_text = result.content[0].text
+                try:
+                    # Try to parse as JSON for structured responses
+                    parsed_response = json.loads(response_text)
+                    logger.info(f"MEMORY-SUCCESS: {tool_name} completed successfully in {duration:.3f}s")
+                    return parsed_response
+                except json.JSONDecodeError:
+                    # Return raw text if not JSON
+                    logger.info(f"MEMORY-SUCCESS: {tool_name} completed successfully in {duration:.3f}s (text response)")
+                    return {"content": response_text}
+            else:
+                logger.warning(f"MEMORY-WARNING: {tool_name} returned empty content")
+                return {}
                 
-        except httpx.TimeoutException:
-            duration = time.time() - start_time
-            logger.error(f"MEMORY-TIMEOUT: {method} timed out after {duration:.3f}s (limit: {self.timeout}s)")
-            raise MemoryError(f"Timeout connecting to MemoryOS server at {self.server_url} after {duration:.3f}s")
-        except httpx.RequestError as e:
-            duration = time.time() - start_time
-            logger.error(f"MEMORY-ERROR: {method} failed after {duration:.3f}s: {str(e)}")
-            raise MemoryError(f"Failed to connect to MemoryOS server: {str(e)}")
-        except json.JSONDecodeError as e:
-            duration = time.time() - start_time
-            logger.error(f"MEMORY-JSON-ERROR: {method} invalid JSON after {duration:.3f}s: {str(e)}")
-            raise MemoryError(f"Invalid JSON response from MemoryOS server: {str(e)}")
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(f"MEMORY-UNEXPECTED: {method} unexpected error after {duration:.3f}s: {str(e)}")
-            raise MemoryError(f"Unexpected error in memory operation: {str(e)}")
+            logger.error(f"MEMORY-ERROR: {tool_name} failed after {duration:.3f}s: {str(e)}")
+            raise MemoryError(f"Failed to execute {tool_name}: {str(e)}")
+    
+    async def health_check(self) -> bool:
+        """Check if the MemoryOS server is healthy"""
+        try:
+            # Remove '/sse' from URL and add '/health'
+            health_url = self.server_url.replace('/sse', '/health')
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(health_url)
+                is_healthy = response.status_code == 200
+                
+            logger.info(f"💚 Health check: {'✅ Healthy' if is_healthy else '❌ Unhealthy'}")
+            return is_healthy
+            
+        except Exception as e:
+            logger.error(f"❌ Health check failed: {e}")
+            return False
 
 # Global MCP client instance
 _mcp_client: Optional[McpMemoryClient] = None
 
-def _get_mcp_client() -> McpMemoryClient:
-    """Get or create the MCP client instance"""
+async def _get_mcp_client() -> McpMemoryClient:
+    """Get or create the MCP client instance and ensure it's connected"""
     global _mcp_client
     
     if _mcp_client is None:
+        # Force reload environment variables before creating client
+        load_dotenv('.env.local', override=True)
         _mcp_client = McpMemoryClient()
         logger.info(f"MCP MemoryOS client initialized for server: {_mcp_client.server_url}")
-        logger.info(f"MCP MemoryOS client config - API Key: {'SET' if _mcp_client.api_key else 'NOT SET'}")
         logger.info(f"MCP MemoryOS client config - User ID: {_mcp_client.user_id}")
         logger.info(f"MCP MemoryOS client config - Timeout: {_mcp_client.timeout}")
     
+    # Ensure client is connected
+    if not _mcp_client._connected:
+        await _mcp_client.connect()
+    
     return _mcp_client
+
+async def reset_mcp_client():
+    """Reset the global MCP client to force reloading of environment variables"""
+    global _mcp_client
+    if _mcp_client is not None:
+        # Close existing client if needed
+        await _mcp_client.close()
+        _mcp_client = None
+        logger.info("MCP client reset - will reload environment variables on next use")
 
 # =============================================================================
 # DUAL MEMORY SYSTEM FUNCTIONS
@@ -149,565 +178,154 @@ def _get_mcp_client() -> McpMemoryClient:
 
 async def conversation_add(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """
-    Store a conversation pair in MemoryOS dual memory system via MCP
+    Add a conversation memory to MemoryOS via MCP.
     
     Args:
-        input_data: Dictionary with message_id, explanation, user_input, agent_response, 
-                   timestamp (optional), meta_data (optional)
+        input_data: Dictionary conforming to the add_conversation_input.json schema.
+        user_id: User identifier for memory isolation.
         
     Returns:
-        Dictionary with operation result matching add_conversation_output.json schema
+        Dictionary conforming to the add_conversation_output.json schema.
     """
-    logger.info(f"Adding conversation memory via MCP: {input_data.get('explanation', 'No explanation provided')}")
+    logger.info(f"Adding conversation memory for user_id='{user_id}'")
     
     try:
-        client = _get_mcp_client()
+        client = await _get_mcp_client()
         
         # Validate required fields
-        required_fields = ["message_id", "explanation", "user_input", "agent_response"]
+        required_fields = ["user_input", "agent_response"]
         for field in required_fields:
             if field not in input_data or not input_data[field]:
                 return {
                     "success": False,
                     "message": f"Missing required field: {field}",
-                    "data": {
-                        "status": "error",
-                        "message_id": input_data.get("message_id", ""),
-                        "timestamp": input_data.get("timestamp", "")
-                    }
+                    "data": {"status": "error", "message_id": "", "timestamp": ""}
                 }
+
+        # Format conversation content for storage
+        conversation_content = f"User: {input_data['user_input']}\nAgent: {input_data['agent_response']}"
         
-        # Prepare MCP parameters - require explicit user_id, no fallbacks
-        if not user_id:
-            raise ValueError("user_id is required for memory operations - cannot store conversations without user identification")
-        
-        # MCP server expects user_id at the root level, not nested in params
-        mcp_params = {
-            "arguments": {
-                "user_id": user_id,
-                "message_id": input_data["message_id"],
-                "explanation": input_data["explanation"],
-                "user_input": input_data["user_input"],
-                "agent_response": input_data["agent_response"]
-            }
+        # Add metadata if available
+        if input_data.get("meta_data") or input_data.get("execution_details"):
+            metadata_parts = []
+            if input_data.get("meta_data"):
+                metadata_parts.append(f"Metadata: {json.dumps(input_data['meta_data'])}")
+            if input_data.get("execution_details"):
+                metadata_parts.append(f"Execution: {json.dumps(input_data['execution_details'])}")
+            conversation_content += f"\n{' | '.join(metadata_parts)}"
+
+        # Prepare arguments for new MCP server
+        arguments = {
+            "user_id": user_id,
+            "content": conversation_content,
+            "importance": 0.7  # Default importance for conversations
         }
-        
-        # Optional fields  
-        if input_data.get("timestamp"):
-            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
-        if input_data.get("meta_data"):
-            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
-        
-        # Call MCP server
-        logger.info(f"MEMORY-CONVERSATION-ADD: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
-        result = await client._make_mcp_request("tools/call", {
-            "name": "add_conversation_memory",
-            **mcp_params
-        })
+
+        # Call new MCP server
+        logger.info(f"MEMORY-CONVERSATION-ADD: Sending MCP request with user_id='{user_id}'")
+        result = await client._make_mcp_request("add_memory", arguments)
         logger.info(f"MEMORY-CONVERSATION-ADD: MCP response: {result}")
         
-        # Parse server response from MCP content format
-        if result.get("content") and isinstance(result["content"][0], dict) and "text" in result["content"][0]:
-            try:
-                server_response = json.loads(result["content"][0]["text"])
-                return server_response
-            except json.JSONDecodeError:
-                # Fallback if server response is malformed
-                pass
-        
-        # Fallback response if server response parsing fails
-        from datetime import datetime
-        timestamp = input_data.get("timestamp") or datetime.now().isoformat()
-        
+        # Return success response in expected format
         return {
             "success": True,
-            "message": "Conversation memory stored via MCP MemoryOS server",
+            "message": "Conversation memory stored via MCP server.",
             "data": {
                 "status": "success",
-                "message_id": input_data["message_id"],
-                "timestamp": timestamp,
-                "details": {
-                    "has_meta_data": bool(input_data.get("meta_data")),
-                    "memory_processing": "Conversation memory added via MCP server"
-                }
-            }
-        }
-        
-    except MemoryError as e:
-        logger.error(f"MCP Conversation Memory error: {e}")
-        return {
-            "success": False,
-            "message": str(e),
-            "data": {
-                "status": "error",
                 "message_id": input_data.get("message_id", ""),
-                "timestamp": input_data.get("timestamp", "")
+                "timestamp": input_data.get("timestamp", ""),
+                "details": result
             }
         }
+
     except Exception as e:
         logger.error(f"Unexpected error in conversation_add: {e}")
         return {
             "success": False,
             "message": f"Conversation memory storage failed: {str(e)}",
-            "data": {
-                "status": "error",
-                "message_id": input_data.get("message_id", ""),
-                "timestamp": input_data.get("timestamp", "")
-            }
+            "data": {"status": "error", "message_id": "", "timestamp": ""}
         }
 
 async def conversation_retrieve(input_data: Dict[str, Any], user_id: str = None) -> Dict[str, Any]:
     """
-    Retrieve conversation memories from MemoryOS dual memory system via MCP
+    Retrieve memories from MemoryOS via MCP.
     
     Args:
-        input_data: Dictionary with explanation, query, message_id (optional), 
-                   time_range (optional), max_results (optional)
-        user_id: Dynamic user ID to use (overrides client default)
+        input_data: Dictionary conforming to the retrieve_conversation_input.json schema.
+        user_id: User identifier for memory isolation.
         
     Returns:
-        Dictionary with retrieved conversations matching retrieve_conversation_output.json schema
+        Dictionary conforming to the retrieve_conversation_output.json schema.
     """
-    logger.info(f"Retrieving conversation memory via MCP: {input_data.get('explanation', 'No explanation provided')}")
+    logger.info(f"Retrieving conversation memory for user_id='{user_id}'")
     
     try:
-        client = _get_mcp_client()
+        client = await _get_mcp_client()
         
         # Validate required fields
-        required_fields = ["explanation", "query"]
+        required_fields = ["query"]
         for field in required_fields:
             if field not in input_data or not input_data[field]:
                 return {
-                    "success": False,
-                    "message": f"Missing required field: {field}",
-                    "data": {
-                        "status": "error",
-                        "query": input_data.get("query", ""),
-                        "explanation": input_data.get("explanation", ""),
-                        "query_type": "general",
-                        "retrieval_timestamp": "",
-                        "conversations": [],
-                        "total_found": 0,
-                        "returned_count": 0,
-                        "max_results_applied": False
-                    }
+                    "status": "error",
+                    "query": input_data.get("query", ""),
+                    "results": []
                 }
-        
-        # Prepare MCP parameters - require explicit user_id, no fallbacks
+
         if not user_id:
-            raise ValueError("user_id is required for memory operations - cannot retrieve conversations without user identification")
-        
-        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Using user_id='{user_id}' (explicit)")
-        
-        # Determine retrieval strategy based on query context
-        query = input_data["query"]
-        retrieval_strategy = "recent"  # Default to recent (no embeddings needed)
-        
-        # Use keyword search for specific term queries
-        query_words = query.lower().split()
-        if len(query_words) > 2 and any(len(word) > 4 for word in query_words):
-            retrieval_strategy = "keyword"
-        
-        # Only use hybrid (semantic) for complex conceptual queries
-        semantic_indicators = ["explain", "concept", "understand", "meaning", "similar", "related", "like", "about"]
-        if any(indicator in query.lower() for indicator in semantic_indicators):
-            retrieval_strategy = "hybrid"
-        
-        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Using retrieval_strategy='{retrieval_strategy}' for query: '{query[:50]}...'")
-        
-        # MCP server expects user_id at the root level, not nested in params
-        mcp_params = {
-            "arguments": {
-                "user_id": user_id,
-                "explanation": input_data["explanation"],
-                "query": query,
-                "max_results": input_data.get("max_results", 10),
-                "retrieval_strategy": retrieval_strategy
-            }
+            raise ValueError("user_id is required for memory operations")
+
+        # Prepare arguments for new MCP server
+        arguments = {
+            "user_id": user_id,
+            "query": input_data["query"],
+            "limit": input_data.get("max_results", 10)
         }
-        
-        # Optional fields
-        if input_data.get("message_id"):
-            mcp_params["arguments"]["message_id"] = input_data["message_id"]
-        if input_data.get("time_range"):
-            mcp_params["arguments"]["time_range"] = input_data["time_range"]
-        
-        # Call MCP server
-        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
-        result = await client._make_mcp_request("tools/call", {
-            "name": "retrieve_conversation_memory",
-            **mcp_params
-        })
+
+        # Call new MCP server
+        logger.info(f"MEMORY-CONVERSATION-RETRIEVE: Sending MCP request with user_id='{user_id}'")
+        result = await client._make_mcp_request("retrieve_memory", arguments)
         logger.info(f"MEMORY-CONVERSATION-RETRIEVE: MCP response: {result}")
         
-        # Get current timestamp
-        from datetime import datetime
-        retrieval_timestamp = datetime.now().isoformat()
+        # Parse server response - new server returns a list of memories
+        memories = []
+        if isinstance(result, list):
+            memories = result
+        elif isinstance(result, dict) and "content" in result:
+            # Handle raw text response
+            memories = [{"content": result["content"], "importance": 0.5}]
         
-        # Extract conversation data from MCP result
-        conversation_data = result.get("content", [])
-        if conversation_data and isinstance(conversation_data[0], dict) and "text" in conversation_data[0]:
-            try:
-                parsed_response = json.loads(conversation_data[0]["text"])
-                # Handle nested data structure
-                if "data" in parsed_response:
-                    parsed_conversations = parsed_response["data"]
-                else:
-                    parsed_conversations = parsed_response
-            except json.JSONDecodeError:
-                parsed_conversations = {"conversations": [], "total_found": 0}
-        else:
-            parsed_conversations = {"conversations": [], "total_found": 0}
-        
-        conversations = parsed_conversations.get("conversations", [])
-        total_found = parsed_conversations.get("total_found", len(conversations))
-        max_results = input_data.get("max_results", 10)
-        
-        # Determine query type
-        query_type = "general"
-        if input_data.get("message_id"):
-            query_type = "specific_message"
-        elif input_data.get("time_range"):
-            query_type = "time_filtered"
+        # Convert to expected format
+        formatted_results = []
+        for memory in memories:
+            if isinstance(memory, dict):
+                formatted_results.append({
+                    "content": memory.get("content", ""),
+                    "importance": memory.get("importance", 0.5),
+                    "timestamp": memory.get("timestamp", ""),
+                    "metadata": memory.get("metadata", {})
+                })
+            else:
+                # Handle string responses
+                formatted_results.append({
+                    "content": str(memory),
+                    "importance": 0.5,
+                    "timestamp": "",
+                    "metadata": {}
+                })
         
         return {
-            "success": True,
-            "message": f"Retrieved {len(conversations)} conversation(s) via MCP server",
-            "data": {
-                "status": "success",
-                "query": input_data["query"],
-                "explanation": input_data["explanation"],
-                "query_type": query_type,
-                "requested_message_id": input_data.get("message_id"),
-                "retrieval_timestamp": retrieval_timestamp,
-                "time_range": input_data.get("time_range"),
-                "conversations": conversations,
-                "total_found": total_found,
-                "returned_count": len(conversations),
-                "max_results_applied": total_found > max_results
-            }
+            "status": "success",
+            "query": input_data["query"],
+            "results": formatted_results
         }
-        
-    except MemoryError as e:
-        logger.error(f"MCP Conversation Memory error: {e}")
-        return {
-            "success": False,
-            "message": str(e),
-            "data": {
-                "status": "error",
-                "query": input_data.get("query", ""),
-                "explanation": input_data.get("explanation", ""),
-                "query_type": "general",
-                "retrieval_timestamp": "",
-                "conversations": [],
-                "total_found": 0,
-                "returned_count": 0,
-                "max_results_applied": False
-            }
-        }
+
     except Exception as e:
         logger.error(f"Unexpected error in conversation_retrieve: {e}")
         return {
-            "success": False,
-            "message": f"Conversation memory retrieval failed: {str(e)}",
-            "data": {
-                "status": "error",
-                "query": input_data.get("query", ""),
-                "explanation": input_data.get("explanation", ""),
-                "query_type": "general", 
-                "retrieval_timestamp": "",
-                "conversations": [],
-                "total_found": 0,
-                "returned_count": 0,
-                "max_results_applied": False
-            }
-        }
-
-async def execution_add(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
-    """
-    Store execution details in MemoryOS dual memory system via MCP
-    
-    Args:
-        input_data: Dictionary with message_id, explanation, execution_summary, tools_used, 
-                   errors, observations, success, duration_ms (optional), timestamp (optional)
-        
-    Returns:
-        Dictionary with operation result matching add_execution_output.json schema
-    """
-    logger.info(f"Adding execution memory via MCP: {input_data.get('explanation', 'No explanation provided')}")
-    
-    try:
-        client = _get_mcp_client()
-        
-        # Validate required fields - flat structure
-        required_fields = ["message_id", "explanation", "execution_summary", "tools_used", "errors", "observations", "success"]
-        for field in required_fields:
-            if field not in input_data:
-                return {
-                    "success": False,
-                    "message": f"Missing required field: {field}",
-                    "data": {
-                        "status": "error",
-                        "message_id": input_data.get("message_id", ""),
-                        "timestamp": input_data.get("timestamp", "")
-                    }
-                }
-            # Special validation for success boolean field
-            if field == "success" and input_data[field] is None:
-                return {
-                    "success": False,
-                    "message": f"Field '{field}' cannot be None",
-                    "data": {
-                        "status": "error",
-                        "message_id": input_data.get("message_id", ""),
-                        "timestamp": input_data.get("timestamp", "")
-                    }
-                }
-        
-        # Prepare MCP parameters - require explicit user_id, no fallbacks
-        if not user_id:
-            raise ValueError("user_id is required for memory operations - cannot store executions without user identification")
-        
-        # MCP server expects user_id at the root level, not nested in params
-        mcp_params = {
-            "arguments": {
-                "user_id": user_id,
-                "message_id": input_data["message_id"],
-                "explanation": input_data["explanation"],
-                # Flat structure for better LLM processing
-                "execution_summary": input_data["execution_summary"],
-                "tools_used": input_data["tools_used"],
-                "errors": input_data["errors"],
-                "observations": input_data["observations"],
-                "success": input_data["success"]
-            }
-        }
-        
-        # Optional fields
-        if input_data.get("duration_ms") is not None:
-            mcp_params["arguments"]["duration_ms"] = input_data["duration_ms"]
-        if input_data.get("timestamp"):
-            mcp_params["arguments"]["timestamp"] = input_data["timestamp"]
-        if input_data.get("meta_data"):
-            mcp_params["arguments"]["meta_data"] = input_data["meta_data"]
-        
-        # Call MCP server
-        result = await client._make_mcp_request("tools/call", {
-            "name": "add_execution_memory",
-            **mcp_params
-        })
-        
-        # Parse server response from MCP content format
-        if result.get("content") and isinstance(result["content"][0], dict) and "text" in result["content"][0]:
-            try:
-                server_response = json.loads(result["content"][0]["text"])
-                return server_response
-            except json.JSONDecodeError:
-                # Fallback if server response is malformed
-                pass
-        
-        # Fallback response if server response parsing fails
-        from datetime import datetime
-        timestamp = input_data.get("timestamp") or datetime.now().isoformat()
-        
-        return {
-            "success": True,
-            "message": "Execution memory stored via MCP MemoryOS server",
-            "data": {
-                "status": "success",
-                "message_id": input_data["message_id"],
-                "timestamp": timestamp,
-                "details": {
-                    "duration_ms": input_data.get("duration_ms"),
-                    "success": input_data["success"],
-                    "memory_processing": "Execution memory added via MCP server"
-                }
-            }
-        }
-        
-    except MemoryError as e:
-        logger.error(f"MCP Execution Memory error: {e}")
-        return {
-            "success": False,
-            "message": str(e),
-            "data": {
-                "status": "error",
-                "message_id": input_data.get("message_id", ""),
-                "timestamp": input_data.get("timestamp", "")
-            }
-        }
-    except Exception as e:
-        logger.error(f"Unexpected error in execution_add: {e}")
-        return {
-            "success": False,
-            "message": f"Execution memory storage failed: {str(e)}",
-            "data": {
-                "status": "error",
-                "message_id": input_data.get("message_id", ""),
-                "timestamp": input_data.get("timestamp", "")
-            }
-        }
-
-async def execution_retrieve(input_data: Dict[str, Any], user_id: str = None) -> Dict[str, Any]:
-    """
-    Retrieve execution memories from MemoryOS dual memory system via MCP
-    
-    Args:
-        input_data: Dictionary with explanation, query, message_id (optional), 
-                   max_results (optional)
-        user_id: Dynamic user ID to use (overrides client default)
-        
-    Returns:
-        Dictionary with retrieved executions matching retrieve_execution_output.json schema
-    """
-    logger.info(f"Retrieving execution memory via MCP: {input_data.get('explanation', 'No explanation provided')}")
-    
-    try:
-        client = _get_mcp_client()
-        
-        # Validate required fields
-        required_fields = ["explanation", "query"]
-        for field in required_fields:
-            if field not in input_data or not input_data[field]:
-                return {
-                    "success": False,
-                    "message": f"Missing required field: {field}",
-                    "data": {
-                        "status": "error",
-                        "query": input_data.get("query", ""),
-                        "explanation": input_data.get("explanation", ""),
-                        "query_type": "general",
-                        "retrieval_timestamp": "",
-                        "executions": [],
-                        "total_found": 0,
-                        "returned_count": 0,
-                        "max_results_applied": False
-                    }
-                }
-        
-        # Prepare MCP parameters - require explicit user_id, no fallbacks
-        if not user_id:
-            raise ValueError("user_id is required for memory operations - cannot retrieve executions without user identification")
-        
-        logger.info(f"MEMORY-EXECUTION-RETRIEVE: Using user_id='{user_id}' (explicit)")
-        
-        # Determine retrieval strategy based on query context  
-        query = input_data["query"]
-        retrieval_strategy = "recent"  # Default to recent (no embeddings needed)
-        
-        # Use keyword search for specific term queries
-        query_words = query.lower().split()
-        if len(query_words) > 2 and any(len(word) > 4 for word in query_words):
-            retrieval_strategy = "keyword"
-        
-        # Only use hybrid (semantic) for complex conceptual queries
-        semantic_indicators = ["explain", "concept", "understand", "meaning", "similar", "related", "like", "about", "pattern"]
-        if any(indicator in query.lower() for indicator in semantic_indicators):
-            retrieval_strategy = "hybrid"
-        
-        logger.info(f"MEMORY-EXECUTION-RETRIEVE: Using retrieval_strategy='{retrieval_strategy}' for query: '{query[:50]}...'")
-        
-        # MCP server expects user_id at the root level, not nested in params
-        mcp_params = {
-            "arguments": {
-                "user_id": user_id,
-                "explanation": input_data["explanation"],
-                "query": query,
-                "max_results": input_data.get("max_results", 10),
-                "retrieval_strategy": retrieval_strategy
-            }
-        }
-        
-        # Optional fields
-        if input_data.get("message_id"):
-            mcp_params["arguments"]["message_id"] = input_data["message_id"]
-        
-        # Call MCP server
-        result = await client._make_mcp_request("tools/call", {
-            "name": "retrieve_execution_memory",
-            **mcp_params
-        })
-        
-        # Get current timestamp
-        from datetime import datetime
-        retrieval_timestamp = datetime.now().isoformat()
-        
-        # Extract execution data from MCP result
-        execution_data = result.get("content", [])
-        if execution_data and isinstance(execution_data[0], dict) and "text" in execution_data[0]:
-            try:
-                parsed_response = json.loads(execution_data[0]["text"])
-                # Handle nested data structure
-                if "data" in parsed_response:
-                    parsed_executions = parsed_response["data"]
-                else:
-                    parsed_executions = parsed_response
-            except json.JSONDecodeError:
-                parsed_executions = {"executions": [], "total_found": 0}
-        else:
-            parsed_executions = {"executions": [], "total_found": 0}
-        
-        executions = parsed_executions.get("executions", [])
-        total_found = parsed_executions.get("total_found", len(executions))
-        max_results = input_data.get("max_results", 10)
-        
-        # Determine query type
-        query_type = "general"
-        if input_data.get("message_id"):
-            query_type = "specific_message"
-        else:
-            query_type = "pattern_search"
-        
-        return {
-            "success": True,
-            "message": f"Retrieved {len(executions)} execution record(s) via MCP server",
-            "data": {
-                "status": "success",
-                "query": input_data["query"],
-                "explanation": input_data["explanation"],
-                "query_type": query_type,
-                "requested_message_id": input_data.get("message_id"),
-                "retrieval_timestamp": retrieval_timestamp,
-                "executions": executions,
-                "total_found": total_found,
-                "returned_count": len(executions),
-                "max_results_applied": total_found > max_results
-            }
-        }
-        
-    except MemoryError as e:
-        logger.error(f"MCP Execution Memory error: {e}")
-        return {
-            "success": False,
-            "message": str(e),
-            "data": {
-                "status": "error",
-                "query": input_data.get("query", ""),
-                "explanation": input_data.get("explanation", ""),
-                "query_type": "general",
-                "retrieval_timestamp": "",
-                "executions": [],
-                "total_found": 0,
-                "returned_count": 0,
-                "max_results_applied": False
-            }
-        }
-    except Exception as e:
-        logger.error(f"Unexpected error in execution_retrieve: {e}")
-        return {
-            "success": False,
-            "message": f"Execution memory retrieval failed: {str(e)}",
-            "data": {
-                "status": "error",
-                "query": input_data.get("query", ""),
-                "explanation": input_data.get("explanation", ""),
-                "query_type": "general",
-                "retrieval_timestamp": "",
-                "executions": [],
-                "total_found": 0,
-                "returned_count": 0,
-                "max_results_applied": False
-            }
+            "status": "error",
+            "query": input_data.get("query", ""),
+            "results": []
         }
 
 
@@ -730,7 +348,7 @@ async def get_profile(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any
     logger.info(f"Retrieving agent-generated profile via embeddings search: {input_data.get('explanation', 'No explanation provided')}")
     
     try:
-        client = _get_mcp_client()
+        client = await _get_mcp_client()
         
         # Validate required fields
         required_fields = ["explanation"]
@@ -752,27 +370,20 @@ async def get_profile(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any
                     }
                 }
         
-        # Prepare MCP parameters - require explicit user_id, no fallbacks
+        # Prepare arguments - require explicit user_id, no fallbacks
         if not user_id:
             raise ValueError("user_id is required for memory operations - cannot retrieve profile without user identification")
         
         logger.info(f"MEMORY-PROFILE-RETRIEVE: Using user_id='{user_id}' (explicit)")
         
-        # MCP server expects user_id at the root level, not nested in params  
-        mcp_params = {
-            "arguments": {
-                "user_id": user_id,  # Required by MCP server
-                "include_knowledge": input_data.get("include_knowledge", True),
-                "include_assistant_knowledge": input_data.get("include_assistant_knowledge", False)
-            }
+        # Prepare arguments for new MCP server
+        arguments = {
+            "user_id": user_id
         }
         
-        # Call MCP server
-        logger.info(f"MEMORY-PROFILE-RETRIEVE: Sending MCP request with user_id='{user_id}' and params: {mcp_params}")
-        result = await client._make_mcp_request("tools/call", {
-            "name": "get_user_profile",
-            **mcp_params
-        })
+        # Call new MCP server
+        logger.info(f"MEMORY-PROFILE-RETRIEVE: Sending MCP request with user_id='{user_id}'")
+        result = await client._make_mcp_request("get_user_profile", arguments)
         logger.info(f"MEMORY-PROFILE-RETRIEVE: MCP response: {result}")
         
         # Get current timestamp
@@ -780,41 +391,51 @@ async def get_profile(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any
         timestamp = datetime.now().isoformat()
         
         # Extract profile data from MCP result
-        profile_data = result.get("content", [])
-        if profile_data and isinstance(profile_data[0], dict) and "text" in profile_data[0]:
-            try:
-                parsed_profile = json.loads(profile_data[0]["text"])
-            except json.JSONDecodeError:
-                parsed_profile = {
-                    "user_profile": "",
-                    "user_knowledge": [],
-                    "assistant_knowledge": []
+        if isinstance(result, dict):
+            profile_text = result.get("content", "")
+            total_memories = result.get("total_memories", 0)
+            memory_stats = result.get("memory_stats", {})
+            
+            # Create structured profile data
+            user_knowledge = [{"content": profile_text, "source": "profile"}] if profile_text else []
+            
+            return {
+                "success": True,
+                "message": f"Retrieved agent-generated profile with {total_memories} total memories via MCP server",
+                "data": {
+                    "status": "success",
+                    "timestamp": timestamp,
+                    "user_id": user_id,
+                    "assistant_id": "signal",
+                    "user_profile": profile_text,
+                    "user_knowledge": user_knowledge,
+                    "user_knowledge_count": len(user_knowledge),
+                    "assistant_knowledge": [],
+                    "assistant_knowledge_count": 0,
+                    "memory_stats": memory_stats,
+                    "total_memories": total_memories
                 }
+            }
         else:
-            parsed_profile = {
-                "user_profile": "",
-                "user_knowledge": [],
-                "assistant_knowledge": []
+            # Handle simple text response
+            profile_text = str(result) if result else ""
+            user_knowledge = [{"content": profile_text, "source": "profile"}] if profile_text else []
+            
+            return {
+                "success": True,
+                "message": f"Retrieved agent-generated profile via MCP server",
+                "data": {
+                    "status": "success",
+                    "timestamp": timestamp,
+                    "user_id": user_id,
+                    "assistant_id": "signal",
+                    "user_profile": profile_text,
+                    "user_knowledge": user_knowledge,
+                    "user_knowledge_count": len(user_knowledge),
+                    "assistant_knowledge": [],
+                    "assistant_knowledge_count": 0
+                }
             }
-        
-        user_knowledge = parsed_profile.get("user_knowledge", [])
-        assistant_knowledge = parsed_profile.get("assistant_knowledge", [])
-        
-        return {
-            "success": True,
-            "message": f"Retrieved agent-generated profile with {len(user_knowledge)} embeddings-based knowledge items via MCP server",
-            "data": {
-                "status": "success",
-                "timestamp": timestamp,
-                "user_id": user_id,
-                "assistant_id": "signal",
-                "user_profile": parsed_profile.get("user_profile", ""),
-                "user_knowledge": user_knowledge,
-                "user_knowledge_count": len(user_knowledge),
-                "assistant_knowledge": assistant_knowledge,
-                "assistant_knowledge_count": len(assistant_knowledge)
-            }
-        }
         
     except MemoryError as e:
         logger.error(f"MCP User Profile error: {e}")
@@ -849,4 +470,90 @@ async def get_profile(input_data: Dict[str, Any], user_id: str) -> Dict[str, Any
                 "assistant_knowledge": [],
                 "assistant_knowledge_count": 0
             }
-        } 
+        }
+
+
+# =============================================================================
+# CONTEXT MANAGER FOR AUTOMATIC CONNECTION HANDLING  
+# =============================================================================
+
+class MemoryOSContext:
+    """Context manager for automatic MemoryOS connection handling."""
+    
+    def __init__(self):
+        self.client = None
+    
+    async def __aenter__(self) -> McpMemoryClient:
+        self.client = await _get_mcp_client()
+        return self.client
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.client:
+            await self.client.close()
+
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+async def health_check() -> bool:
+    """
+    Check if the MemoryOS server is healthy.
+    
+    Returns:
+        bool: True if server is healthy, False otherwise
+    """
+    try:
+        client = await _get_mcp_client()
+        return await client.health_check()
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return False
+
+
+async def add_simple_memory(user_id: str, content: str, importance: float = 0.5) -> bool:
+    """
+    Simple function to add a memory (compatible with template usage).
+    
+    Args:
+        user_id: User identifier
+        content: Memory content
+        importance: Memory importance (0.0 to 1.0)
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        input_data = {
+            "user_input": content,
+            "agent_response": f"Remembered: {content[:50]}..."
+        }
+        result = await conversation_add(input_data, user_id)
+        return result.get("success", False)
+    except Exception as e:
+        logger.error(f"Failed to add simple memory: {e}")
+        return False
+
+
+async def retrieve_simple_memory(user_id: str, query: str, limit: int = 5) -> list:
+    """
+    Simple function to retrieve memories (compatible with template usage).
+    
+    Args:
+        user_id: User identifier
+        query: Search query
+        limit: Maximum results
+        
+    Returns:
+        list: List of memory objects
+    """
+    try:
+        input_data = {
+            "query": query,
+            "max_results": limit
+        }
+        result = await conversation_retrieve(input_data, user_id)
+        return result.get("results", [])
+    except Exception as e:
+        logger.error(f"Failed to retrieve simple memory: {e}")
+        return []

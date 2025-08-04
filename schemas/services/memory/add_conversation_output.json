@@ -17,7 +17,10 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["success", "error"],
+          "enum": [
+            "success",
+            "error"
+          ],
           "description": "Operation status"
         },
         "message_id": {
@@ -43,9 +46,17 @@
           }
         }
       },
-      "required": ["status", "message_id", "timestamp"]
+      "required": [
+        "status",
+        "message_id",
+        "timestamp"
+      ]
     }
   },
-  "required": ["success", "message", "data"],
+  "required": [
+    "success",
+    "message",
+    "data"
+  ],
   "additionalProperties": false
-} 
+}

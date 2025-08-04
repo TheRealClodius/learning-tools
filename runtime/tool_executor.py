@@ -45,12 +45,11 @@ class ToolExecutor:
                 "perplexity.research": "tools.perplexity:perplexity_research"
             },
             "memory": {
-                # Dual memory system functions - updated to match registry schema naming
+                # Unified memory system functions
                 "memory.add_conversation": "tools.memory:conversation_add",
-                "memory.retrieve_conversation": "tools.memory:conversation_retrieve",
-                "memory.add_execution": "tools.memory:execution_add",
-                "memory.retrieve_execution": "tools.memory:execution_retrieve",
+                "memory.retrieve_conversation": "tools.memory:conversation_retrieve", 
                 "memory.get_profile": "tools.memory:get_profile"
+                # DEPRECATED: execution_add and execution_retrieve - use conversation_add with execution data instead
             },
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
@@ -91,21 +90,17 @@ class ToolExecutor:
             from tools.memory import (
                 conversation_add,
                 conversation_retrieve,
-                execution_add,
-                execution_retrieve,
                 get_profile
             )
             
             self.available_tools.update({
                 "memory.add_conversation": conversation_add,
                 "memory.retrieve_conversation": conversation_retrieve,
-                "memory.add_execution": execution_add,
-                "memory.retrieve_execution": execution_retrieve,
                 "memory.get_profile": get_profile
             })
             
             self.loaded_services.add("memory")
-            logger.info("Dual memory system tools loaded successfully")
+            logger.info("Memory system tools loaded successfully")
             
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
