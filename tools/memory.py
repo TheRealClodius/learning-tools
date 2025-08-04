@@ -31,7 +31,7 @@ class McpMemoryClient:
         self.server_url = os.getenv("MEMORYOS_SERVER_URL", "http://localhost:5000")
         self.api_key = os.getenv("MEMORYOS_API_KEY")
         self.user_id = os.getenv("MEMORY_USER_ID", "default_user")
-        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "5"))  # Reduced from 30 to 5 seconds
+        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "30"))  # Server fixed, back to 30s safety margin
         
         # Create persistent HTTP client with connection pooling
         self._http_client: Optional[httpx.AsyncClient] = None
