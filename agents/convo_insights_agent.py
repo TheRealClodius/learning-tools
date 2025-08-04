@@ -33,7 +33,7 @@ class ConvoInsightsAgent:
         self.logging_config = self.config.get('logging', {})
         
         # Configure model settings
-        self.model = self.model_config.get('model', 'gemini-2.0-flash-exp')
+        self.model = self.model_config.get('model', 'gemini-2.5-flash')
         self.max_tokens = self.model_config.get('max_tokens', 1000)
         self.temperature = self.model_config.get('temperature', 0.3)
         self.timeout = self.model_config.get('timeout', 15)
@@ -61,7 +61,7 @@ class ConvoInsightsAgent:
         """Get default configuration if YAML loading fails"""
         return {
             'model_config': {
-                'model': 'gemini-2.0-flash-exp',
+                'model': 'gemini-2.5-flash',
                 'max_tokens': 1000,
                 'temperature': 0.3,
                 'timeout': 15
