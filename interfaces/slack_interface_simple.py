@@ -662,6 +662,22 @@ class SlackInterface:
             if modal_blocks and modal_blocks[-1]["type"] == "divider":
                 modal_blocks.pop()
             
+            # Check for recent insights status and add to modal
+            user_id = body["user"]["id"]
+            insights_status = self._get_recent_insights_status(user_id)
+            if insights_status:
+                # Add divider before insights if we have other blocks
+                if modal_blocks:
+                    modal_blocks.append({"type": "divider"})
+                
+                modal_blocks.append({
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"_{insights_status}_"
+                    }
+                })
+            
             # Limit blocks to Slack's modal limit (100 blocks)
             if len(modal_blocks) > 95:
                 modal_blocks = modal_blocks[:95]
@@ -778,6 +794,7 @@ class SlackInterface:
                     # Extract and summarize the result
                     tool_name, result_preview = content.split(":", 1) if ":" in content else (content, "")
                     await streaming_handler.complete_tool(result_preview.strip())
+
             
             # Process through agent with streaming
             import datetime
@@ -1027,6 +1044,37 @@ class SlackInterface:
         
         logger.info(f"Converted mentions back to Slack format: {repr(text)}")
         return text
+    
+    def _get_recent_insights_status(self, user_id: str) -> Optional[str]:
+        """Get recent insights status for user from agent's user_buffers"""
+        try:
+            # Access the agent's user_buffers
+            user_buffers = self.agent.user_buffers
+            
+            if user_id not in user_buffers:
+                return None
+            
+            # Check for recent insights status
+            recent_data = user_buffers[user_id].get('recent', {})
+            insights_status = recent_data.get('insights_status')
+            
+            if not insights_status:
+                return None
+            
+            # Check if the status is recent (within last 5 minutes)
+            import time
+            current_time = time.time()
+            status_time = insights_status.get('timestamp', 0)
+            
+            # Only show status if it's from the last 5 minutes
+            if current_time - status_time > 300:  # 5 minutes
+                return None
+            
+            return insights_status.get('message', 'No new insights')
+            
+        except Exception as e:
+            logger.error(f"Error getting insights status for user {user_id}: {e}")
+            return None
     
     def get_fastapi_handler(self):
         """Get FastAPI handler for webhook integration"""

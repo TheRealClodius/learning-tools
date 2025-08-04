@@ -452,6 +452,11 @@ class ClientAgent:
         
         enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
         
+        # DEBUG: Log enriched message to detect thinking-only issues
+        if enriched_message != user_message:
+            logger.info(f"ENRICHED-PROMPT-DEBUG: User {user_id} prompt was enriched")
+            logger.info(f"ENRICHED-CONTENT: {enriched_message}")
+        
         messages = [{"role": "user", "content": enriched_message}]
         max_iterations = self.max_iterations  # Load from config
         
@@ -757,7 +762,14 @@ Generate summary:"""
             elif function_name == "memory_conversation_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing conversation: {args.get('message_id', 'N/A')}", "memory")
-                result = await self.tool_executor.execute_command("memory.add_conversation", args, user_id=user_id)
+                # Execute memory operation asynchronously to avoid blocking user response
+                asyncio.create_task(self._store_conversation_async(args, user_id))
+                # Return immediate success to Claude so it can respond to user
+                result = {
+                    "success": True,
+                    "message": "Conversation memory queued for storage",
+                    "data": {"message_id": args.get("message_id", ""), "status": "queued"}
+                }
             elif function_name == "memory_execution_add":
                 if streaming_callback:
                     await streaming_callback(f"Storing execution details: {args.get('message_id', 'N/A')}", "memory")
@@ -767,7 +779,14 @@ Generate summary:"""
                 # Ensure required fields are present with defaults if missing
                 args.setdefault("errors", [])
                 args.setdefault("observations", "")
-                result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
+                # Execute memory operation asynchronously to avoid blocking user response
+                asyncio.create_task(self._store_execution_async(args, user_id))
+                # Return immediate success to Claude so it can respond to user
+                result = {
+                    "success": True,
+                    "message": "Execution memory queued for storage",
+                    "data": {"message_id": args.get("message_id", ""), "status": "queued"}
+                }
             elif function_name == "execute_tool":
                 # Execute any discovered tool dynamically - completely generic
                 tool_name = args["tool_name"]
@@ -908,7 +927,9 @@ Generate summary:"""
             relevance_threshold = 0.05 if insight_type == 'recommendation' else 0.1  # Lower bar for recommendations
             
             if relevance > relevance_threshold:
-                content = f"• {notes[:150]}{'...' if len(notes) > 150 else ''}"
+                # Clean up the notes - remove markdown formatting that might confuse Claude
+                clean_notes = notes.replace("**", "").replace("*", "")
+                content = f"- {clean_notes[:150]}{'...' if len(clean_notes) > 150 else ''}"
                 
                 candidate = {
                     'content': content,
@@ -937,7 +958,7 @@ Generate summary:"""
         
         # Add pins section if we have relevant pins
         if relevant_pins:
-            pins_header = "\n=== KEY INSIGHTS ==="
+            pins_header = "\n\nRelevant context from our previous conversations:"
             if current_length + len(pins_header) < max_context_length:
                 context_parts.append(pins_header)
                 current_length += len(pins_header)
@@ -950,7 +971,7 @@ Generate summary:"""
         
         # Add recommendations section if we have relevant ones and space
         if relevant_recommendations and current_length < max_context_length - 100:  # Leave some space
-            rec_header = "\n=== TOOL GUIDANCE ==="
+            rec_header = "\n\nBased on previous interactions, please note:"
             if current_length + len(rec_header) < max_context_length:
                 context_parts.append(rec_header)
                 current_length += len(rec_header)
@@ -1402,6 +1423,29 @@ Generate updated insights:"""
         return '\n'.join(notes[:2])
 
     
+    async def _store_conversation_async(self, args: Dict[str, Any], user_id: str):
+        """Store conversation in memory asynchronously (non-blocking)"""
+        try:
+            logger.info(f"ASYNC-MEMORY: Starting conversation storage for user {user_id}")
+            result = await self.tool_executor.execute_command("memory.add_conversation", args, user_id=user_id)
+            if result.get("success"):
+                logger.info(f"ASYNC-MEMORY: Conversation stored successfully for user {user_id}")
+            else:
+                logger.warning(f"ASYNC-MEMORY: Conversation storage failed for user {user_id}: {result.get('message', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"ASYNC-MEMORY: Conversation storage error for user {user_id}: {e}")
+    
+    async def _store_execution_async(self, args: Dict[str, Any], user_id: str):
+        """Store execution details in memory asynchronously (non-blocking)"""
+        try:
+            logger.info(f"ASYNC-MEMORY: Starting execution storage for user {user_id}")
+            result = await self.tool_executor.execute_command("memory.add_execution", args, user_id=user_id)
+            if result.get("success"):
+                logger.info(f"ASYNC-MEMORY: Execution stored successfully for user {user_id}")
+            else:
+                logger.warning(f"ASYNC-MEMORY: Execution storage failed for user {user_id}: {result.get('message', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"ASYNC-MEMORY: Execution storage error for user {user_id}: {e}")
 
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""

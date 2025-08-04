@@ -93,7 +93,7 @@ class ConvoInsightsAgent:
     
     async def analyze_interaction(self, user_message: str, agent_response: str, 
                                 tool_usage_log: List[Dict], thinking_content: List[str], 
-                                user_id: str, user_buffers: Dict[str, Dict[str, Any]]) -> bool:
+                                user_id: str, user_buffers: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """
         Analyze user interaction and update insights in the provided buffer
         
@@ -106,7 +106,7 @@ class ConvoInsightsAgent:
             user_buffers: Reference to client agent's user buffers
             
         Returns:
-            bool: True if insights were updated, False if skipped
+            Dict with keys: success (bool), insights_count (int), message (str)
         """
         try:
             logger.info(f"{self._log_prefix()}: Analyzing interaction for user {user_id}")
@@ -114,12 +114,16 @@ class ConvoInsightsAgent:
             # Check if we should skip this interaction
             if self._should_skip_interaction(user_message, tool_usage_log):
                 logger.info(f"{self._log_prefix()}: Skipping trivial interaction for user {user_id}")
-                return False
+                return {
+                    "success": False,
+                    "insights_count": 0,
+                    "message": "No new insights"
+                }
             
             # Get existing insights for comparison and evolution
             existing_insights = self._get_current_insights(user_id, user_buffers)
-            insights_count = len(existing_insights.split('•')) - 1 if existing_insights != self._get_empty_insights() else 0
-            logger.info(f"{self._log_prefix()}: Found {insights_count} existing insights")
+            old_insights_count = len(existing_insights.split('•')) - 1 if existing_insights != self._get_empty_insights() else 0
+            logger.info(f"{self._log_prefix()}: Found {old_insights_count} existing insights")
             
             # Generate updated insights using stateful analysis
             updated_insights = await self._generate_updated_insights(
@@ -130,14 +134,45 @@ class ConvoInsightsAgent:
             # Store the evolved understanding
             self._replace_insights(user_id, updated_insights, user_buffers)
             
-            logger.info(f"{self._log_prefix()}: Updated insights for user {user_id}")
-            return True
+            # Count new insights
+            final_insights_count = len(updated_insights.split('•')) - 1 if updated_insights != self._get_empty_insights() else 0
+            new_insights_count = max(0, final_insights_count - old_insights_count)
+            
+            logger.info(f"{self._log_prefix()}: Updated insights for user {user_id} - created {new_insights_count} new insights")
+            
+            # Prepare result
+            if new_insights_count > 0:
+                result = {
+                    "success": True,
+                    "insights_count": new_insights_count,
+                    "message": f"I successfully created {new_insights_count} new insight{'s' if new_insights_count != 1 else ''} for the next query"
+                }
+            else:
+                result = {
+                    "success": True,
+                    "insights_count": 0,
+                    "message": "No new insights"
+                }
+            
+            # Store insights status for execution details modal
+            self._store_insights_status(user_id, result, user_buffers)
+            
+            return result
             
         except Exception as e:
             logger.error(f"{self._log_prefix()}: Failed to analyze interaction for user {user_id}: {e}")
             import traceback
             logger.error(f"{self._log_prefix()}: Traceback: {traceback.format_exc()}")
-            return False
+            result = {
+                "success": False,
+                "insights_count": 0,
+                "message": "No new insights"
+            }
+            
+            # Store error status for execution details modal
+            self._store_insights_status(user_id, result, user_buffers)
+            
+            return result
     
     def _should_skip_interaction(self, user_message: str, tool_usage_log: List[Dict]) -> bool:
         """Determine if this interaction should be skipped for insights generation"""
@@ -209,7 +244,7 @@ class ConvoInsightsAgent:
             if self.logging_config.get('debug_prompts', False):
                 logger.debug(f"{self._log_prefix()}: Prompt: {prompt}")
             
-            response = model.generate_content(prompt, timeout=self.timeout)
+            response = model.generate_content(prompt)
             updated_insights = response.text.strip()
             
             if self.logging_config.get('debug_responses', True):
@@ -473,3 +508,22 @@ class ConvoInsightsAgent:
                          if item.get('insight_type') == 'recommendation'])
         
         logger.info(f"{self._log_prefix()}: Stored {pins_count} pins + {recs_count} recommendations for user {user_id}")
+    
+    def _store_insights_status(self, user_id: str, result: Dict[str, Any], user_buffers: Dict[str, Dict[str, Any]]):
+        """Store insights analysis status for execution details modal"""
+        if user_id not in user_buffers:
+            user_buffers[user_id] = {'important': {}, 'recent': {}}
+        
+        # Ensure the user has a 'recent' section for temporary status storage
+        if 'recent' not in user_buffers[user_id]:
+            user_buffers[user_id]['recent'] = {}
+        
+        # Store recent insights status (keep only the most recent one)
+        user_buffers[user_id]['recent']['insights_status'] = {
+            'message': result['message'],
+            'timestamp': time.time(),
+            'success': result['success'],
+            'insights_count': result['insights_count']
+        }
+        
+        logger.info(f"{self._log_prefix()}: Stored insights status for user {user_id}: {result['message']}")

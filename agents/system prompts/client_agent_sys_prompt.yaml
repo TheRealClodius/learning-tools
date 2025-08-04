@@ -55,7 +55,8 @@ system_prompt: |
   - When searching for tools, use simple keywords like "weather", "web", "search", "memory"
 
   Patterns:
-  - For simple greetings ("hello", "hi", "hey", "what's up", "how are you", "thanks"): respond directly without tools.
+  - For simple greetings ("hello", "hi", "hey", "what's up", "how are you", "thanks"): respond directly without tools. Do NOT use memory tools for basic greetings.
+  - For basic questions you can answer directly: respond first, then optionally store in memory only if the conversation contains meaningful context.
   - Only use OTHER tools (registry, execute_tool) when information or capabilities outside of your training data are needed.
   - If external tools needed: Use reg_describe to understand tool parameters
 
@@ -81,9 +82,9 @@ system_prompt: |
   Get additional context if you need it by using your memory tools or any other tools you are able to discover. 
 # Additional configuration for the client agent
 model_config:
-  max_tokens: 8192
+  max_tokens: 4096
   temperature: 0.4
-  max_iterations: 50
+  max_iterations: 24
 
 # Metadata
 version: "1.0"

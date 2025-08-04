@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import time
 import httpx
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
@@ -24,19 +25,49 @@ class MemoryError(Exception):
     pass
 
 class McpMemoryClient:
-    """MCP client for connecting to remote MemoryOS server"""
+    """MCP client for connecting to remote MemoryOS server with persistent connection pooling"""
     
     def __init__(self):
         self.server_url = os.getenv("MEMORYOS_SERVER_URL", "http://localhost:5000")
         self.api_key = os.getenv("MEMORYOS_API_KEY")
         self.user_id = os.getenv("MEMORY_USER_ID", "default_user")
-        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "30"))
+        self.timeout = int(os.getenv("MEMORYOS_TIMEOUT", "5"))  # Reduced from 30 to 5 seconds
+        
+        # Create persistent HTTP client with connection pooling
+        self._http_client: Optional[httpx.AsyncClient] = None
         
         if not self.api_key:
             logger.warning("MEMORYOS_API_KEY not set - memory operations may fail")
     
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """Get or create the persistent HTTP client"""
+        if self._http_client is None:
+            # Create client with connection pooling and keep-alive
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                http2=True  # Enable HTTP/2 for better performance
+            )
+            logger.info(f"MEMORY-CLIENT: Created persistent HTTP client with {self.timeout}s timeout")
+        return self._http_client
+    
+    async def close(self):
+        """Close the HTTP client and clean up connections"""
+        if self._http_client:
+            await self._http_client.aclose()
+            self._http_client = None
+            logger.info("MEMORY-CLIENT: Closed persistent HTTP client")
+    
+    def __del__(self):
+        """Cleanup on deletion"""
+        if self._http_client:
+            logger.warning("MEMORY-CLIENT: HTTP client not properly closed - use await close()")
+    
     async def _make_mcp_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Make an MCP JSON-RPC request to the MemoryOS server"""
+        """Make an MCP JSON-RPC request to the MemoryOS server with timing monitoring"""
+        
+        # Start timing for monitoring
+        start_time = time.time()
         
         headers = {
             "Content-Type": "application/json"
@@ -53,29 +84,48 @@ class McpMemoryClient:
         }
         
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(
-                    f"{self.server_url}/mcp/",
-                    headers=headers,
-                    json=request_data
-                )
-                
-                if response.status_code != 200:
-                    raise MemoryError(f"MCP server returned status {response.status_code}: {response.text}")
-                
-                result = response.json()
-                
-                if "error" in result:
-                    raise MemoryError(f"MCP error: {result['error']}")
-                
-                return result.get("result", {})
+            # Use persistent HTTP client with connection pooling
+            client = await self._get_http_client()
+            
+            logger.info(f"MEMORY-REQUEST: Starting {method} to {self.server_url}")
+            
+            response = await client.post(
+                f"{self.server_url}/mcp/",
+                headers=headers,
+                json=request_data
+            )
+            
+            # Calculate and log timing
+            duration = time.time() - start_time
+            logger.info(f"MEMORY-TIMING: {method} completed in {duration:.3f}s (status: {response.status_code})")
+            
+            if response.status_code != 200:
+                raise MemoryError(f"MCP server returned status {response.status_code}: {response.text}")
+            
+            result = response.json()
+            
+            if "error" in result:
+                raise MemoryError(f"MCP error: {result['error']}")
+            
+            logger.info(f"MEMORY-SUCCESS: {method} completed successfully in {duration:.3f}s")
+            return result.get("result", {})
                 
         except httpx.TimeoutException:
-            raise MemoryError(f"Timeout connecting to MemoryOS server at {self.server_url}")
+            duration = time.time() - start_time
+            logger.error(f"MEMORY-TIMEOUT: {method} timed out after {duration:.3f}s (limit: {self.timeout}s)")
+            raise MemoryError(f"Timeout connecting to MemoryOS server at {self.server_url} after {duration:.3f}s")
         except httpx.RequestError as e:
+            duration = time.time() - start_time
+            logger.error(f"MEMORY-ERROR: {method} failed after {duration:.3f}s: {str(e)}")
             raise MemoryError(f"Failed to connect to MemoryOS server: {str(e)}")
         except json.JSONDecodeError as e:
+            duration = time.time() - start_time
+            logger.error(f"MEMORY-JSON-ERROR: {method} invalid JSON after {duration:.3f}s: {str(e)}")
             raise MemoryError(f"Invalid JSON response from MemoryOS server: {str(e)}")
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"MEMORY-UNEXPECTED: {method} unexpected error after {duration:.3f}s: {str(e)}")
+            raise MemoryError(f"Unexpected error in memory operation: {str(e)}")
 
 # Global MCP client instance
 _mcp_client: Optional[McpMemoryClient] = None
