@@ -45,8 +45,8 @@ class McpMemoryClient:
             # Create client with connection pooling and keep-alive
             self._http_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-                http2=True  # Enable HTTP/2 for better performance
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+                # Note: HTTP/2 disabled to avoid h2 dependency requirement
             )
             logger.info(f"MEMORY-CLIENT: Created persistent HTTP client with {self.timeout}s timeout")
         return self._http_client
