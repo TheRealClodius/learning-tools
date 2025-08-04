@@ -809,10 +809,7 @@ Generate summary:"""
     async def assemble_from_local_buffer(self, user_message: str, user_id: str) -> str:
         """
         ENHANCED: Assemble enriched prompt with two-section insights from Conversation Insights Agent
-        
-        Conversations and executions are now retrieved via memory.conversation.retrieve
-        and memory.execution.retrieve with "recent" strategy instead of local buffer.
-        
+              
         This method handles insights from the stateful Conversation Insights Agent in two sections:
         - PINS: User preferences, needs, constraints, conversation context (max 2 items)
         - RECOMMENDATIONS: Tool usage guidance, error patterns, workflow optimization (max 1 item)
@@ -1138,7 +1135,7 @@ Generate updated insights:"""
             
             if insight_type == 'recommendation':
                 recommendations.append(formatted_insight)
-        else:
+            else:
                 pins.append(formatted_insight)
         
         # Format in two sections
@@ -1262,8 +1259,8 @@ Generate updated insights:"""
             new_pins.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
         
         # === RECOMMENDATIONS ANALYSIS ===
-        if tool_usage_log:
-            tools_used = [tool['tool'] for tool in tool_usage_log]
+            if tool_usage_log:
+                tools_used = [tool['tool'] for tool in tool_usage_log]
             failed_tools = [tool['tool'] for tool in tool_usage_log if not tool['success']]
             successful_tools = [tool['tool'] for tool in tool_usage_log if tool['success']]
             
