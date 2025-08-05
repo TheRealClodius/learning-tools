@@ -9,5 +9,10 @@ pkgs = [
     "cmake",
     "pkg-config",
     "liblapack",
-    "libomp"
+    "libomp",
+    "python311"
 ]
+
+[variables]
+# Force Python 3.11 to avoid distutils issues in Python 3.12
+PYTHON_VERSION = "3.11"
