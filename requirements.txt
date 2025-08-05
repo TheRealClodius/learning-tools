@@ -1,14 +1,19 @@
+# CORE DEPENDENCIES
+faiss-cpu==1.8.0
+sentence-transformers==2.7.0
+
 # MAIN APPLICATION DEPENDENCIES
-aiohttp==3.9.5
-anthropic==0.25.0
-fastapi==0.111.0
-google-generativeai==0.6.0
-gunicorn==22.0.0
-httpx==0.27.0
-mcp==1.0.0
-openai==1.28.0
-pydantic==2.7.1
-python-dotenv==1.0.1
-pyyaml==6.0.1
-slack-bolt==1.19.2
-uvicorn==0.29.0
+aiohttp>=3.12.15
+anthropic>=0.60.0
+fastapi>=0.116.1
+google-generativeai>=0.8.5
+gunicorn>=23.0.0
+httpx>=0.28.1
+mcp>=1.0.0
+openai>=1.98.0
+pydantic>=2.11.7
+python-dotenv>=1.1.1
+pyyaml>=6.0.2
+slack-bolt>=1.23.0
+uvicorn[standard]>=0.35.0
+memoryos-pro>=0.1.2
