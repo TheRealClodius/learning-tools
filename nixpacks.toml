@@ -1,5 +1,13 @@
 # nixpacks.toml
 
 [phases.setup]
-# Add system packages required for building Python dependencies, especially faiss-cpu.
-pkgs = ["gcc", "libomp"]
+# Add a comprehensive set of system packages required for building complex 
+# Python dependencies with C++ and Fortran backends, like faiss-cpu.
+pkgs = [
+    "gcc", 
+    "gfortran",
+    "cmake",
+    "pkg-config",
+    "liblapack",
+    "libomp"
+]
