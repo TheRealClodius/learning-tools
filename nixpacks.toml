@@ -15,7 +15,3 @@ pkgs = [
     "liblapack",
     "libomp"
 ]
-
-[phases.install]
-# Ensure setuptools is available at build time for distutils compatibility
-cmds = ["pip install setuptools>=65.0.0"]
