@@ -1,107 +1,60 @@
-# Memory Tool Schemas
+# Tool Schemas
 
-This directory contains JSON schemas that define the dual memory system API for the MemoryOS integration.
+This directory contains JSON schemas that define the tool system API interfaces for consistent data validation.
 
 ## Architecture Overview
 
-The schemas are organized into **input** and **output** definitions for each memory operation, following a clear client-server contract model.
+The schemas are organized into **input** and **output** definitions for each tool operation, following a clear client-server contract model.
 
-## Schema Types
+## Schema Organization
 
-### Input Schemas (Client → Server)
-These define what the client sends to the MCP server:
-
-| Schema | Purpose |
-|--------|---------|
-| `add_conversation_input.json` | Store conversation pairs (user input + agent response) |
-| `add_execution_input.json` | Store execution details (tools used, errors, reasoning) |
-| `retrieve_conversation_input.json` | Query conversation memories with filters |
-| `retrieve_execution_input.json` | Query execution patterns for learning |
-
-### Output Schemas (Server → Client) 
-These serve as **API contracts** defining what the MCP server should return:
-
-| Schema | Purpose |
-|--------|---------|
-| `add_conversation_output.json` | Response format for storing conversations |
-| `add_execution_output.json` | Response format for storing executions |
-| `retrieve_conversation_output.json` | Response format for conversation retrieval |
-| `retrieve_execution_output.json` | Response format for execution retrieval |
-
-## Dual Memory System
-
-### Conversation Memory
-Stores user prompts and agent responses for building persistent dialogue history:
-- **Input**: User input, agent response, metadata, timestamp
-- **Output**: Success status, message ID, storage details
-- **Linking**: Uses `message_id` to connect with execution memory
-
-### Execution Memory  
-Stores detailed execution information for learning and pattern analysis:
-- **Input**: Tools used (chronological), errors, duration, success status
-- **Output**: Success status, execution details, performance metrics
-- **Linking**: Uses `message_id` to connect with conversation memory
-
-## Message ID Linking
-
-The `message_id` field creates bidirectional links between conversation and execution memories:
-
-```json
-{
-  "message_id": "msg_123",
-  // ... conversation details
-}
+### Service-Based Structure
+```
+schemas/
+├── services/
+│   ├── weather/          # Weather tool schemas
+│   ├── perplexity/       # Perplexity search tool schemas
+│   └── registry/         # Tool registry schemas
+└── shared/               # Common schemas and patterns
 ```
 
-```json
-{
-  "message_id": "msg_123", 
-  // ... execution details
-}
-```
+### Input Schemas (Client → Tools)
+These define what the client sends to each tool:
 
-This enables queries like:
-- "What was the execution trail for this conversation?"
-- "Show me the conversation that led to this execution pattern"
+| Service | Schema | Purpose |
+|---------|--------|---------|
+| Weather | `current_input.json` | Get current weather data |
+| Weather | `forecast_input.json` | Get weather forecasts |
+| Weather | `search_input.json` | Search weather locations |
+| Perplexity | `search_input.json` | Web search queries |
+| Perplexity | `research_input.json` | Research requests |
+| Registry | `search_input.json` | Tool discovery |
+| Registry | `describe_input.json` | Tool descriptions |
 
-## User Identification
+### Output Schemas (Tools → Client) 
+These serve as **API contracts** defining what each tool should return:
 
-**Important**: User identification is handled at the MCP transport layer via environment variables (`MEMORY_USER_ID`), not explicitly in schemas. This enables:
+| Service | Schema | Purpose |
+|---------|--------|---------|
+| Weather | `current_output.json` | Weather data response |
+| Weather | `forecast_output.json` | Forecast data response |
+| Perplexity | `search_output.json` | Search results response |
+| Registry | `list_output.json` | Available tools response |
 
-- ✅ **Multi-user support** for web and Slack interfaces
-- ✅ **Clean schema separation** from authentication concerns  
-- ✅ **Infrastructure-level user isolation**
+## Schema Benefits
 
-## Schema Usage
+**Flat Structure Advantages:**
+- ✅ **LLM-Friendly**: Flat parameters are easier for AI models to process
+- ✅ **Performance**: Reduced nesting improves parsing speed
+- ✅ **Validation**: Simpler field validation and error handling
+- ✅ **Debugging**: Clear parameter visibility for troubleshooting
 
-### Client Implementation
-The client uses:
-- ✅ **Input schemas** for request construction
-- ✅ **Pydantic models** (generated from schemas) for validation
-- ✅ **Dynamic parsing** of server responses
+## Usage
 
-### Server Implementation  
-The server uses:
-- ✅ **Input schemas** for request validation
-- ✅ **Output schemas** as response contracts
-- ✅ **User ID injection** from MCP client context
+Each tool implementation references these schemas for:
+1. **Input Validation**: Ensuring correct parameters are provided
+2. **Output Formatting**: Standardizing response structures
+3. **Documentation**: Clear API contracts for development
+4. **Testing**: Validation of tool behavior
 
-## Timestamp Format
-
-All timestamps use **ISO 8601 format** for consistency:
-```json
-{
-  "timestamp": "2024-12-15T14:30:00Z",
-  "retrieval_timestamp": "2024-12-15T14:30:45.123Z"
-}
-```
-
-## Validation
-
-- **Client-side**: Input validation using Pydantic models
-- **Server-side**: Input validation + output contract compliance
-- **Runtime**: Graceful error handling for malformed responses
-
----
-
-**Note**: Output schemas are reference documentation for server implementers. The client parses responses dynamically without strict output validation.
+See individual service directories for specific schema documentation.

@@ -44,22 +44,19 @@ class ToolExecutor:
                 "perplexity.search": "tools.perplexity:perplexity_search",
                 "perplexity.research": "tools.perplexity:perplexity_research"
             },
-            "memory": {
-                # Unified memory system functions
-                "memory.add_conversation": "tools.memory:conversation_add",
-                "memory.retrieve_conversation": "tools.memory:conversation_retrieve", 
-                "memory.get_profile": "tools.memory:get_profile"
-                # DEPRECATED: execution_add and execution_retrieve - use conversation_add with execution data instead
-            },
+
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
                 "slack.search_channels": "tools.slack:slack_search_channels"
+            },
+            "memory": {
+                "memory.add": "tools.memory:add_memory",
+                "memory.query": "tools.memory:query_memory"
             }
         }
         
-        # Load essential tools at startup (registry + memory)
+        # Load essential tools at startup
         self._load_registry_tools()
-        self._load_memory_tools()
     
     def _load_registry_tools(self):
         """Load registry tools that are always available"""
@@ -84,26 +81,7 @@ class ToolExecutor:
         except ImportError as e:
             logger.warning(f"Could not load registry tools: {e}")
     
-    def _load_memory_tools(self):
-        """Load memory tools that are always available"""
-        try:
-            from tools.memory import (
-                conversation_add,
-                conversation_retrieve,
-                get_profile
-            )
-            
-            self.available_tools.update({
-                "memory.add_conversation": conversation_add,
-                "memory.retrieve_conversation": conversation_retrieve,
-                "memory.get_profile": get_profile
-            })
-            
-            self.loaded_services.add("memory")
-            logger.info("Memory system tools loaded successfully")
-            
-        except ImportError as e:
-            logger.warning(f"Could not load memory tools: {e}")
+
     
     def _is_cache_valid(self, cache_key: str) -> bool:
         """Check if a cache entry is still valid based on TTL"""
@@ -155,7 +133,7 @@ class ToolExecutor:
         Args:
             command: Tool command like "weather.current" or "reg.search"  
             input_data: Input data (Pydantic model instance)
-            user_id: Dynamic user ID for memory operations (optional)
+            user_id: Dynamic user ID for operations (optional)
             
         Returns:
             Tool execution result (Pydantic model instance)
@@ -189,17 +167,19 @@ class ToolExecutor:
             raise ToolNotFoundError(f"Command {command} not available after discovery")
     
     async def _execute_tool(self, command: str, input_data: Any, user_id: str = None) -> Any:
-        """Execute a loaded tool with error handling"""
+        """Execute a loaded tool with error handling and optional user_id"""
         try:
             tool_func = self.available_tools[command]
             
-            # For memory tools, require user_id - no silent fallbacks
-            if command.startswith("memory."):
-                if not user_id:
-                    raise ValueError(f"user_id is required for memory operation {command} - cannot proceed without user identification")
-                logger.info(f"TOOL-EXECUTOR: Passing user_id='{user_id}' to {command}")
-                result = await tool_func(input_data, user_id)
+            # Inspect the tool function to see if it accepts user_id
+            import inspect
+            sig = inspect.signature(tool_func)
+            
+            if 'user_id' in sig.parameters:
+                # Pass user_id if the tool function accepts it
+                result = await tool_func(input_data, user_id=user_id)
             else:
+                # Otherwise, call it without user_id
                 result = await tool_func(input_data)
                 
             logger.info(f"Successfully executed {command}")

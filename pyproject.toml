@@ -1,7 +1,7 @@
 [project]
 name = "signal-ai-agent"
 version = "1.0.0"
-description = "AI agent system with dynamic tool discovery, conversation memory, and multi-interface support"
+description = "AI agent system with dynamic tool discovery and multi-interface support"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.12.15",

@@ -1,0 +1,13 @@
+{
+    "type": "object",
+    "properties": {
+        "success": {
+            "type": "boolean",
+            "description": "Whether the memory was added successfully."
+        },
+        "message": {
+            "type": "string",
+            "description": "A message indicating the result of the operation."
+        }
+    }
+}

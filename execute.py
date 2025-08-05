@@ -337,61 +337,7 @@ class execute_weather_forecast_output(BaseModel):
     message: str = Field(..., description="Human-readable result message")
     data: Dict[str, Any] = Field(..., description="Weather forecast data in OpenWeather One Call API format")
 
-# =============================================================================
-# MEMORY TOOL MODELS (MemoryOS)
-# =============================================================================
 
-class ExecutionDetails(BaseModel):
-    """Execution details for conversation memories"""
-    tools_used: Optional[List[str]] = Field(default=None, description="List of tools that were executed, in chronological order")
-    errors: Optional[List[Dict[str, str]]] = Field(default=None, description="Any errors that occurred during execution")
-    duration_ms: Optional[int] = Field(default=None, ge=0, description="How long the execution took in milliseconds")
-    success: Optional[bool] = Field(default=None, description="Whether the overall execution was successful")
-
-# Conversation Memory Models
-class execute_memory_conversation_add_input(BaseModel):
-    """Input model for adding conversation memories with optional execution data to MemoryOS"""
-    user_input: str = Field(..., description="The user's input or question.")
-    agent_response: str = Field(..., description="The agent's response.")
-    user_id: str = Field(..., description="User identifier for memory isolation.")
-    message_id: Optional[str] = Field(default=None, description="Optional unique message ID for linking memories.")
-    timestamp: Optional[str] = Field(default=None, description="Optional ISO format timestamp.")
-    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata dictionary.")
-    execution_details: Optional[ExecutionDetails] = Field(default=None, description="Optional execution details for this conversation")
-    tags: Optional[List[str]] = Field(default=None, description="Optional tags for filtering (e.g., ['conversation', 'execution'])")
-
-class execute_memory_conversation_add_output(BaseModel):
-    """Output model for conversation memory add operation"""
-    success: bool = Field(..., description="Whether the memory addition was successful")
-    message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Operation result details")
-
-class execute_memory_conversation_retrieve_input(BaseModel):
-    """Input model for retrieving conversation memories from MemoryOS"""
-    query: str = Field(..., description="The search query for retrieving memories.")
-    user_id: str = Field(..., description="User identifier for memory isolation.")
-    message_id: Optional[str] = Field(default=None, description="Optional specific message ID to retrieve a single memory.")
-    max_results: int = Field(default=10, description="Maximum number of results to return.")
-    tags_filter: Optional[List[str]] = Field(default=None, description="Optional list of tags to filter memories (e.g., [\"conversation\", \"execution\"])")
-
-class execute_memory_conversation_retrieve_output(BaseModel):
-    """Output model for conversation memory retrieval operation"""
-    status: str = Field(..., description="Operation status (success/error)")
-    query: str = Field(..., description="Original search query")
-    results: List[Dict[str, Any]] = Field(..., description="Retrieved conversation details")
-
-
-class execute_memory_get_profile_input(BaseModel):
-    """Input model for getting agent-generated user profile from MemoryOS embeddings search"""
-    explanation: str = Field(..., description="One sentence explanation of why the agent-generated profile is being requested")
-    include_knowledge: bool = Field(default=True, description="Whether to include agent-generated knowledge entries from embeddings search")
-    include_assistant_knowledge: bool = Field(default=False, description="Whether to include assistant knowledge base entries from embeddings search")
-
-class execute_memory_get_profile_output(BaseModel):
-    """Output model for agent-generated user profile retrieval operation"""
-    success: bool = Field(..., description="Whether the agent-generated profile retrieval was successful")
-    message: str = Field(..., description="Human-readable result message")
-    data: Dict[str, Any] = Field(..., description="Agent-generated profile data from embeddings search including inferred personality traits, preferences, and knowledge")
 
 # =============================================================================
 # UTILITY FUNCTIONS

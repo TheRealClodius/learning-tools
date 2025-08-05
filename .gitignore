@@ -5,8 +5,8 @@
 .env.staging
 .env.development
 
-# MemoryOS remote server configuration (if using local MCP server)
-# memory_data/ - only needed if running local MCP server
+# Tool configuration files
+
 
 # Python cache files
 __pycache__/

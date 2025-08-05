@@ -286,8 +286,7 @@ class ConvoInsightsAgent:
                 existing_patterns.add('user_requirements')
             if 'system' in all_existing_text or 'tool' in all_existing_text or 'error' in all_existing_text:
                 existing_patterns.add('system_issues')
-            if 'memory' in all_existing_text or 'context' in all_existing_text:
-                existing_patterns.add('memory_operations')
+
         
         # Analyze current interaction for new patterns
         new_pins = []
@@ -305,7 +304,7 @@ class ConvoInsightsAgent:
             new_pins.append(f"• **User Requirement**: {user_message[:80]}...")
         
         # System investigations 
-        if any(word in user_lower for word in ['prompt', 'memory', 'context', 'assembly', 'debug', 'issue']):
+        if any(word in user_lower for word in ['prompt', 'context', 'assembly', 'debug', 'issue']):
             new_pins.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
         
         # === RECOMMENDATIONS ANALYSIS ===
@@ -336,12 +335,8 @@ class ConvoInsightsAgent:
             # Successful tool patterns with context
             if successful_tools:
                 # Group similar tools
-                memory_tools = [tool for tool in successful_tools if 'memory' in tool]
                 search_tools = [tool for tool in successful_tools if any(term in tool for term in ['search', 'perplexity', 'reg_'])]
                 weather_tools = [tool for tool in successful_tools if 'weather' in tool]
-                
-                if memory_tools:
-                    new_recommendations.append(f"• **Memory Pattern**: User benefits from {', '.join(memory_tools[:2])} for context retrieval")
                 
                 if search_tools:
                     new_recommendations.append(f"• **Discovery Pattern**: User effectively uses {', '.join(search_tools[:2])} for finding information")

@@ -94,7 +94,7 @@ cd Signal
 pip install -r requirements.txt
 
 # 3. Configure environment
-cp memoryos-env-sample.txt .env.local
+cp .env.sample .env.local  # or create .env.local manually
 nano .env.local  # Add your API keys
 
 # 4. Run with process manager
@@ -155,10 +155,7 @@ OPENWEATHER_API_KEY=your_weather_key
 PERPLEXITY_API_KEY=your_perplexity_key
 GEMINI_API_KEY=your_gemini_key
 
-# Memory system (optional)
-MEMORYOS_SERVER_URL=http://localhost:5000
-MEMORYOS_API_KEY=your_memory_api_key
-MEMORY_USER_ID=your_user_id
+
 ```
 
 ### **Getting API Keys**
@@ -209,14 +206,13 @@ All deployments expose health endpoints:
 Monitor logs for:
 - API key validation errors
 - Tool execution failures
-- Memory system connectivity
+
 - Slack event processing
 
 ### **Common Issues**
 1. **Missing API keys** - Check environment variables
-2. **Memory system errors** - Verify MemoryOS server connection
+2. **Tool execution timeouts** - Check external API connectivity
 3. **Slack webhook failures** - Verify signing secret and bot token
-4. **Tool execution timeouts** - Check external API connectivity
 
 ---
 

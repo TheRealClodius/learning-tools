@@ -1,0 +1,10 @@
+{
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "The query to search for in the user's memory."
+        }
+    },
+    "required": ["query"]
+}

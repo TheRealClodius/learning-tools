@@ -17,8 +17,8 @@ echo ""
 # Check if .env.local exists
 if [ ! -f ".env.local" ]; then
     echo "⚠️  .env.local not found. Creating from sample..."
-    if [ -f "memoryos-env-sample.txt" ]; then
-        cp memoryos-env-sample.txt .env.local
+    if [ -f ".env.sample" ]; then
+        cp .env.sample .env.local
         echo "✅ Created .env.local from sample"
         echo "⚠️  Please edit .env.local with your API keys before deploying!"
     else

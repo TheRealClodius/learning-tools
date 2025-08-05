@@ -132,97 +132,7 @@ class ClientAgent:
                 }
             },
 
-            {
-                "name": "memory_conversation_retrieve",
-                "description": "Retrieve memories from MemoryOS using a search query and optional filters.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query to find relevant memories and context"
-                        },
-                        "message_id": {
-                            "type": "string",
-                            "description": "Optional: Specific message ID to retrieve"
-                        },
-                        "max_results": {
-                            "type": "integer",
-                            "description": "Maximum number of results to return"
-                        },
-                        "tags_filter": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional list of tags to filter memories"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
 
-            {
-                "name": "memory_get_profile",
-                "description": "Retrieve user profile information from MemoryOS dual memory system including personality traits, preferences, and knowledge extracted from conversation patterns.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "explanation": {
-                            "type": "string",
-                            "description": "One sentence explanation of why the user profile is being requested"
-                        },
-                        "include_knowledge": {
-                            "type": "boolean",
-                            "description": "Whether to include user-specific knowledge entries in the response",
-                            "default": True
-                        },
-                        "include_assistant_knowledge": {
-                            "type": "boolean",
-                            "description": "Whether to include assistant knowledge base entries in the response",
-                            "default": False
-                        }
-                    },
-                    "required": ["explanation"]
-                }
-            },
-            {
-                "name": "memory_conversation_add",
-                "description": "Store a conversation pair (user input + agent response) in MemoryOS for future retrieval.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_input": {
-                            "type": "string",
-                            "description": "The user's input message"
-                        },
-                        "agent_response": {
-                            "type": "string",
-                            "description": "The agent's response message"
-                        },
-                        "message_id": {
-                            "type": "string",
-                            "description": "Optional unique identifier for this conversation turn"
-                        },
-                        "timestamp": {
-                            "type": "string",
-                            "description": "Optional: ISO timestamp of the conversation"
-                        },
-                        "meta_data": {
-                            "type": "object",
-                            "description": "Optional: Additional metadata about the conversation"
-                        },
-                        "execution_details": {
-                            "type": "object",
-                            "description": "Optional: Execution details associated with this conversation"
-                        },
-                        "tags": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional: Tags for filtering"
-                        }
-                    },
-                    "required": ["user_input", "agent_response"]
-                }
-            },
             {
                 "name": "execute_tool",
                 "description": "Execute any discovered tool dynamically. Use this after discovering tools through registry search to actually run weather, perplexity, or other tools.",
@@ -244,7 +154,41 @@ class ClientAgent:
                     },
                     "required": ["explanation", "tool_name", "tool_args"]
                 }
+            },
+            {
+                "name": "add_memory",
+                "description": "Add a memory to the user's memory store.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_input": {
+                            "type": "string",
+                            "description": "The user's input to be stored in memory."
+                        },
+                        "agent_response": {
+                            "type": "string",
+                            "description": "The agent's response to the user's input."
+                        }
+                    },
+                    "required": ["user_input", "agent_response"]
+                }
+            },
+            {
+                "name": "query_memory",
+                "description": "Query the user's memory store.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The query to search for in the user's memory."
+                        }
+                    },
+                    "required": ["query"]
+                }
             }
+
+
         ]
         
         # Initialize tool executor for dynamic tool discovery
@@ -366,7 +310,7 @@ class ClientAgent:
         logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
         
         if streaming_callback:
-            await streaming_callback("Assembling context from conversation history...", "memory")
+            await streaming_callback("Assembling context from conversation history...", "operation")
         
         enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
         
@@ -491,7 +435,7 @@ class ClientAgent:
         logger.info(f"CONTROL-FLOW: Updating local buffer - Response: {final_response[:100]}...")
         
         if streaming_callback:
-            await streaming_callback("Updating local conversation buffer...", "memory")
+            await streaming_callback("Updating local conversation buffer...", "operation")
         
         # Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
@@ -541,51 +485,23 @@ class ClientAgent:
                     await streaming_callback(f"Searching registry for: {args.get('query', 'N/A')}", "operation")
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
-                result = await self.tool_executor.execute_command("reg.search", args)
+                result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
             elif function_name == "reg_describe":
                 if streaming_callback:
                     await streaming_callback(f"Getting tool details for: {args.get('tool_name', 'N/A')}", "operation")
                 args.setdefault("include_schema", True)
-                result = await self.tool_executor.execute_command("reg.describe", args)
+                result = await self.tool_executor.execute_command("reg.describe", args, user_id=user_id)
             elif function_name == "reg_list":
                 if streaming_callback:
                     await streaming_callback("Listing all available tools", "operation")
                 args.setdefault("limit", 50)
-                result = await self.tool_executor.execute_command("reg.list", args)
+                result = await self.tool_executor.execute_command("reg.list", args, user_id=user_id)
             elif function_name == "reg_categories":
                 if streaming_callback:
                     await streaming_callback("Getting tool categories", "operation")
-                result = await self.tool_executor.execute_command("reg.categories", args)
-            elif function_name == "memory_conversation_retrieve":
-                if streaming_callback:
-                    await streaming_callback(f"Retrieving conversation memory for query: {args.get('query', 'N/A')[:50]}...", "memory")
-                
-                # Add user_id to the arguments
-                args["user_id"] = user_id
-                
-                result = await self.tool_executor.execute_command("memory.retrieve_conversation", args, user_id=user_id)
+                result = await self.tool_executor.execute_command("reg.categories", args, user_id=user_id)
 
-            elif function_name == "memory_get_profile":
-                if streaming_callback:
-                    await streaming_callback("Getting user profile from memory", "memory")
-                args.setdefault("include_knowledge", True)
-                args.setdefault("include_assistant_knowledge", False)
-                result = await self.tool_executor.execute_command("memory.get_profile", args, user_id=user_id)
-            elif function_name == "memory_conversation_add":
-                if streaming_callback:
-                    await streaming_callback(f"Storing conversation: {args.get('message_id', 'N/A')}", "memory")
-                
-                # Add user_id to the arguments
-                args["user_id"] = user_id
 
-                # Execute memory operation asynchronously
-                asyncio.create_task(self._store_conversation_async(args, user_id))
-                
-                result = {
-                    "success": True,
-                    "message": "Conversation memory queued for storage",
-                    "data": {"message_id": args.get("message_id", ""), "status": "queued"}
-                }
             elif function_name == "execute_tool":
                 # Execute any discovered tool dynamically - completely generic
                 tool_name = args["tool_name"]
@@ -594,9 +510,17 @@ class ClientAgent:
                 if streaming_callback:
                     await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
                 
-                result = await self.tool_executor.execute_command(tool_name, tool_args)
+                result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
+            elif function_name == "add_memory":
+                if streaming_callback:
+                    await streaming_callback("Adding memory...", "operation")
+                result = await self.tool_executor.execute_command("memory.add", args, user_id=user_id)
+            elif function_name == "query_memory":
+                if streaming_callback:
+                    await streaming_callback("Querying memory...", "operation")
+                result = await self.tool_executor.execute_command("memory.query", args, user_id=user_id)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, memory_conversation_retrieve, memory_get_profile, memory_conversation_add, execute_tool"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool, add_memory, query_memory"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg
@@ -792,6 +716,7 @@ class ClientAgent:
         logger.info(f"PROMPT-ASSEMBLY: Added {pins_count} pins + {recs_count} recommendations, "
                    f"length: {current_length}")
         
+        
         return enriched_message
     
     def _is_buffer_fresh(self, user_id: str) -> bool:
@@ -808,10 +733,10 @@ class ClientAgent:
 
     
     def _update_buffer(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, user_id: str):
-        """Update local buffer - simplified to only handle important items"""
+        """Update local buffer and add conversation to memory."""
         logger.info(f"BUFFER: Updating buffer for user {user_id}")
         
-        # Initialize user buffer if not exists - only important items now
+        # Initialize user buffer if not exists
         if user_id not in self.user_buffers:
             logger.info(f"BUFFER-NEW-USER: Creating new buffer for user_id='{user_id}'")
             self.user_buffers[user_id] = {
@@ -821,9 +746,42 @@ class ClientAgent:
         else:
             logger.info(f"BUFFER-EXISTING-USER: Using existing buffer for user_id='{user_id}'")
         
-        # Update timestamp (important items are added via separate async method)
+        # Update timestamp
         self.user_buffers[user_id]['last_updated'] = time.time()
         logger.info(f"BUFFER: Buffer timestamp updated for user {user_id}")
+
+        # Add conversation to memory
+        asyncio.create_task(self._add_conversation_to_memory(user_id, user_message, agent_response))
+
+    async def _add_conversation_to_memory(self, user_id: str, user_input: str, agent_response: str):
+        """Add the conversation to the memory store."""
+        try:
+            logger.info(f"MEMORY: Adding conversation to memory for user {user_id}")
+            await self.tool_executor.execute_command(
+                "memory.add",
+                {"user_input": user_input, "agent_response": agent_response},
+                user_id=user_id
+            )
+            logger.info(f"MEMORY: Conversation added to memory for user {user_id}")
+        except Exception as e:
+            logger.error(f"MEMORY: Error adding conversation to memory for user {user_id}: {e}")
+
+    async def _query_memory(self, user_id: str, query: str) -> Optional[str]:
+        """Query the user's memory and return the response."""
+        try:
+            logger.info(f"MEMORY: Querying memory for user {user_id}")
+            result = await self.tool_executor.execute_command(
+                "memory.query",
+                {"query": query},
+                user_id=user_id
+            )
+            if result and result.get("success"):
+                return result.get("response")
+        except Exception as e:
+            logger.error(f"MEMORY: Error querying memory for user {user_id}: {e}")
+        return None
+
+    
     
 
     
@@ -1081,8 +1039,7 @@ Generate updated insights:"""
                 existing_patterns.add('user_requirements')
             if 'system' in all_existing_text or 'tool' in all_existing_text or 'error' in all_existing_text:
                 existing_patterns.add('system_issues')
-            if 'memory' in all_existing_text or 'context' in all_existing_text:
-                existing_patterns.add('memory_operations')
+
         
         # Analyze current interaction for new patterns
         new_pins = []
@@ -1100,7 +1057,7 @@ Generate updated insights:"""
             new_pins.append(f"• **User Requirement**: {user_message[:80]}...")
         
         # System investigations 
-        if any(word in user_lower for word in ['prompt', 'memory', 'context', 'assembly', 'debug', 'issue']):
+        if any(word in user_lower for word in ['prompt', 'context', 'assembly', 'debug', 'issue']):
             new_pins.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
         
         # === RECOMMENDATIONS ANALYSIS ===
@@ -1118,8 +1075,7 @@ Generate updated insights:"""
                 new_recommendations.append(f"• **Prefer**: Successful tools for this user: {', '.join(successful_tools[:2])}")
             
             # Specific tool usage recommendations
-            if any('memory' in tool for tool in tools_used):
-                new_recommendations.append(f"• **Memory Usage**: User actively accesses conversation/execution history")
+
             
             if any('perplexity' in tool for tool in tools_used):
                 new_recommendations.append(f"• **Web Search**: User benefits from current information lookup")
@@ -1189,7 +1145,7 @@ Generate updated insights:"""
             notes.append(f"• **User Requirement**: {user_message[:80]}...")
         
         # Check for system queries or debugging
-        if any(word in user_lower for word in ['prompt', 'memory', 'context', 'assembly', 'debug', 'issue']):
+        if any(word in user_lower for word in ['prompt', 'context', 'assembly', 'debug', 'issue']):
             notes.append(f"• **System Inquiry**: User investigating {user_message[:60]}...")
         
         # Analyze tool usage for important patterns
@@ -1200,8 +1156,7 @@ Generate updated insights:"""
             if failed_tools:
                 notes.append(f"• **System Issue**: Tools failed: {', '.join(failed_tools[:2])}")
             
-            if any('memory' in tool for tool in tools_used):
-                notes.append(f"• **Memory Operations**: User accessing conversation history and context")
+
             
             if any('perplexity' in tool for tool in tools_used):
                 notes.append(f"• **Information Search**: User requested current information lookup")
@@ -1222,30 +1177,7 @@ Generate updated insights:"""
         return '\n'.join(notes[:2])
 
     
-    async def _store_conversation_async(self, args: Dict[str, Any], user_id: str):
-        """Store conversation in memory asynchronously (non-blocking)"""
-        try:
-            logger.info(f"ASYNC-MEMORY: Starting conversation storage for user {user_id}")
-            
-            # Construct the payload for the new schema
-            payload = {
-                "user_id": user_id,
-                "user_input": args.get("user_input"),
-                "agent_response": args.get("agent_response"),
-                "message_id": args.get("message_id"),
-                "timestamp": args.get("timestamp"),
-                "meta_data": args.get("meta_data"),
-                "execution_details": args.get("execution_details"),
-                "tags": args.get("tags")
-            }
-            
-            result = await self.tool_executor.execute_command("memory.add_conversation", payload, user_id=user_id)
-            if result.get("success"):
-                logger.info(f"ASYNC-MEMORY: Conversation stored successfully for user {user_id}")
-            else:
-                logger.warning(f"ASYNC-MEMORY: Conversation storage failed for user {user_id}: {result.get('message', 'Unknown error')}")
-        except Exception as e:
-            logger.error(f"ASYNC-MEMORY: Conversation storage error for user {user_id}: {e}")
+
     
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""

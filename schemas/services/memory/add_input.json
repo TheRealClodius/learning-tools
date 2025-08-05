@@ -1,0 +1,14 @@
+{
+    "type": "object",
+    "properties": {
+        "user_input": {
+            "type": "string",
+            "description": "The user's input to be stored in memory."
+        },
+        "agent_response": {
+            "type": "string",
+            "description": "The agent's response to the user's input."
+        }
+    },
+    "required": ["user_input", "agent_response"]
+}
