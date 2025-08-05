@@ -1,3 +1,9 @@
+# CORE DEPENDENCIES
+# Install faiss-cpu first to prevent attempts to install faiss-gpu
+faiss-cpu==1.8.0
+sentence-transformers==5.0.0
+
+# MAIN APPLICATION DEPENDENCIES
 aiohttp>=3.12.15
 anthropic>=0.60.0
 fastapi>=0.116.1
@@ -10,7 +16,7 @@ pydantic>=2.11.7
 python-dotenv>=1.1.1
 pyyaml>=6.0.2
 slack-bolt>=1.23.0
-memoryos-pro>=0.1.2
 uvicorn[standard]>=0.35.0
-faiss-cpu
-sentence-transformers
+
+# Finally, install memoryos, which will now use the pre-installed faiss-cpu
+memoryos-pro>=0.1.2
