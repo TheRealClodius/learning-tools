@@ -1,8 +1,4 @@
-# CORE ML/FAISS DEPENDENCIES
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.2.1+cpu
-torchvision==0.17.1+cpu
-torchaudio==2.2.1+cpu
+# CORE DEPENDENCIES
 faiss-cpu==1.8.0
 sentence-transformers==2.7.0
 

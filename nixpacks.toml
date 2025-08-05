@@ -1,0 +1,5 @@
+# nixpacks.toml
+
+[phases.setup]
+# Add system packages required for building Python dependencies, especially faiss-cpu.
+pkgs = ["gcc", "libomp"]
