@@ -155,38 +155,7 @@ class ClientAgent:
                     "required": ["explanation", "tool_name", "tool_args"]
                 }
             },
-            {
-                "name": "add_memory",
-                "description": "Add a memory to the user's memory store.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_input": {
-                            "type": "string",
-                            "description": "The user's input to be stored in memory."
-                        },
-                        "agent_response": {
-                            "type": "string",
-                            "description": "The agent's response to the user's input."
-                        }
-                    },
-                    "required": ["user_input", "agent_response"]
-                }
-            },
-            {
-                "name": "query_memory",
-                "description": "Query the user's memory store.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The query to search for in the user's memory."
-                        }
-                    },
-                    "required": ["query"]
-                }
-            }
+
 
 
         ]
@@ -511,16 +480,8 @@ class ClientAgent:
                     await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
-            elif function_name == "add_memory":
-                if streaming_callback:
-                    await streaming_callback("Adding memory...", "operation")
-                result = await self.tool_executor.execute_command("memory.add", args, user_id=user_id)
-            elif function_name == "query_memory":
-                if streaming_callback:
-                    await streaming_callback("Querying memory...", "operation")
-                result = await self.tool_executor.execute_command("memory.query", args, user_id=user_id)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool, add_memory, query_memory"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg
