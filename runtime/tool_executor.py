@@ -128,43 +128,51 @@ class ToolExecutor:
 
     async def execute_command(self, command: str, input_data: Any, user_id: str = None) -> Any:
         """
-        Main command execution flow with dynamic discovery
-        
-        Args:
-            command: Tool command like "weather.current" or "reg.search"  
-            input_data: Input data (Pydantic model instance)
-            user_id: Dynamic user ID for operations (optional)
-            
-        Returns:
-            Tool execution result (Pydantic model instance)
+        Main command execution flow with dynamic discovery.
+        If a tool is not immediately available, it triggers a discovery process
+        for the corresponding service and then re-attempts execution.
         """
         logger.info(f"Executing command: {command}")
-        
-        # Handle caching for registry commands
+
+        # Handle registry commands with their specific caching logic first
         if command == "reg.search":
             return await self._execute_cached_search(input_data)
         elif command == "reg.describe":
             return await self._execute_cached_describe(input_data)
-        
-        # Check if tool is already loaded
-        if command in self.available_tools:
-            return await self._execute_tool(command, input_data, user_id)
-        
-        # Parse service and action
-        try:
-            service, action = command.split(".", 1)
-        except ValueError:
-            raise ToolNotFoundError(f"Invalid command format: {command}")
-        
-        # Dynamic discovery for unknown services
-        if service not in self.loaded_services:
-            await self._discover_and_load_service(service)
-        
-        # Execute the command after loading
+
+        # If tool is not available, try to discover and load its service
+        if command not in self.available_tools:
+            logger.warning(f"Tool '{command}' not loaded. Attempting discovery...")
+            try:
+                service, _ = command.split(".", 1)
+                # This will attempt to load all tools for the service.
+                # Caching within discover_and_load_service prevents redundant registry calls.
+                await self._discover_and_load_service(service)
+            except ValueError:
+                raise ToolNotFoundError(f"Invalid command format for discovery: {command}")
+            except Exception as e:
+                # Log the discovery error but proceed to the final check,
+                # as another concurrent task might have loaded the tool.
+                logger.error(f"An error occurred during discovery for command '{command}': {e}")
+
+        # Final attempt to execute the tool after potential discovery
         if command in self.available_tools:
             return await self._execute_tool(command, input_data, user_id)
         else:
-            raise ToolNotFoundError(f"Command {command} not available after discovery")
+            # If the tool is still not available, raise a definitive error.
+            # Check if the service was loaded to provide a more specific error message.
+            service_name, _ = command.split('.', 1)
+            if service_name in self.loaded_services:
+                error_message = (
+                    f"Command '{command}' is still not available, even though the '{service_name}' service "
+                    f"was loaded. The tool may be invalid or failed to load. "
+                    f"Loaded tools for this service: {[t for t in self.available_tools if t.startswith(service_name)]}"
+                )
+            else:
+                error_message = f"Command '{command}' could not be found or loaded after discovery attempt."
+            
+            logger.error(error_message)
+            raise ToolNotFoundError(error_message)
     
     async def _execute_tool(self, command: str, input_data: Any, user_id: str = None) -> Any:
         """Execute a loaded tool with error handling and optional user_id"""
