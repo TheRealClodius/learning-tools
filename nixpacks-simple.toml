@@ -1,4 +1,5 @@
-# nixpacks.toml
+# nixpacks.toml - Simplified version for deployment with reduced dependencies
+# Use this configuration if the main nixpacks.toml fails due to complex dependencies
 
 [variables]
 # Force Python 3.11 to avoid distutils issues in Python 3.12
@@ -8,26 +9,21 @@ PIP_DEFAULT_TIMEOUT = "120"
 PIP_DISABLE_PIP_VERSION_CHECK = "1"
 
 [phases.setup]
-# Add a comprehensive set of system packages required for building complex 
-# Python dependencies with C++ and Fortran backends, like faiss-cpu and sentence-transformers.
+# Minimal system packages for basic Python web application
 pkgs = [
     "gcc", 
-    "gfortran",
     "cmake",
     "pkg-config",
-    "liblapack",
-    "libomp",
-    "libopenblas",
     "git",
     "build-essential",
     "python3.11-venv"
 ]
 
 [phases.install]
-# Use pip with specific flags for better compatibility with complex dependencies
+# Use simplified requirements to avoid complex dependency build issues
 cmds = [
     "pip install --upgrade pip setuptools wheel",
-    "pip install --no-cache-dir --timeout=300 -r requirements.txt"
+    "pip install --no-cache-dir --timeout=300 -r requirements-simple.txt"
 ]
 
 [start]

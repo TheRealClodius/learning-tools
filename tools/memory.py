@@ -1,9 +1,17 @@
 
 import os
-from memoryos import Memoryos
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Try to import memoryos, but handle gracefully if not available
+try:
+    from memoryos import Memoryos
+    MEMORYOS_AVAILABLE = True
+except ImportError:
+    logger.warning("MemoryOS package not available. Memory functions will be disabled.")
+    Memoryos = None
+    MEMORYOS_AVAILABLE = False
 
 # --- Configuration ---
 ASSISTANT_ID = "signal_assistant"
@@ -15,6 +23,9 @@ EMBEDDING_MODEL_NAME = "BAAI/bge-m3"
 
 def get_memo_instance(user_id: str):
     """Initializes and returns a Memoryos instance for a given user."""
+    if not MEMORYOS_AVAILABLE:
+        raise RuntimeError("MemoryOS package is not available. Please install memoryos-pro to use memory functions.")
+    
     if not user_id:
         raise ValueError("user_id is required to initialize MemoryOS.")
     
@@ -38,6 +49,9 @@ def get_memo_instance(user_id: str):
 
 async def add_memory(input_data: dict, user_id: str):
     """Adds a new memory to the user's memory store."""
+    if not MEMORYOS_AVAILABLE:
+        return {"success": False, "error": "Memory functionality is not available. MemoryOS package is not installed."}
+    
     try:
         memo = get_memo_instance(user_id)
         memo.add_memory(
@@ -51,6 +65,9 @@ async def add_memory(input_data: dict, user_id: str):
 
 async def query_memory(input_data: dict, user_id: str):
     """Queries the user's memory store and returns a response."""
+    if not MEMORYOS_AVAILABLE:
+        return {"success": False, "error": "Memory functionality is not available. MemoryOS package is not installed."}
+    
     try:
         memo = get_memo_instance(user_id)
         response = memo.get_response(
