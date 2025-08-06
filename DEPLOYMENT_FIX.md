@@ -34,12 +34,11 @@ pkgs = [
 ```
 
 ### Solution 2: Simplified Dependencies (Fallback)
-Created `nixpacks-simple.toml` that uses `requirements-simple.txt` with reduced dependencies:
+If the full requirements still cause build issues, you can temporarily use the simplified requirements:
 
-**To use the simplified version:**
-1. Rename `nixpacks.toml` to `nixpacks-full.toml`
-2. Rename `nixpacks-simple.toml` to `nixpacks.toml`
-3. Deploy
+**To use simplified dependencies:**
+1. Edit `nixpacks.toml` and change the install command from `requirements.txt` to `requirements-simple.txt`
+2. Deploy
 
 ### Solution 3: Optional Memory Dependencies
 Modified `tools/memory.py` to gracefully handle missing `memoryos-pro` package:
@@ -54,23 +53,14 @@ Modified `tools/memory.py` to gracefully handle missing `memoryos-pro` package:
    - Use the updated `nixpacks.toml` (already applied)
    - Deploy normally
 
-2. **If that fails, use simplified version**:
-   ```bash
-   mv nixpacks.toml nixpacks-full.toml
-   mv nixpacks-simple.toml nixpacks.toml
-   git add .
-   git commit -m "Use simplified dependencies for deployment"
-   git push
-   ```
+2. **If that fails, use simplified dependencies**:
+   - Edit `nixpacks.toml` 
+   - Change `pip install --no-cache-dir --timeout=300 -r requirements.txt` to `pip install --no-cache-dir --timeout=300 -r requirements-simple.txt`
+   - Commit and deploy
 
-3. **If you want full functionality later**:
-   ```bash
-   mv nixpacks.toml nixpacks-simple.toml
-   mv nixpacks-full.toml nixpacks.toml
-   git add .
-   git commit -m "Restore full dependencies"
-   git push
-   ```
+3. **To restore full functionality later**:
+   - Change the install command back to use `requirements.txt`
+   - Commit and deploy
 
 ## What Each Solution Provides
 
@@ -81,7 +71,7 @@ Modified `tools/memory.py` to gracefully handle missing `memoryos-pro` package:
 - ⚠️ Longer build times
 - ⚠️ More complex build requirements
 
-### Simplified Dependencies (nixpacks-simple.toml):
+### Simplified Dependencies (requirements-simple.txt):
 - ✅ Fast deployment
 - ✅ All core agent functionality
 - ✅ Slack integration
