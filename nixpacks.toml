@@ -19,7 +19,8 @@ pkgs = [
     "libomp",
     "libopenblas",
     "git",
-    "build-essential"
+    "build-essential",
+    "python3.11-venv"
 ]
 
 [phases.install]
