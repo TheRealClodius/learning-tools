@@ -4,14 +4,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import memoryos, but handle gracefully if not available
+# Try to import mem0, but handle gracefully if not available
 try:
-    from memoryos import Memoryos
-    MEMORYOS_AVAILABLE = True
+    from mem0 import Memory
+    MEM0_AVAILABLE = True
 except ImportError:
-    logger.warning("MemoryOS package not available. Memory functions will be disabled.")
-    Memoryos = None
-    MEMORYOS_AVAILABLE = False
+    logger.warning("Mem0 package not available. Memory functions will be disabled.")
+    Memory = None
+    MEM0_AVAILABLE = False
 
 # --- Configuration ---
 ASSISTANT_ID = "signal_assistant"
