@@ -16,7 +16,7 @@ nixPkgs = ["python311", "gcc"]
 cmds = [
     "python -m venv /opt/venv",
     ". /opt/venv/bin/activate && pip install --upgrade pip setuptools wheel",
-    ". /opt/venv/bin/activate && pip install --no-cache-dir --timeout=300 -r requirements-minimal.txt"
+    ". /opt/venv/bin/activate && pip install --no-cache-dir --timeout=300 -r requirements.txt"
 ]
 
 [start]
