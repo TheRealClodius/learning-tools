@@ -22,7 +22,7 @@ LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL_NAME = "BAAI/bge-m3"
 
 def get_memo_instance(user_id: str):
-    """Initializes and returns a Memoryos instance for a given user."""
+    """Initializes and returns a MemoryOS instance for a given user."""
     if not MEMORYOS_AVAILABLE:
         raise RuntimeError("MemoryOS package is not available. Please install memoryos-pro to use memory functions.")
     
