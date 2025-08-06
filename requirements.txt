@@ -18,8 +18,7 @@ python-dotenv>=1.1.1
 pyyaml>=6.0.2
 slack-bolt>=1.23.0
 uvicorn[standard]>=0.35.0
-# Note: MemoryOS functionality is optional - the package is not publicly available
-# The application will work without it, with memory features disabled
+memoryos-pro
 
 # Additional dependencies from pyproject.toml
 numpy>=1.24.0

@@ -24,7 +24,7 @@ EMBEDDING_MODEL_NAME = "BAAI/bge-m3"
 def get_memo_instance(user_id: str):
     """Initializes and returns a MemoryOS instance for a given user."""
     if not MEMORYOS_AVAILABLE:
-        raise RuntimeError("MemoryOS package is not available. Please install MemoryOS to use memory functions.")
+        raise RuntimeError("MemoryOS package is not available. Please install memoryos-pro to use memory functions.")
     
     if not user_id:
         raise ValueError("user_id is required to initialize MemoryOS.")
@@ -33,26 +33,16 @@ def get_memo_instance(user_id: str):
     user_data_path = os.path.join(DATA_STORAGE_PATH, user_id)
     
     try:
-        # Create MemoryOS configuration
-        config = {
-            "llm": {
-                "provider": "openai",
-                "config": {
-                    "api_key": API_KEY,
-                    "model": LLM_MODEL
-                }
-            },
-            "history_db_path": os.path.join(user_data_path, "history.db")
-        }
-        
-        # Initialize MemoryOS
-        mos_config = MOSConfig.from_dict(config)
-        memory = MOS(mos_config)
-        
-        # Create user if doesn't exist
-        memory.create_user(user_id=user_id)
-        
-        return memory
+        memo = Memoryos(
+            user_id=user_id,
+            openai_api_key=API_KEY,
+            openai_base_url=BASE_URL,
+            data_storage_path=user_data_path,
+            llm_model=LLM_MODEL,
+            assistant_id=ASSISTANT_ID,
+            embedding_model_name=EMBEDDING_MODEL_NAME,
+        )
+        return memo
     except Exception as e:
         logger.error(f"Error initializing MemoryOS for user {user_id}: {e}")
         raise
@@ -63,18 +53,11 @@ async def add_memory(input_data: dict, user_id: str):
         return {"success": False, "error": "Memory functionality is not available. MemoryOS package is not installed."}
     
     try:
-        memory = get_memo_instance(user_id)
-        
-        # Format messages for MemoryOS
-        messages = []
-        if input_data.get("user_input"):
-            messages.append({"role": "user", "content": input_data.get("user_input")})
-        if input_data.get("agent_response"):
-            messages.append({"role": "assistant", "content": input_data.get("agent_response")})
-        
-        # Add memory using MemoryOS API
-        memory.add(messages=messages, user_id=user_id)
-        
+        memo = get_memo_instance(user_id)
+        memo.add_memory(
+            user_input=input_data.get("user_input"),
+            agent_response=input_data.get("agent_response")
+        )
         return {"success": True, "message": "Memory added successfully."}
     except Exception as e:
         logger.error(f"Error adding memory for user {user_id}: {e}")
