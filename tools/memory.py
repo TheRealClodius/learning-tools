@@ -4,15 +4,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import MemoryOS, but handle gracefully if not available
+# Try to import memoryos, but handle gracefully if not available
 try:
-    from memos.mem_os.main import MOS
-    from memos.configs.mem_os import MOSConfig
+    from memoryos import Memoryos
     MEMORYOS_AVAILABLE = True
 except ImportError:
     logger.warning("MemoryOS package not available. Memory functions will be disabled.")
-    MOS = None
-    MOSConfig = None
+    Memoryos = None
     MEMORYOS_AVAILABLE = False
 
 # --- Configuration ---
