@@ -1,5 +1,6 @@
 # CORE DEPENDENCIES
 setuptools>=65.0.0
+wheel
 faiss-cpu>=1.8.0
 sentence-transformers==2.7.0
 
@@ -18,3 +19,8 @@ pyyaml>=6.0.2
 slack-bolt>=1.23.0
 uvicorn[standard]>=0.35.0
 memoryos-pro==0.1.0
+
+# Additional dependencies from pyproject.toml
+numpy>=1.24.0
+torch>=2.0.0
+transformers>=4.30.0
