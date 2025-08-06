@@ -3,15 +3,31 @@
 [variables]
 # Force Python 3.11 to avoid distutils issues in Python 3.12
 NIXPACKS_PYTHON_VERSION = "3.11"
+# Ensure pip is updated and use legacy resolver for compatibility
+PIP_DEFAULT_TIMEOUT = "120"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
 
 [phases.setup]
 # Add a comprehensive set of system packages required for building complex 
-# Python dependencies with C++ and Fortran backends, like faiss-cpu.
+# Python dependencies with C++ and Fortran backends, like faiss-cpu and sentence-transformers.
 pkgs = [
     "gcc", 
     "gfortran",
     "cmake",
     "pkg-config",
     "liblapack",
-    "libomp"
+    "libomp",
+    "libopenblas",
+    "git",
+    "build-essential"
 ]
+
+[phases.install]
+# Use pip with specific flags for better compatibility with complex dependencies
+cmds = [
+    "pip install --upgrade pip setuptools wheel",
+    "pip install --no-cache-dir --timeout=300 -r requirements.txt"
+]
+
+[start]
+cmd = "python slack_webhook_server.py"
