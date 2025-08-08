@@ -38,6 +38,11 @@ class ToolRegistry:
                             "description": "Tools for weather information and forecasts",
                             "icon": "🌤️"
                         },
+            "memory": {
+                "name": "Memory & Personalization",
+                "description": "Tools for persistent memory and user profiling",
+                "icon": "🧠"
+            },
             "search": {
                 "name": "Search & Research",
                 "description": "Tools for web search and comprehensive research",

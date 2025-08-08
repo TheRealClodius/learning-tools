@@ -1,14 +1,33 @@
 {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Add Input",
+    "description": "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history",
     "type": "object",
     "properties": {
         "user_input": {
             "type": "string",
-            "description": "The user's input to be stored in memory."
+            "description": "The user's input to be stored in memory",
+            "minLength": 1,
+            "maxLength": 5000
         },
         "agent_response": {
             "type": "string",
-            "description": "The agent's response to the user's input."
+            "description": "The agent's response to the user's input",
+            "minLength": 1,
+            "maxLength": 10000
         }
     },
-    "required": ["user_input", "agent_response"]
+    "required": ["user_input", "agent_response"],
+    "examples": [
+        {
+            "explanation": "Store a conversation about user's work",
+            "user_input": "Hi! I'm Tom, I work as a data scientist in San Francisco.",
+            "agent_response": "Hello Tom! Nice to meet you. Data science is such an exciting field. What kind of data do you work with?"
+        },
+        {
+            "explanation": "Store a technical discussion",
+            "user_input": "I'm working on a machine learning project for predicting customer churn.",
+            "agent_response": "That's a great use case for ML! Customer churn prediction typically works well with classification algorithms. Are you using features like user behavior, transaction history, or engagement metrics?"
+        }
+    ]
 }

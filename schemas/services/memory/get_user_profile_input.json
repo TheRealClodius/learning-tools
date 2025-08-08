@@ -1,0 +1,45 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Get User Profile Input",
+    "description": "Obtain a user profile generated from analysis of historical dialogues, including personality traits, interests, and knowledge background",
+    "type": "object",
+    "properties": {
+        "include_personality": {
+            "type": "boolean",
+            "description": "Include personality traits analysis in the profile",
+            "default": true
+        },
+        "include_interests": {
+            "type": "boolean", 
+            "description": "Include user interests and preferences in the profile",
+            "default": true
+        },
+        "include_knowledge": {
+            "type": "boolean",
+            "description": "Include knowledge background and expertise areas in the profile",
+            "default": true
+        },
+        "format": {
+            "type": "string",
+            "enum": ["detailed", "summary", "structured"],
+            "description": "Format of the returned profile",
+            "default": "detailed"
+        }
+    },
+    "examples": [
+        {
+            "explanation": "Get complete user profile with all available information",
+            "include_personality": true,
+            "include_interests": true,
+            "include_knowledge": true,
+            "format": "detailed"
+        },
+        {
+            "explanation": "Get a summary profile focusing on interests only",
+            "include_personality": false,
+            "include_interests": true,
+            "include_knowledge": false,
+            "format": "summary"
+        }
+    ]
+}

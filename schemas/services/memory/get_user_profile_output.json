@@ -1,0 +1,96 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Get User Profile Output",
+    "description": "User profile generated from analysis of historical dialogues",
+    "type": "object",
+    "properties": {
+        "success": {
+            "type": "boolean",
+            "description": "Whether the profile generation was successful"
+        },
+        "profile": {
+            "type": "string",
+            "description": "The generated user profile as formatted text"
+        },
+        "personality_traits": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "trait": {
+                        "type": "string",
+                        "description": "Personality trait name"
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "description": "Confidence score for this trait",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "evidence": {
+                        "type": "string",
+                        "description": "Supporting evidence from conversations"
+                    }
+                }
+            },
+            "description": "Identified personality traits with confidence scores"
+        },
+        "interests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "Interest category"
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific topics within this category"
+                    },
+                    "frequency": {
+                        "type": "integer",
+                        "description": "How often this interest appears in conversations",
+                        "minimum": 1
+                    }
+                }
+            },
+            "description": "User interests organized by category"
+        },
+        "knowledge_areas": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "domain": {
+                        "type": "string",
+                        "description": "Knowledge domain"
+                    },
+                    "expertise_level": {
+                        "type": "string",
+                        "enum": ["beginner", "intermediate", "advanced", "expert"],
+                        "description": "Assessed expertise level"
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific topics within this domain"
+                    }
+                }
+            },
+            "description": "Knowledge areas and expertise levels"
+        },
+        "conversation_history_length": {
+            "type": "integer",
+            "description": "Number of conversations analyzed",
+            "minimum": 0
+        },
+        "last_updated": {
+            "type": "string",
+            "description": "When the profile was last updated",
+            "format": "date-time"
+        }
+    },
+    "required": ["success", "profile"]
+}

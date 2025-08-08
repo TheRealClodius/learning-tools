@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Retrieve Output",
+    "description": "Response containing retrieved historical dialogues, user preferences, and knowledge information",
+    "type": "object",
+    "properties": {
+        "success": {
+            "type": "boolean",
+            "description": "Whether the retrieval was successful"
+        },
+        "response": {
+            "type": "string",
+            "description": "The retrieved memory information formatted as a coherent response"
+        },
+        "memories_found": {
+            "type": "integer",
+            "description": "Number of relevant memories found",
+            "minimum": 0
+        },
+        "relevance_score": {
+            "type": "number",
+            "description": "Overall relevance score of the retrieved memories",
+            "minimum": 0,
+            "maximum": 1
+        }
+    },
+    "required": ["success", "response"]
+}

@@ -1,13 +1,27 @@
 {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Add Output",
+    "description": "Response indicating whether the conversation was successfully stored in memory",
     "type": "object",
     "properties": {
         "success": {
             "type": "boolean",
-            "description": "Whether the memory was added successfully."
+            "description": "Whether the memory was added successfully"
         },
         "message": {
             "type": "string",
-            "description": "A message indicating the result of the operation."
+            "description": "A message indicating the result of the operation"
+        },
+        "memory_id": {
+            "type": "string",
+            "description": "Unique identifier for the stored memory entry",
+            "format": "uuid"
+        },
+        "timestamp": {
+            "type": "string",
+            "description": "When the memory was stored",
+            "format": "date-time"
         }
-    }
+    },
+    "required": ["success", "message"]
 }

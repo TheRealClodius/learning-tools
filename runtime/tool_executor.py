@@ -44,7 +44,11 @@ class ToolExecutor:
                 "perplexity.search": "tools.perplexity:perplexity_search",
                 "perplexity.research": "tools.perplexity:perplexity_research"
             },
-
+            "memory": {
+                "memory.add": "tools.memory_mcp:add_memory",
+                "memory.retrieve": "tools.memory_mcp:retrieve_memory",
+                "memory.get_user_profile": "tools.memory_mcp:get_user_profile"
+            },
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
                 "slack.search_channels": "tools.slack:slack_search_channels"

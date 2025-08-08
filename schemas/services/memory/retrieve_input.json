@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Memory Retrieve Input",
+    "description": "Retrieve related historical dialogues, user preferences, and knowledge information from the memory system based on a query",
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "The query to search for in the user's memory. Use a semantic search query to retrieve relevant information from embeddings, or use the phrase 'recent history' in the query to retrieve a specified number of the most recent messages.",
+            "minLength": 1,
+            "maxLength": 1000
+        }
+    },
+    "required": ["query"],
+    "examples": [
+        {
+            "explanation": "Retrieve information about user's job and interests",
+            "query": "What do you remember about my job and interests?"
+        },
+        {
+            "explanation": "Find previous conversations about a specific topic",
+            "query": "Tell me about our previous discussions on AI development"
+        },
+        {
+            "explanation": "Retrieve the most recent messages from the conversation history",
+            "query": "recent history"
+        }
+    ]
+}
