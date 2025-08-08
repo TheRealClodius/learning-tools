@@ -155,6 +155,38 @@ class ClientAgent:
                     },
                     "required": ["explanation", "tool_name", "tool_args"]
                 }
+            },
+            {
+                "name": "memory_add",
+                "description": "Add conversation to the memory system for persistence across interactions",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_input": {
+                            "type": "string",
+                            "description": "The user's input message to store"
+                        },
+                        "agent_response": {
+                            "type": "string", 
+                            "description": "The agent's response message to store"
+                        }
+                    },
+                    "required": ["user_input", "agent_response"]
+                }
+            },
+            {
+                "name": "memory_retrieve",
+                "description": "Retrieve relevant conversation history and context from memory",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Query to search for relevant memories and context"
+                        }
+                    },
+                    "required": ["query"]
+                }
             }
         ]
         
@@ -294,6 +326,8 @@ class ClientAgent:
         tool_usage_log = []
         final_response = None
         final_iteration = 0
+        # Capture text responses from any iteration (in case Claude provides answer + tool calls together)
+        text_responses = []
         
         for iteration in range(max_iterations):
             logger.info(f"Agent iteration {iteration + 1}")
@@ -326,6 +360,12 @@ class ClientAgent:
                 if content_block.type == "text":
                     text = content_block.text
                     assistant_content.append({"type": "text", "text": text})
+                    
+                    # Capture text responses from this iteration
+                    clean_text = re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL).strip()
+                    if clean_text:
+                        text_responses.append(clean_text)
+                        logger.info(f"RESPONSE-DEBUG: Captured text response: {clean_text[:50]}...")
                     
                     # Capture thinking content for run summary
                     thinking_matches = re.findall(r'<thinking>(.*?)</thinking>', text, re.DOTALL)
@@ -370,6 +410,13 @@ class ClientAgent:
                 # Remove thinking tags from final response
                 final_response = re.sub(r'<thinking>.*?</thinking>', '', final_text, flags=re.DOTALL).strip()
                 final_iteration = iteration + 1
+                logger.info(f"RESPONSE-DEBUG: No tool calls, extracted final_response: {final_response[:50]}...")
+                
+                # If the extracted response is empty but we have captured text responses, use those
+                if not final_response and text_responses:
+                    final_response = max(text_responses, key=len)
+                    logger.info(f"RESPONSE-DEBUG: Using captured text response as fallback: {final_response[:50]}...")
+                
                 break
             
             # Execute tool calls and add results
@@ -404,10 +451,17 @@ class ClientAgent:
             # Add tool results to conversation
             messages.append({"role": "user", "content": tool_results})
         
-        # If we reach here, max iterations was hit
+        # If we reach here, max iterations was hit - use captured text responses if available
         if final_response is None:
-            final_response = "Maximum iterations reached. Unable to complete the request."
-            final_iteration = max_iterations
+            if text_responses:
+                # Use the most substantial text response (longest one, as it likely contains the answer)
+                final_response = max(text_responses, key=len)
+                final_iteration = max_iterations
+                logger.info(f"RESPONSE-FIX: Using captured text response: {final_response[:100]}")
+            else:
+                final_response = "Maximum iterations reached. Unable to complete the request."
+                final_iteration = max_iterations
+                logger.info(f"RESPONSE-FIX: No text responses captured, total captured: {len(text_responses)}")
         
         # Update local buffer for context management
         logger.info(f"CONTROL-FLOW: Updating local buffer - Response: {final_response[:100]}...")
@@ -489,8 +543,28 @@ class ClientAgent:
                     await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
+            elif function_name == "memory_add":
+                # Direct memory add tool call
+                if streaming_callback:
+                    await streaming_callback("Adding conversation to memory", "operation")
+                
+                # Add user_id to args for memory operations
+                memory_args = dict(args)
+                memory_args["user_id"] = user_id
+                
+                result = await self.tool_executor.execute_command("memory.add", memory_args, user_id=user_id)
+            elif function_name == "memory_retrieve":
+                # Direct memory retrieve tool call
+                if streaming_callback:
+                    await streaming_callback("Retrieving memory context", "operation")
+                
+                # Add user_id to args for memory operations
+                memory_args = dict(args)
+                memory_args["user_id"] = user_id
+                
+                result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool, memory_add, memory_retrieve"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg

@@ -14,19 +14,16 @@ system_prompt: |
   - If you need to use tools, explain which ones and why.
   - If you can answer directly, state that you are doing so.
 
-  MEMORY TOOLS - CRITICAL WORKFLOW:
-  IMPORTANT: You do NOT have direct access to memory tools like memory.add or memory.retrieve. 
-  You MUST use the execute_tool function to access them.
+  MEMORY TOOLS - WORKFLOW:
+  You have direct access to memory_add and memory_retrieve functions.
   
-  1. AT START: Use execute_tool with tool_name="memory.retrieve" to get conversation history
-  2. AT END: Use execute_tool with tool_name="memory.add" to store the conversation
+  1. AT START: Use memory_retrieve to get conversation history before responding
+  2. AT END: Use memory_add to store the conversation after your response
   
-  NEVER call memory.add, memory.retrieve, or memory.get_user_profile directly - they are not available tools.
-  ALWAYS use execute_tool to access memory functions.
-  
-  MEMORY USAGE EXAMPLES:
-  - To retrieve: execute_tool with tool_name="memory.retrieve" and tool_args={"query": "relevant context"}
-  - To add: execute_tool with tool_name="memory.add" and tool_args={"user_input": "...", "agent_response": "..."}
+  MEMORY USAGE:
+  - To retrieve: memory.retrieve with query="relevant context"
+  - To add: memory.add with user_input="..." and agent_response="..."
+  - to retrieve user profile: memory.get_user_profile
   
   MEMORY ERROR HANDLING:
   If a memory operation fails once, acknowledge the failure but do not retry the same operation. Continue with the conversation normally.
