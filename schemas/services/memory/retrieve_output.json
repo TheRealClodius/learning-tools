@@ -1,28 +1,95 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Memory Retrieve Output",
-    "description": "Response containing retrieved historical dialogues, user preferences, and knowledge information",
+    "description": "Response containing retrieved historical dialogues, user preferences, and knowledge information from MemoryOS",
     "type": "object",
     "properties": {
-        "success": {
-            "type": "boolean",
-            "description": "Whether the retrieval was successful"
-        },
-        "response": {
+        "status": {
             "type": "string",
-            "description": "The retrieved memory information formatted as a coherent response"
+            "enum": ["success", "error"],
+            "description": "Status of the memory retrieval operation"
         },
-        "memories_found": {
+        "query": {
+            "type": "string",
+            "description": "The original query that was processed"
+        },
+        "timestamp": {
+            "type": "string",
+            "description": "When the retrieval was performed",
+            "format": "date-time"
+        },
+        "user_profile": {
+            "type": "string",
+            "description": "User profile summary or 'No detailed user profile'"
+        },
+        "short_term_memory": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "user_input": {"type": "string"},
+                    "agent_response": {"type": "string"},
+                    "timestamp": {"type": "string"},
+                    "meta_info": {"type": "object"}
+                }
+            },
+            "description": "All recent conversations from short-term memory (FIFO order)"
+        },
+        "short_term_count": {
             "type": "integer",
-            "description": "Number of relevant memories found",
+            "description": "Number of conversations in short-term memory",
             "minimum": 0
         },
-        "relevance_score": {
-            "type": "number",
-            "description": "Overall relevance score of the retrieved memories",
-            "minimum": 0,
-            "maximum": 1
+        "retrieved_pages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "user_input": {"type": "string"},
+                    "agent_response": {"type": "string"},
+                    "timestamp": {"type": "string"},
+                    "meta_info": {"type": "object"}
+                }
+            },
+            "description": "Retrieved conversations from mid-term memory"
+        },
+        "retrieved_user_knowledge": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "knowledge": {"type": "string"},
+                    "timestamp": {"type": "string"}
+                }
+            },
+            "description": "Retrieved knowledge items from user long-term memory"
+        },
+        "retrieved_assistant_knowledge": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "knowledge": {"type": "string"},
+                    "timestamp": {"type": "string"}
+                }
+            },
+            "description": "Retrieved knowledge items from assistant knowledge base"
+        },
+        "total_pages_found": {
+            "type": "integer",
+            "description": "Total number of pages found in search",
+            "minimum": 0
+        },
+        "total_user_knowledge_found": {
+            "type": "integer",
+            "description": "Total number of user knowledge items found",
+            "minimum": 0
+        },
+        "total_assistant_knowledge_found": {
+            "type": "integer",
+            "description": "Total number of assistant knowledge items found",
+            "minimum": 0
         }
     },
-    "required": ["success", "response"]
+    "required": ["status", "query", "timestamp", "short_term_memory", "short_term_count"]
 }

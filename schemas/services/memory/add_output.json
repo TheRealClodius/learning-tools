@@ -1,27 +1,41 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Memory Add Output",
-    "description": "Response indicating whether the conversation was successfully stored in memory",
+    "description": "Response indicating whether the conversation was successfully stored in MemoryOS",
     "type": "object",
     "properties": {
-        "success": {
-            "type": "boolean",
-            "description": "Whether the memory was added successfully"
+        "status": {
+            "type": "string",
+            "enum": ["success", "error"],
+            "description": "Status of the memory addition operation"
         },
         "message": {
             "type": "string",
             "description": "A message indicating the result of the operation"
         },
-        "memory_id": {
-            "type": "string",
-            "description": "Unique identifier for the stored memory entry",
-            "format": "uuid"
-        },
         "timestamp": {
             "type": "string",
             "description": "When the memory was stored",
             "format": "date-time"
+        },
+        "details": {
+            "type": "object",
+            "description": "Additional details about the operation",
+            "properties": {
+                "user_input_length": {
+                    "type": "integer",
+                    "description": "Length of the user input"
+                },
+                "agent_response_length": {
+                    "type": "integer", 
+                    "description": "Length of the agent response"
+                },
+                "has_meta_data": {
+                    "type": "boolean",
+                    "description": "Whether metadata was included"
+                }
+            }
         }
     },
-    "required": ["success", "message"]
+    "required": ["status", "message"]
 }

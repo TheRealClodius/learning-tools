@@ -1,29 +1,50 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Memory Retrieve Input",
-    "description": "Retrieve related historical dialogues, user preferences, and knowledge information from the memory system based on a query",
+    "description": "Retrieve related historical dialogues, user preferences, and knowledge information from the MemoryOS system based on a query",
     "type": "object",
     "properties": {
         "query": {
             "type": "string",
-            "description": "The query to search for in the user's memory. Use a semantic search query to retrieve relevant information from embeddings, or use the phrase 'recent history' in the query to retrieve a specified number of the most recent messages.",
+            "description": "The query to search for in the user's memory. Use semantic search to find relevant conversations, or use natural language to describe what you're looking for. Note: ALL recent messages from short-term memory are ALWAYS returned regardless of the query. To focus on just recent messages, use queries like 'recent messages' or 'recent conversation history' and set max_results to how many recent messages you want returned.",
             "minLength": 1,
             "maxLength": 1000
+        },
+        "relationship_with_user": {
+            "type": "string",
+            "description": "Relationship type with the user (e.g., friend, assistant, colleague)",
+            "default": "friend"
+        },
+        "style_hint": {
+            "type": "string",
+            "description": "Response style hint for the retrieval",
+            "default": ""
+        },
+        "max_results": {
+            "type": "integer",
+            "description": "Maximum number of results to return from mid-term and long-term memory",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
         }
     },
     "required": ["query"],
     "examples": [
         {
             "explanation": "Retrieve information about user's job and interests",
-            "query": "What do you remember about my job and interests?"
+            "query": "What do you remember about my job and interests?",
+            "max_results": 5
         },
         {
-            "explanation": "Find previous conversations about a specific topic",
-            "query": "Tell me about our previous discussions on AI development"
+            "explanation": "Find previous conversations about a specific topic with more context",
+            "query": "Tell me about our previous discussions on AI development",
+            "relationship_with_user": "colleague",
+            "max_results": 15
         },
         {
-            "explanation": "Retrieve the most recent messages from the conversation history",
-            "query": "recent history"
+            "explanation": "Get recent conversation history - returns relevant short-term memory",
+            "query": "recent conversation history",
+            "max_results": 10
         }
     ]
 }

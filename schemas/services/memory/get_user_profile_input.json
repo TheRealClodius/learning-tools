@@ -1,45 +1,35 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Memory Get User Profile Input",
-    "description": "Obtain a user profile generated from analysis of historical dialogues, including personality traits, interests, and knowledge background",
+    "title": "Memory Get User Profile Input", 
+    "description": "Obtain a user profile generated from analysis of historical dialogues in MemoryOS",
     "type": "object",
     "properties": {
-        "include_personality": {
-            "type": "boolean",
-            "description": "Include personality traits analysis in the profile",
-            "default": true
-        },
-        "include_interests": {
-            "type": "boolean", 
-            "description": "Include user interests and preferences in the profile",
-            "default": true
-        },
         "include_knowledge": {
             "type": "boolean",
-            "description": "Include knowledge background and expertise areas in the profile",
+            "description": "Include user knowledge items in the response",
             "default": true
         },
-        "format": {
-            "type": "string",
-            "enum": ["detailed", "summary", "structured"],
-            "description": "Format of the returned profile",
-            "default": "detailed"
+        "include_assistant_knowledge": {
+            "type": "boolean",
+            "description": "Include assistant knowledge items in the response",
+            "default": false
         }
     },
     "examples": [
         {
-            "explanation": "Get complete user profile with all available information",
-            "include_personality": true,
-            "include_interests": true,
+            "explanation": "Get user profile with user knowledge included",
             "include_knowledge": true,
-            "format": "detailed"
+            "include_assistant_knowledge": false
         },
         {
-            "explanation": "Get a summary profile focusing on interests only",
-            "include_personality": false,
-            "include_interests": true,
+            "explanation": "Get user profile with both user and assistant knowledge",
+            "include_knowledge": true,
+            "include_assistant_knowledge": true
+        },
+        {
+            "explanation": "Get just the basic user profile without knowledge items",
             "include_knowledge": false,
-            "format": "summary"
+            "include_assistant_knowledge": false
         }
     ]
 }

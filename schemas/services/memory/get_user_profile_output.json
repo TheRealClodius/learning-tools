@@ -1,96 +1,75 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Memory Get User Profile Output",
-    "description": "User profile generated from analysis of historical dialogues",
+    "description": "User profile generated from analysis of historical dialogues in MemoryOS",
     "type": "object",
     "properties": {
-        "success": {
-            "type": "boolean",
-            "description": "Whether the profile generation was successful"
-        },
-        "profile": {
+        "status": {
             "type": "string",
-            "description": "The generated user profile as formatted text"
+            "enum": ["success", "error"],
+            "description": "Status of the user profile generation operation"
         },
-        "personality_traits": {
+        "timestamp": {
+            "type": "string",
+            "description": "When the profile was generated",
+            "format": "date-time"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "The user identifier"
+        },
+        "assistant_id": {
+            "type": "string",
+            "description": "The assistant identifier"
+        },
+        "user_profile": {
+            "type": "string",
+            "description": "The generated user profile as formatted text or 'No detailed user profile'"
+        },
+        "user_knowledge": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "trait": {
+                    "knowledge": {
                         "type": "string",
-                        "description": "Personality trait name"
+                        "description": "Knowledge content"
                     },
-                    "confidence": {
-                        "type": "number",
-                        "description": "Confidence score for this trait",
-                        "minimum": 0,
-                        "maximum": 1
-                    },
-                    "evidence": {
+                    "timestamp": {
                         "type": "string",
-                        "description": "Supporting evidence from conversations"
+                        "description": "When this knowledge was recorded"
                     }
                 }
             },
-            "description": "Identified personality traits with confidence scores"
+            "description": "User knowledge items (included if include_knowledge=true)"
         },
-        "interests": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": "Interest category"
-                    },
-                    "topics": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific topics within this category"
-                    },
-                    "frequency": {
-                        "type": "integer",
-                        "description": "How often this interest appears in conversations",
-                        "minimum": 1
-                    }
-                }
-            },
-            "description": "User interests organized by category"
-        },
-        "knowledge_areas": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "domain": {
-                        "type": "string",
-                        "description": "Knowledge domain"
-                    },
-                    "expertise_level": {
-                        "type": "string",
-                        "enum": ["beginner", "intermediate", "advanced", "expert"],
-                        "description": "Assessed expertise level"
-                    },
-                    "topics": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific topics within this domain"
-                    }
-                }
-            },
-            "description": "Knowledge areas and expertise levels"
-        },
-        "conversation_history_length": {
+        "user_knowledge_count": {
             "type": "integer",
-            "description": "Number of conversations analyzed",
+            "description": "Number of user knowledge items",
             "minimum": 0
         },
-        "last_updated": {
-            "type": "string",
-            "description": "When the profile was last updated",
-            "format": "date-time"
+        "assistant_knowledge": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "knowledge": {
+                        "type": "string",
+                        "description": "Assistant knowledge content"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "When this knowledge was recorded"
+                    }
+                }
+            },
+            "description": "Assistant knowledge items (included if include_assistant_knowledge=true)"
+        },
+        "assistant_knowledge_count": {
+            "type": "integer",
+            "description": "Number of assistant knowledge items",
+            "minimum": 0
         }
     },
-    "required": ["success", "profile"]
+    "required": ["status", "timestamp", "user_id", "assistant_id", "user_profile"]
 }
