@@ -48,10 +48,6 @@ class ToolExecutor:
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
                 "slack.search_channels": "tools.slack:slack_search_channels"
-            },
-            "memory": {
-                "memory.add": "tools.memory:add_memory",
-                "memory.query": "tools.memory:query_memory"
             }
         }
         

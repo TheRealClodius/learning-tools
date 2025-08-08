@@ -154,38 +154,6 @@ class ClientAgent:
                     },
                     "required": ["explanation", "tool_name", "tool_args"]
                 }
-            },
-            {
-                "name": "add_memory",
-                "description": "Add a memory to the user's memory store.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_input": {
-                            "type": "string",
-                            "description": "The user's input to be stored in memory."
-                        },
-                        "agent_response": {
-                            "type": "string",
-                            "description": "The agent's response to the user's input."
-                        }
-                    },
-                    "required": ["user_input", "agent_response"]
-                }
-            },
-            {
-                "name": "query_memory",
-                "description": "Query the user's memory store.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The query to search for in the user's memory."
-                        }
-                    },
-                    "required": ["query"]
-                }
             }
         ]
         
@@ -509,16 +477,8 @@ class ClientAgent:
                     await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
-            elif function_name == "add_memory":
-                if streaming_callback:
-                    await streaming_callback("Adding memory...", "operation")
-                result = await self.tool_executor.execute_command("memory.add", args, user_id=user_id)
-            elif function_name == "query_memory":
-                if streaming_callback:
-                    await streaming_callback("Querying memory...", "operation")
-                result = await self.tool_executor.execute_command("memory.query", args, user_id=user_id)
             else:
-                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool, add_memory, query_memory"
+                error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
                 return error_msg
@@ -731,7 +691,7 @@ class ClientAgent:
 
     
     def _update_buffer(self, user_message: str, agent_response: str, tool_usage_log: list, thinking_content: list, user_id: str):
-        """Update local buffer and add conversation to memory."""
+        """Update local buffer for conversation context."""
         logger.info(f"BUFFER: Updating buffer for user {user_id}")
         
         # Initialize user buffer if not exists
@@ -748,36 +708,7 @@ class ClientAgent:
         self.user_buffers[user_id]['last_updated'] = time.time()
         logger.info(f"BUFFER: Buffer timestamp updated for user {user_id}")
 
-        # Add conversation to memory
-        asyncio.create_task(self._add_conversation_to_memory(user_id, user_message, agent_response))
 
-    async def _add_conversation_to_memory(self, user_id: str, user_input: str, agent_response: str):
-        """Add the conversation to the memory store."""
-        try:
-            logger.info(f"MEMORY: Adding conversation to memory for user {user_id}")
-            await self.tool_executor.execute_command(
-                "memory.add",
-                {"user_input": user_input, "agent_response": agent_response},
-                user_id=user_id
-            )
-            logger.info(f"MEMORY: Conversation added to memory for user {user_id}")
-        except Exception as e:
-            logger.error(f"MEMORY: Error adding conversation to memory for user {user_id}: {e}")
-
-    async def _query_memory(self, user_id: str, query: str) -> Optional[str]:
-        """Query the user's memory and return the response."""
-        try:
-            logger.info(f"MEMORY: Querying memory for user {user_id}")
-            result = await self.tool_executor.execute_command(
-                "memory.query",
-                {"query": query},
-                user_id=user_id
-            )
-            if result and result.get("success"):
-                return result.get("response")
-        except Exception as e:
-            logger.error(f"MEMORY: Error querying memory for user {user_id}: {e}")
-        return None
 
     
     

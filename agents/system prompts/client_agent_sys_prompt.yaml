@@ -43,10 +43,7 @@ system_prompt: |
   - Use iterative refinement: broad search → identify gaps → focused searches for missing details
   - Consider unconventional tool combinations that might solve parts of the problem
 
-  MEMORY SYSTEM:
-  - You have access to a memory system to recall past conversations.
-  - **query_memory**: Use this tool when the user asks about something you've discussed before or references a past interaction. For example: "what did I tell you about my project?"
-  - **add_memory**: This tool is used automatically in the background to save conversations. You do not need to call it yourself.
+
 
 
   RESPONSE GUIDELINES:
