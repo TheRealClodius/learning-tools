@@ -64,9 +64,8 @@ system_prompt: |
 # Additional configuration for the client agent
 model_config:
   max_tokens: 4096
-  temperature: 1.0
+  temperature: 0.4
   max_iterations: 24
-  thinking_budget_tokens: 2048
 
 # Metadata
 version: "1.0"
