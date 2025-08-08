@@ -101,7 +101,7 @@ class MemoryMCPClient:
             error_msg = f"Failed to add memory: {e}"
             logger.error(error_msg)
             return {
-                "success": False,
+                "status": "error",
                 "message": error_msg,
                 "error": str(e)
             }
@@ -149,8 +149,11 @@ class MemoryMCPClient:
             error_msg = f"Failed to retrieve memory: {e}"
             logger.error(error_msg)
             return {
-                "success": False,
-                "response": error_msg,
+                "status": "error",
+                "query": query,
+                "timestamp": "",
+                "short_term_memory": [],
+                "short_term_count": 0,
                 "error": str(e)
             }
     
@@ -238,7 +241,7 @@ async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     
     if not user_input or not agent_response:
         return {
-            "success": False,
+            "status": "error",
             "message": "Both user_input and agent_response are required"
         }
     
@@ -258,8 +261,12 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     
     if not query:
         return {
-            "success": False,
-            "response": "Query parameter is required"
+            "status": "error",
+            "query": "",
+            "timestamp": "",
+            "short_term_memory": [],
+            "short_term_count": 0,
+            "error": "Query parameter is required"
         }
     
     return await client.retrieve_memory(
