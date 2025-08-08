@@ -235,6 +235,87 @@ class execute_perplexity_research_output(BaseModel):
     data: Dict[str, Any] = Field(..., description="Research result data")
 
 # =============================================================================
+# MEMORY TOOL MODELS
+# =============================================================================
+
+class MemoryStatusType(str, Enum):
+    """Memory operation status enumeration"""
+    success = "success"
+    error = "error"
+
+# Memory Add Models
+class execute_memory_add_input(BaseModel):
+    """Input model for memory add operation"""
+    user_input: str = Field(..., min_length=1, max_length=5000, description="The user's input to be stored in memory")
+    agent_response: str = Field(..., min_length=1, max_length=10000, description="The agent's response to the user's input")
+
+class MemoryAddDetails(BaseModel):
+    """Memory add operation details"""
+    user_input_length: Optional[int] = Field(default=None, description="Length of the user input")
+    agent_response_length: Optional[int] = Field(default=None, description="Length of the agent response")
+    has_meta_data: Optional[bool] = Field(default=None, description="Whether metadata was included")
+
+class execute_memory_add_output(BaseModel):
+    """Output model for memory add operation"""
+    status: MemoryStatusType = Field(..., description="Status of the memory addition operation")
+    message: str = Field(..., description="A message indicating the result of the operation")
+    timestamp: Optional[str] = Field(default=None, description="When the memory was stored")
+    details: Optional[MemoryAddDetails] = Field(default=None, description="Additional details about the operation")
+
+# Memory Retrieve Models
+class execute_memory_retrieve_input(BaseModel):
+    """Input model for memory retrieve operation"""
+    query: str = Field(..., min_length=1, max_length=1000, description="The query to search for in the user's memory. Use semantic search to find relevant conversations, or use natural language to describe what you're looking for.")
+    relationship_with_user: str = Field(default="friend", description="Relationship type with the user (e.g., friend, assistant, colleague)")
+    style_hint: str = Field(default="", description="Response style hint for the retrieval")
+    max_results: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return from mid-term and long-term memory")
+
+class MemoryConversationItem(BaseModel):
+    """Memory conversation item model"""
+    user_input: str = Field(..., description="User input from the conversation")
+    agent_response: str = Field(..., description="Agent response from the conversation")
+    timestamp: str = Field(..., description="Timestamp of the conversation")
+    meta_info: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
+
+class MemoryKnowledgeItem(BaseModel):
+    """Memory knowledge item model"""
+    knowledge: str = Field(..., description="Knowledge content")
+    timestamp: str = Field(..., description="When this knowledge was recorded")
+
+class execute_memory_retrieve_output(BaseModel):
+    """Output model for memory retrieve operation"""
+    status: MemoryStatusType = Field(..., description="Status of the memory retrieval operation")
+    query: str = Field(..., description="The original query that was processed")
+    timestamp: str = Field(..., description="When the retrieval was performed")
+    user_profile: Optional[str] = Field(default=None, description="User profile summary or 'No detailed user profile'")
+    short_term_memory: List[MemoryConversationItem] = Field(..., description="All recent conversations from short-term memory (FIFO order)")
+    short_term_count: int = Field(..., ge=0, description="Number of conversations in short-term memory")
+    retrieved_pages: Optional[List[MemoryConversationItem]] = Field(default=None, description="Retrieved conversations from mid-term memory")
+    retrieved_user_knowledge: Optional[List[MemoryKnowledgeItem]] = Field(default=None, description="Retrieved knowledge items from user long-term memory")
+    retrieved_assistant_knowledge: Optional[List[MemoryKnowledgeItem]] = Field(default=None, description="Retrieved knowledge items from assistant knowledge base")
+    total_pages_found: Optional[int] = Field(default=None, ge=0, description="Total number of pages found in search")
+    total_user_knowledge_found: Optional[int] = Field(default=None, ge=0, description="Total number of user knowledge items found")
+    total_assistant_knowledge_found: Optional[int] = Field(default=None, ge=0, description="Total number of assistant knowledge items found")
+
+# Memory Get User Profile Models
+class execute_memory_get_user_profile_input(BaseModel):
+    """Input model for memory get user profile operation"""
+    include_knowledge: bool = Field(default=True, description="Include user knowledge items in the response")
+    include_assistant_knowledge: bool = Field(default=False, description="Include assistant knowledge items in the response")
+
+class execute_memory_get_user_profile_output(BaseModel):
+    """Output model for memory get user profile operation"""
+    status: MemoryStatusType = Field(..., description="Status of the user profile generation operation")
+    timestamp: str = Field(..., description="When the profile was generated")
+    user_id: str = Field(..., description="The user identifier")
+    assistant_id: str = Field(..., description="The assistant identifier")
+    user_profile: str = Field(..., description="The generated user profile as formatted text or 'No detailed user profile'")
+    user_knowledge: Optional[List[MemoryKnowledgeItem]] = Field(default=None, description="User knowledge items (included if include_knowledge=true)")
+    user_knowledge_count: Optional[int] = Field(default=None, ge=0, description="Number of user knowledge items")
+    assistant_knowledge: Optional[List[MemoryKnowledgeItem]] = Field(default=None, description="Assistant knowledge items (included if include_assistant_knowledge=true)")
+    assistant_knowledge_count: Optional[int] = Field(default=None, ge=0, description="Number of assistant knowledge items")
+
+# =============================================================================
 # WEATHER TOOL MODELS
 # =============================================================================
 
