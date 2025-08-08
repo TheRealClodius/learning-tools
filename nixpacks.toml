@@ -5,13 +5,5 @@
 NIXPACKS_PYTHON_VERSION = "3.11"
 
 [phases.setup]
-# Add a comprehensive set of system packages required for building complex 
-# Python dependencies with C++ and Fortran backends, like faiss-cpu.
-pkgs = [
-    "gcc", 
-    "gfortran",
-    "cmake",
-    "pkg-config",
-    "liblapack",
-    "libomp"
-]
+# Basic system packages for Python dependencies
+pkgs = ["gcc"]
