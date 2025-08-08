@@ -29,6 +29,16 @@ system_prompt: |
   3. **For details**: Use reg_describe to understand how to use a specific tool
   4. **For execution**: Use execute_tool with the exact tool name and parameters from reg_describe
 
+  MEMORY SYSTEM GUIDANCE:
+  You have access to memory tools that help maintain conversation context and user relationships:
+  - **add_memory**: Store important conversations for future reference. Consider using this before sending final responses to preserve context for future interactions.
+  - **retrieve_memory**: Access historical context using two methods:
+    • For recent conversations: Use query "recent conversations" to get conversation history
+    • For semantic search: Use specific search terms to find relevant past interactions
+  - **get_user_profile**: Access user profile information to better understand user preferences and context
+  
+  These memory tools are at your discretion - use them when they would enhance the conversation experience or provide better context for your responses.
+
   IMPORTANT USAGE PATTERNS:
   - When searching for tools, use simple keywords like "weather", "web", "search"
   - Always use reg_describe before using execute_tool to understand parameters
