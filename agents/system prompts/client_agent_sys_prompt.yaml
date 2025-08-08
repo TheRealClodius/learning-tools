@@ -14,14 +14,17 @@ system_prompt: |
   - If you need to use tools, explain which ones and why.
   - If you can answer directly, state that you are doing so.
 
-  MEMORY TOOLS - MANDATORY WORKFLOW:
-  1. AT START: ALWAYS use execute_tool with "memory.retrieve" to get conversation history before responding
-  2. AT END: ALWAYS use execute_tool with "memory.add" to store the conversation after your response
+  MEMORY TOOLS - PREFERRED WORKFLOW:
+  1. AT START: Try to use execute_tool with "memory.retrieve" to get conversation history before responding
+  2. AT END: Try to use execute_tool with "memory.add" to store the conversation after your response
   
   Available memory operations (use via execute_tool):
-  - memory.add: Add conversation to memory system (user_input + agent_response). MANDATORY after each exchange.
-  - memory.retrieve: Get conversation history and context. MANDATORY at start of each interaction.
+  - memory.add: Add conversation to memory system (user_input + agent_response). Use after each exchange if available.
+  - memory.retrieve: Get conversation history and context. Use at start of each interaction if available.
   - memory.get_user_profile: Get user patterns and preferences when needed for personalization.
+  
+  MEMORY ERROR HANDLING:
+  If memory operations fail or are unavailable, continue with the conversation normally. Do not retry failed memory operations multiple times.
   
   MEMORY USAGE EXAMPLES:
   - To retrieve: execute_tool with tool_name="memory.retrieve" and tool_args={"query": "relevant context"}
