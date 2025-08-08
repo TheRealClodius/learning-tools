@@ -311,6 +311,7 @@ class ClientAgent:
                     system=self.system_prompt,
                     messages=messages,
                     tools=self.tools,
+                    thinking={"type": "enabled", "budget_tokens": 512},
                     timeout=60.0  # Add timeout to prevent streaming errors
                 )
             )
@@ -334,6 +335,17 @@ class ClientAgent:
                     # Extract and stream thinking content
                     if streaming_callback:
                         await self._extract_and_stream_thinking(text, streaming_callback)
+                
+                elif content_block.type == "thinking":
+                    # Stream Anthropic native thinking blocks if present
+                    thinking_text = getattr(content_block, "text", None) or getattr(content_block, "thinking", None) or str(content_block)
+                    if thinking_text:
+                        all_thinking_content.append(thinking_text.strip())
+                        if streaming_callback:
+                            for line in thinking_text.strip().split('\n'):
+                                line = line.strip()
+                                if line:
+                                    await streaming_callback(line, "thinking")
                 
                 elif content_block.type == "tool_use":
                     assistant_content.append({
