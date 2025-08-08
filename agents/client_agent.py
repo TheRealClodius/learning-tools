@@ -47,9 +47,7 @@ class ClientAgent:
         self.max_tokens = self.config.get('model_config', {}).get('max_tokens', 4096)
         self.temperature = self.config.get('model_config', {}).get('temperature', 0.7)
         self.max_iterations = self.config.get('model_config', {}).get('max_iterations', 50)
-        self.thinking_budget_tokens = self.config.get('model_config', {}).get('thinking_budget_tokens', 2048)
-        if self.thinking_budget_tokens < 1024:
-            self.thinking_budget_tokens = 1024
+
         
         # Define function schemas for Claude - use underscore format per Anthropic API constraints
         self.tools = [
@@ -314,7 +312,6 @@ class ClientAgent:
                     system=self.system_prompt,
                     messages=messages,
                     tools=self.tools,
-                    thinking={"type": "enabled", "budget_tokens": self.thinking_budget_tokens},
                     timeout=60.0  # Add timeout to prevent streaming errors
                 )
             )
