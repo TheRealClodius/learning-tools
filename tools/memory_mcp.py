@@ -102,7 +102,11 @@ class MemoryMCPClient:
                 params["user_id"] = user_id
             
             async with self._get_session() as session:
-                result = await session.call_tool("add_memory", params)
+                # Add timeout to prevent hanging
+                result = await asyncio.wait_for(
+                    session.call_tool("add_memory", params),
+                    timeout=10.0  # 10 second timeout instead of 30
+                )
                 
             logger.info(f"Memory added successfully for user_id={user_id}")
             
@@ -165,7 +169,11 @@ class MemoryMCPClient:
                 params["user_id"] = user_id
             
             async with self._get_session() as session:
-                result = await session.call_tool("retrieve_memory", params)
+                # Add timeout to prevent hanging
+                result = await asyncio.wait_for(
+                    session.call_tool("retrieve_memory", params),
+                    timeout=10.0  # 10 second timeout instead of 30
+                )
                 
             logger.info(f"Memory retrieved successfully for user_id={user_id}")
             

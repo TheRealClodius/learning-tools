@@ -574,7 +574,8 @@ class ClientAgent:
             # Stream the result details
             if streaming_callback:
                 if isinstance(result, dict):
-                    success = result.get("success", False)
+                    # Check both "success" (boolean) and "status" (string) fields for compatibility
+                    success = (result.get("success") == True) or (result.get("status") == "success")
                     message = result.get("message", "No message")
                     if success:
                         await streaming_callback(f"{function_name} succeeded: {message}", "result")
