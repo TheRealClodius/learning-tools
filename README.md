@@ -48,13 +48,8 @@ GEMINI_API_KEY=your_gemini_key_here
 ### 2. Install Dependencies
 
 ```bash
-# Install dependencies
-pip install numpy==1.24.* sentence-transformers==5.0.0 transformers>=4.51.0
-pip install FlagEmbedding>=1.2.9 faiss-cpu>=1.7.0 httpx openai
-pip install flask>=2.0.0 python-dotenv>=0.19.0 typing-extensions>=4.0.0
-
-# Install other dependencies
-pip install anthropic pydantic python-dotenv pyyaml httpx asyncio
+# Install dependencies using requirements.txt
+pip install -r requirements.txt
 ```
 
 ### 3. Set Python Path
