@@ -10,8 +10,8 @@ The client supports three main operations:
 - get_user_profile: Generate user profiles from conversation history
 
 Configuration via environment variables:
-- MEMORYOS_MCP_HOST: MCP server host (default: localhost)
-- MEMORYOS_MCP_PORT: MCP server port (default: 8000)
+- MEMORYOS_MCP_HOST: MCP server host (default: memory-signal-production.up.railway.app)
+- MEMORYOS_MCP_PORT: MCP server port (default: 443)
 - MEMORYOS_MCP_PATH: MCP server path (default: /mcp)
 """
 
@@ -40,17 +40,23 @@ class MemoryMCPClient:
         Initialize MemoryOS MCP client
         
         Args:
-            host: MCP server hostname (defaults to env MEMORYOS_MCP_HOST or 'localhost')
-            port: MCP server port (defaults to env MEMORYOS_MCP_PORT or 8000)
+            host: MCP server hostname (defaults to env MEMORYOS_MCP_HOST or 'memory-signal-production.up.railway.app')
+            port: MCP server port (defaults to env MEMORYOS_MCP_PORT or 443)
             path: MCP server path (defaults to env MEMORYOS_MCP_PATH or '/mcp')
             timeout: Request timeout in seconds
         """
-        self.host = host or os.getenv('MEMORYOS_MCP_HOST', 'localhost')
-        self.port = port or int(os.getenv('MEMORYOS_MCP_PORT', '8000'))
+        self.host = host or os.getenv('MEMORYOS_MCP_HOST', 'memory-signal-production.up.railway.app')
+        self.port = port or int(os.getenv('MEMORYOS_MCP_PORT', '443'))
         self.path = path or os.getenv('MEMORYOS_MCP_PATH', '/mcp')
         self.timeout = timeout
         
-        self.server_url = f"http://{self.host}:{self.port}{self.path}"
+        # Use HTTPS for production Railway deployment
+        protocol = "https" if self.host.endswith('.railway.app') else "http"
+        if self.host.endswith('.railway.app') and self.port == 443:
+            # For HTTPS on standard port, don't include port in URL
+            self.server_url = f"{protocol}://{self.host}{self.path}"
+        else:
+            self.server_url = f"{protocol}://{self.host}:{self.port}{self.path}"
         logger.info(f"MemoryOS MCP Client initialized for {self.server_url}")
     
     @asynccontextmanager
