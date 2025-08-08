@@ -62,8 +62,9 @@ class MemoryMCPClient:
     @asynccontextmanager
     async def _get_session(self):
         """
-        Get an MCP session with proper connection management
+        Get an MCP session with proper connection management and error handling
         """
+        session = None
         try:
             async with streamablehttp_client(self.server_url) as (read, write, _):
                 async with ClientSession(read, write) as session:
@@ -71,6 +72,9 @@ class MemoryMCPClient:
                     yield session
         except Exception as e:
             logger.error(f"Failed to create MCP session: {e}")
+            # Re-raise with more context about the error
+            if "TaskGroup" in str(e):
+                logger.error("TaskGroup error detected - this may be due to concurrent session access")
             raise
     
     async def add_memory(self, user_input: str, agent_response: str, user_id: str = None) -> Dict[str, Any]:
@@ -293,51 +297,71 @@ def get_mcp_client() -> MemoryMCPClient:
 # Tool functions for integration with tool executor
 async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Tool function for adding memory via MCP
+    Tool function for adding memory via MCP with robust error handling
     """
-    client = get_mcp_client()
-    
-    user_input = input_data.get("user_input", "")
-    agent_response = input_data.get("agent_response", "")
-    user_id = input_data.get("user_id")
-    
-    if not user_input or not agent_response:
+    try:
+        client = get_mcp_client()
+        
+        user_input = input_data.get("user_input", "")
+        agent_response = input_data.get("agent_response", "")
+        user_id = input_data.get("user_id")
+        
+        if not user_input or not agent_response:
+            return {
+                "status": "error",
+                "message": "Both user_input and agent_response are required"
+            }
+        
+        return await client.add_memory(user_input, agent_response, user_id)
+    except Exception as e:
+        logger.error(f"Failed to add memory: {e}")
         return {
-            "status": "error",
-            "message": "Both user_input and agent_response are required"
+            "status": "error", 
+            "message": f"Failed to add memory: {str(e)[:100]}", 
+            "error_type": type(e).__name__
         }
-    
-    return await client.add_memory(user_input, agent_response, user_id)
 
 async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Tool function for retrieving memory via MCP
+    Tool function for retrieving memory via MCP with robust error handling
     """
-    client = get_mcp_client()
-    
-    query = input_data.get("query", "")
-    user_id = input_data.get("user_id")
-    relationship_with_user = input_data.get("relationship_with_user", "friend")
-    style_hint = input_data.get("style_hint", "")
-    max_results = input_data.get("max_results", 10)
-    
-    if not query:
+    try:
+        client = get_mcp_client()
+        
+        query = input_data.get("query", "")
+        user_id = input_data.get("user_id")
+        relationship_with_user = input_data.get("relationship_with_user", "friend")
+        style_hint = input_data.get("style_hint", "")
+        max_results = input_data.get("max_results", 10)
+        
+        if not query:
+            return {
+                "status": "error",
+                "query": "",
+                "timestamp": "",
+                "short_term_memory": [],
+                "short_term_count": 0,
+                "error": "Query parameter is required"
+            }
+        
+        return await client.retrieve_memory(
+            query=query,
+            user_id=user_id,
+            relationship_with_user=relationship_with_user,
+            style_hint=style_hint,
+            max_results=max_results
+        )
+    except Exception as e:
+        logger.error(f"Failed to retrieve memory: {e}")
         return {
             "status": "error",
-            "query": "",
+            "query": query if 'query' in locals() else "",
             "timestamp": "",
             "short_term_memory": [],
             "short_term_count": 0,
-            "error": "Query parameter is required"
+            "error": f"Failed to retrieve memory: {str(e)[:100]}",
+            "error_type": type(e).__name__
         }
-    
-    return await client.retrieve_memory(
-        query=query,
-        user_id=user_id,
-        relationship_with_user=relationship_with_user,
-        style_hint=style_hint,
-        max_results=max_results
-    )
 
 async def get_user_profile(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """

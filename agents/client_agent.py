@@ -526,11 +526,14 @@ class ClientAgent:
             # Return JSON-serializable result
             if isinstance(result, dict):
                 # Format the result nicely for display
-                if "success" in result and result["success"]:
-                    data = result.get("data", result.get("result", "No data"))
+                # Check both "success" (boolean) and "status" (string) fields for compatibility
+                is_success = (result.get("success") == True) or (result.get("status") == "success")
+                if is_success:
+                    data = result.get("data", result.get("result", result.get("message", "Operation completed successfully")))
                     return str(data)
                 else:
-                    return f"Error: {result.get('error', 'Unknown error')}"
+                    error_msg = result.get('error', result.get('message', 'Unknown error'))
+                    return f"Error: {error_msg}"
             else:
                 return str(result) if result is not None else "No result returned"
                 
