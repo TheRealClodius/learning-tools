@@ -101,7 +101,22 @@ class MemoryMCPClient:
                 result = await session.call_tool("add_memory", params)
                 
             logger.info(f"Memory added successfully for user_id={user_id}")
-            return result
+            
+            # Parse the MCP CallToolResult to extract the actual JSON data
+            if hasattr(result, 'structuredContent') and result.structuredContent:
+                return result.structuredContent.get('result', result.structuredContent)
+            elif hasattr(result, 'content') and result.content:
+                # Try to parse JSON from text content
+                import json
+                for content_item in result.content:
+                    if hasattr(content_item, 'text'):
+                        try:
+                            return json.loads(content_item.text)
+                        except json.JSONDecodeError:
+                            pass
+            
+            # Fallback: return the raw result if we can't parse it
+            return {"status": "success", "message": "Memory added but could not parse response format"}
             
         except Exception as e:
             error_msg = f"Failed to add memory: {e}"
@@ -149,7 +164,29 @@ class MemoryMCPClient:
                 result = await session.call_tool("retrieve_memory", params)
                 
             logger.info(f"Memory retrieved successfully for user_id={user_id}")
-            return result
+            
+            # Parse the MCP CallToolResult to extract the actual JSON data
+            if hasattr(result, 'structuredContent') and result.structuredContent:
+                return result.structuredContent.get('result', result.structuredContent)
+            elif hasattr(result, 'content') and result.content:
+                # Try to parse JSON from text content
+                import json
+                for content_item in result.content:
+                    if hasattr(content_item, 'text'):
+                        try:
+                            return json.loads(content_item.text)
+                        except json.JSONDecodeError:
+                            pass
+            
+            # Fallback: return error format if we can't parse it
+            return {
+                "status": "error",
+                "query": query,
+                "timestamp": "",
+                "short_term_memory": [],
+                "short_term_count": 0,
+                "error": "Could not parse response format"
+            }
             
         except Exception as e:
             error_msg = f"Failed to retrieve memory: {e}"
@@ -194,7 +231,26 @@ class MemoryMCPClient:
                 result = await session.call_tool("get_user_profile", params)
                 
             logger.info(f"User profile retrieved successfully for user_id={user_id}")
-            return result
+            
+            # Parse the MCP CallToolResult to extract the actual JSON data
+            if hasattr(result, 'structuredContent') and result.structuredContent:
+                return result.structuredContent.get('result', result.structuredContent)
+            elif hasattr(result, 'content') and result.content:
+                # Try to parse JSON from text content
+                import json
+                for content_item in result.content:
+                    if hasattr(content_item, 'text'):
+                        try:
+                            return json.loads(content_item.text)
+                        except json.JSONDecodeError:
+                            pass
+            
+            # Fallback: return error format if we can't parse it
+            return {
+                "status": "error",
+                "user_profile": "Could not parse response format",
+                "error": "Response format parsing failed"
+            }
             
         except Exception as e:
             error_msg = f"Failed to get user profile: {e}"
