@@ -276,10 +276,20 @@ class ClientAgent:
         logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
         logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
         
+        # MEMORY MANAGEMENT: Retrieve conversation history first
+        if streaming_callback:
+            await streaming_callback("Retrieving conversation history from memory...", "operation")
+        
+        memory_context = await self._retrieve_memory_context(user_message, user_id, streaming_callback)
+        
         if streaming_callback:
             await streaming_callback("Assembling context from conversation history...", "operation")
         
         enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
+        
+        # Add memory context to the enriched message if available
+        if memory_context:
+            enriched_message = f"{enriched_message}\n\nRelevant conversation history:\n{memory_context}"
         
         # DEBUG: Log enriched message to detect thinking-only issues
         if enriched_message != user_message:
@@ -422,6 +432,12 @@ class ClientAgent:
         asyncio.create_task(self.insights_agent.analyze_interaction(
             user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
         ))
+        
+        # MEMORY MANAGEMENT: Store conversation in persistent memory
+        if streaming_callback:
+            await streaming_callback("Storing conversation in memory...", "operation")
+        
+        asyncio.create_task(self._store_memory_conversation(user_message, final_response, user_id))
         
         return final_response
     
@@ -1118,7 +1134,85 @@ Generate updated insights:"""
         return '\n'.join(notes[:2])
 
     
-
+    async def _retrieve_memory_context(self, user_message: str, user_id: str, streaming_callback=None) -> str:
+        """Retrieve relevant conversation history from memory"""
+        try:
+            # First get recent conversation history
+            recent_memory_args = {
+                "query": "recent conversation history", 
+                "user_id": user_id,
+                "max_results": 5
+            }
+            
+            recent_result = await self.tool_executor.execute_command("memory.retrieve", recent_memory_args, user_id=user_id)
+            
+            # Then get semantically relevant history based on current message
+            semantic_query = f"previous discussion about {user_message[:100]}"
+            semantic_memory_args = {
+                "query": semantic_query,
+                "user_id": user_id, 
+                "max_results": 3
+            }
+            
+            semantic_result = await self.tool_executor.execute_command("memory.retrieve", semantic_memory_args, user_id=user_id)
+            
+            # Format the memory context
+            context_parts = []
+            
+            if isinstance(recent_result, dict) and recent_result.get("success"):
+                data = recent_result.get("data", {})
+                short_term = data.get("short_term_memory", [])
+                if short_term:
+                    context_parts.append("Recent conversations:")
+                    for i, conv in enumerate(short_term[-3:]):  # Last 3 recent conversations
+                        user_msg = conv.get("user", "")[:100]
+                        agent_msg = conv.get("assistant", "")[:100] 
+                        context_parts.append(f"  {i+1}. User: {user_msg}...")
+                        context_parts.append(f"     Assistant: {agent_msg}...")
+            
+            if isinstance(semantic_result, dict) and semantic_result.get("success"):
+                data = semantic_result.get("data", {})
+                mid_term = data.get("mid_term_memory", [])
+                if mid_term:
+                    context_parts.append("\nRelevant past discussions:")
+                    for i, conv in enumerate(mid_term[:2]):  # Top 2 relevant conversations
+                        user_msg = conv.get("user", "")[:100]
+                        agent_msg = conv.get("assistant", "")[:100]
+                        context_parts.append(f"  {i+1}. User: {user_msg}...")
+                        context_parts.append(f"     Assistant: {agent_msg}...")
+            
+            context = "\n".join(context_parts) if context_parts else ""
+            
+            if streaming_callback and context:
+                await streaming_callback(f"Retrieved {len(context_parts)} memory items", "result")
+            
+            return context
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve memory context: {e}")
+            if streaming_callback:
+                await streaming_callback(f"Memory retrieval failed: {e}", "error")
+            return ""
+    
+    async def _store_memory_conversation(self, user_message: str, agent_response: str, user_id: str):
+        """Store the conversation in persistent memory"""
+        try:
+            memory_args = {
+                "user_input": user_message,
+                "agent_response": agent_response,
+                "user_id": user_id
+            }
+            
+            result = await self.tool_executor.execute_command("memory.add", memory_args, user_id=user_id)
+            
+            if isinstance(result, dict) and result.get("success"):
+                logger.info(f"Successfully stored conversation in memory for user {user_id}")
+            else:
+                logger.warning(f"Failed to store conversation in memory: {result}")
+                
+        except Exception as e:
+            logger.error(f"Error storing conversation in memory: {e}")
+    
     
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""
