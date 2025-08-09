@@ -623,18 +623,13 @@ class ClientAgent:
                 else:
                     await streaming_callback(f"Got result: {str(result)[:150]}...", "result")
             
-            # Return JSON-serializable result
+            # Return the FULL result so the model can actually use it
+            # Do not collapse dict results to a short message; Anthropic expects the tool_result
+            # content to include the structured data for the assistant to reference.
             if isinstance(result, dict):
-                # Format the result nicely for display
-                # Check both "success" (boolean) and "status" (string) fields for compatibility
-                is_success = (result.get("success") == True) or (result.get("status") == "success")
-                if is_success:
-                    data = result.get("data", result.get("result", result.get("message", "Operation completed successfully")))
-                    return str(data)
-                else:
-                    error_msg = result.get('error', result.get('message', 'Unknown error'))
-                    return f"Error: {error_msg}"
+                return result
             else:
+                # For non-dict results, return as string
                 return str(result) if result is not None else "No result returned"
                 
         except Exception as e:
