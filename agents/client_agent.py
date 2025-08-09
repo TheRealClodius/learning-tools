@@ -340,6 +340,53 @@ class ClientAgent:
         if not user_id:
             raise ValueError("user_id is required for agent processing - cannot proceed without user identification")
         
+        # Check if this is a simple greeting that doesn't need reasoning
+        greeting_patterns = [
+            'hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 
+            'good evening', "what's up", "how are you", "howdy", "sup", "yo",
+            'hiya', 'heya', 'hola', 'bonjour', 'salut', 'ciao', 'aloha',
+            "how's it going", "how do you do", "nice to meet you", 'welcome',
+            'good day', 'g\'day', 'morning', 'evening', 'afternoon'
+        ]
+        
+        # Normalize the message for greeting detection
+        normalized_message = user_message.lower().strip()
+        is_simple_greeting = (
+            normalized_message in greeting_patterns or
+            any(normalized_message.startswith(pattern) for pattern in greeting_patterns) or
+            (len(normalized_message.split()) <= 3 and any(pattern in normalized_message for pattern in greeting_patterns))
+        )
+        
+        if is_simple_greeting:
+            logger.info(f"GREETING-DETECTED: Skipping reasoning for simple greeting: '{user_message}'")
+            # For simple greetings, bypass the full agent loop and return a direct response
+            # Still use Claude but with a simplified prompt that explicitly avoids thinking tags
+            
+            loop = asyncio.get_event_loop()
+            simple_response = await loop.run_in_executor(
+                None,
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=200,  # Greetings don't need many tokens
+                    temperature=0.7,
+                    system="You are Signal, a friendly and helpful AI assistant. Respond naturally to greetings without any reasoning or thinking tags. Be warm and conversational.",
+                    messages=[{"role": "user", "content": user_message}],
+                    timeout=30.0
+                )
+            )
+            
+            # Extract the response text
+            response_text = ""
+            for content_block in simple_response.content:
+                if content_block.type == "text":
+                    response_text += content_block.text
+            
+            # Update buffer with the simple exchange
+            self._update_buffer(user_message, response_text, [], [], user_id)
+            
+            logger.info(f"GREETING-RESPONSE: Returned simple greeting response without reasoning")
+            return response_text.strip()
+        
         # DEBUG: Log buffer system usage
         logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
         logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
