@@ -519,7 +519,8 @@ class SlackStreamingHandler:
         
         # Store execution details in the interface cache for button access
         if slack_interface and self.execution_summary:
-            slack_interface.execution_details_cache[self.message_ts] = self.execution_summary.copy()
+            # Add timestamp to cache entry
+            slack_interface.execution_details_cache[self.message_ts] = (time.time(), self.execution_summary.copy())
         
         # Parse the response as markdown and convert to Slack blocks
         try:
@@ -594,8 +595,9 @@ class SlackInterface:
         # Initialize agent
         self.agent = ClientAgent()
         
-        # Store execution details for button access
-        self.execution_details_cache = {}  # message_ts -> execution_summary
+        # Store execution details for button access with timestamps
+        self.execution_details_cache = {}  # message_ts -> (timestamp, execution_summary)
+        self.cache_ttl = 3600  # 1 hour TTL for cache entries
         
         # Cache for user and channel lookups
         self.user_cache = {}  # { 'user_name': 'USER_ID' }
@@ -606,6 +608,9 @@ class SlackInterface:
         
         # Create FastAPI handler
         self.handler = AsyncSlackRequestHandler(self.app)
+        
+        # Start background task for cache cleanup
+        asyncio.create_task(self._cleanup_cache_periodically())
     
     def _setup_handlers(self):
         """Setup basic Slack event handlers"""
@@ -623,10 +628,42 @@ class SlackInterface:
             # Ack immediately to avoid Slack 3s timeout
             try:
                 await ack()
+                logger.info(f"Acknowledged view_execution_details button click from user {body.get('user', {}).get('id')}")
             except Exception as e:
                 logger.warning(f"Slack ack failed for view_execution_details: {e}")
-            # Open the modal synchronously to use the fresh trigger_id
-            await self._show_execution_details_modal(body, client)
+                # If ack fails, we should not proceed as the trigger_id might be invalid
+                return
+            
+            # Use a small delay to ensure Slack has processed the ack
+            await asyncio.sleep(0.1)
+            
+            # Open the modal with retry logic for reliability
+            max_retries = 3
+            retry_delay = 0.5
+            
+            for attempt in range(max_retries):
+                try:
+                    await self._show_execution_details_modal(body, client)
+                    logger.info(f"Successfully opened execution details modal on attempt {attempt + 1}")
+                    break
+                except Exception as e:
+                    logger.error(f"Attempt {attempt + 1} failed to open modal: {e}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, notify user
+                        try:
+                            channel_id = body.get("channel", {}).get("id") or body.get("container", {}).get("channel_id")
+                            user_id = body.get("user", {}).get("id")
+                            if channel_id and user_id:
+                                await client.chat_postEphemeral(
+                                    channel=channel_id,
+                                    user=user_id,
+                                    text="Unable to open execution details. Please try again."
+                                )
+                        except:
+                            pass
 
         @self.app.action("flow_next_page")
         async def handle_flow_next_page(ack, body, client):
@@ -658,13 +695,26 @@ class SlackInterface:
     async def _show_execution_details_modal(self, body, client):
         """Show execution details in a modal"""
         try:
+            # Log the incoming request details
+            trigger_id = body.get("trigger_id")
+            user_id = body.get("user", {}).get("id")
+            logger.info(f"Opening execution details modal for user {user_id} with trigger_id {trigger_id}")
+            
+            # Validate trigger_id exists
+            if not trigger_id:
+                logger.error("No trigger_id found in body - cannot open modal")
+                raise ValueError("Missing trigger_id")
+            
             # Get the message timestamp from the button value
             message_ts = body["actions"][0]["value"]
+            logger.info(f"Looking up execution details for message_ts: {message_ts}")
             
             # Get execution details from cache
-            execution_details = self.execution_details_cache.get(message_ts, [])
+            cached_entry = self.execution_details_cache.get(message_ts)
             
-            if not execution_details:
+            if not cached_entry:
+                logger.warning(f"No execution details found in cache for message_ts: {message_ts}")
+                logger.debug(f"Current cache keys: {list(self.execution_details_cache.keys())}")
                 await client.chat_postEphemeral(
                     channel=body["channel"]["id"],
                     user=body["user"]["id"],
@@ -672,18 +722,50 @@ class SlackInterface:
                 )
                 return
             
+            # Check if cache entry is stale
+            timestamp, execution_details = cached_entry
+            if time.time() - timestamp > self.cache_ttl:
+                logger.warning(f"Cache entry for message_ts {message_ts} is stale. TTL: {self.cache_ttl}s, Current age: {int(time.time() - timestamp)}s")
+                await client.chat_postEphemeral(
+                    channel=body["channel"]["id"],
+                    user=body["user"]["id"],
+                    text="Execution details are outdated. Please try again."
+                )
+                return
+
+            logger.info(f"Found {len(execution_details)} execution detail blocks")
+            
             # Build paginated modal pages with full content (no truncation) while respecting Slack limits
             pages = self._build_execution_pages(execution_details)
             total_pages = len(pages) if pages else 1
             page_index = 0
+            logger.info(f"Built {total_pages} pages for modal")
+            
             modal_view = self._build_modal_view(pages[page_index] if pages else [], page_index, total_pages, message_ts)
-            await client.views_open(
-                trigger_id=body["trigger_id"],
+            
+            # Log modal size for debugging
+            modal_json = json.dumps(modal_view)
+            logger.info(f"Modal JSON size: {len(modal_json)} bytes")
+            
+            # Open the modal
+            logger.info(f"Attempting to open modal with trigger_id: {trigger_id}")
+            response = await client.views_open(
+                trigger_id=trigger_id,
                 view=modal_view
             )
             
+            if response.get("ok"):
+                logger.info(f"Modal opened successfully with view_id: {response.get('view', {}).get('id')}")
+            else:
+                logger.error(f"Slack API returned not ok: {response}")
+            
         except Exception as e:
-            logger.error(f"Error showing execution details modal: {e}")
+            logger.error(f"Error showing execution details modal: {e}", exc_info=True)
+            # Log additional context
+            logger.error(f"Body keys: {list(body.keys())}")
+            logger.error(f"User: {body.get('user', {}).get('id')}")
+            logger.error(f"Channel: {body.get('channel', {}).get('id')}")
+            
             try:
                 channel_id = body.get("channel", {}).get("id") or body.get("container", {}).get("channel_id")
                 user_id = body.get("user", {}).get("id")
@@ -808,7 +890,12 @@ class SlackInterface:
 
     async def _update_execution_modal_page(self, client, body, message_ts: str, page_index: int) -> None:
         """Update the modal view to a different page using views.update."""
-        execution_details = self.execution_details_cache.get(message_ts, [])
+        cached_entry = self.execution_details_cache.get(message_ts)
+        if not cached_entry:
+            logger.error(f"No execution details found for message_ts: {message_ts}")
+            return
+        
+        timestamp, execution_details = cached_entry
         pages = self._build_execution_pages(execution_details)
         total_pages = len(pages) if pages else 1
         if page_index >= total_pages:
@@ -1377,6 +1464,22 @@ class SlackInterface:
     def get_fastapi_handler(self):
         """Get FastAPI handler for webhook integration"""
         return self.handler
+
+    async def _cleanup_cache_periodically(self):
+        """Background task to clean up stale cache entries."""
+        while True:
+            current_time = time.time()
+            keys_to_delete = []
+            for message_ts, (timestamp, _) in self.execution_details_cache.items():
+                if current_time - timestamp > self.cache_ttl:
+                    keys_to_delete.append(message_ts)
+                    logger.info(f"Cache entry for message_ts {message_ts} expired. Deleting.")
+            
+            for message_ts in keys_to_delete:
+                del self.execution_details_cache[message_ts]
+            
+            logger.info(f"Cache cleanup complete. {len(keys_to_delete)} entries deleted.")
+            await asyncio.sleep(self.cache_ttl) # Check every TTL seconds
 
 # For FastAPI integration
 def create_slack_app():
