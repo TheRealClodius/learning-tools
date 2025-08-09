@@ -285,11 +285,25 @@ class ClientAgent:
                 platform = context.get('platform', 'unknown')
                 timestamp = context.get('timestamp', 'unknown')
                 user_timezone = context.get('user_timezone', '')
+                user_name = context.get('user_name', '')
+                user_title = context.get('user_title', '')
                 
+                # Build context string with available user information
+                context_parts = [f"Platform={platform}"]
+                
+                # Add user information if available
+                if user_name:
+                    context_parts.append(f"User={user_name}")
+                if user_title:
+                    context_parts.append(f"Role={user_title}")
+                
+                # Add timestamp with timezone
                 if user_timezone and user_timezone != 'UTC':
-                    full_message += f"\n\n[Context: Platform={platform}, Current time for user: {timestamp} ({user_timezone})]"
+                    context_parts.append(f"Current time for user: {timestamp} ({user_timezone})")
                 else:
-                    full_message += f"\n\n[Context: Platform={platform}, Current time: {timestamp}]"
+                    context_parts.append(f"Current time: {timestamp}")
+                
+                full_message += f"\n\n[Context: {', '.join(context_parts)}]"
             
             # Run the agent loop with iterative tool calling and user isolation
             logger.info(f"CLIENT-AGENT-BUFFER: Calling run_agent_loop with user_id='{user_id}'")

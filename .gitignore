@@ -80,4 +80,8 @@ coverage.xml
 # mypy
 .mypy_cache/
 .dmypy.json
-dmypy.json 
+dmypy.json
+
+# Database files
+*.db
+slack_users.db 
