@@ -17,6 +17,7 @@ import yaml
 
 from runtime.tool_executor import ToolExecutor
 from agents.convo_insights_agent import ConvoInsightsAgent
+from runtime.prompt_cache import PromptCache
 
 # Load environment variables from .env.local file
 load_dotenv('.env.local', override=True)
@@ -29,7 +30,7 @@ class ClientAgent:
     and integrates with the tool registry for dynamic tool discovery.
     """
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, enable_caching: bool = True):
         """Initialize the client agent with Claude API"""
         # Setup Claude API
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
@@ -47,6 +48,24 @@ class ClientAgent:
         self.max_tokens = self.config.get('model_config', {}).get('max_tokens', 4096)
         self.temperature = self.config.get('model_config', {}).get('temperature', 0.7)
         self.max_iterations = self.config.get('model_config', {}).get('max_iterations', 50)
+        
+        # Initialize prompt caching
+        self.enable_caching = enable_caching
+        self.prompt_cache = None
+        if enable_caching:
+            try:
+                redis_url = os.getenv("REDIS_URL")
+                self.prompt_cache = PromptCache(
+                    redis_url=redis_url,
+                    max_memory_entries=1000,
+                    default_ttl=3600,  # 1 hour
+                    system_prompt_ttl=86400,  # 24 hours
+                    enable_anthropic_caching=True
+                )
+                logger.info("Prompt caching enabled with Redis support" if redis_url else "Prompt caching enabled (memory-only)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize prompt caching: {e}. Proceeding without caching.")
+                self.prompt_cache = None
 
         
         # Define function schemas for Claude - use underscore format per Anthropic API constraints
@@ -339,22 +358,85 @@ class ClientAgent:
             if streaming_callback:
                 await streaming_callback(f"Agent iteration {iteration + 1}", "status")
             
-            # Generate response using Claude
+            # Generate response using Claude with caching
             loop = asyncio.get_event_loop()
             t_llm = time.time()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    system=self.system_prompt,
-                    messages=messages,
-                    tools=self.tools,
-                    timeout=60.0  # Add timeout to prevent streaming errors
+            
+            # Apply caching if enabled
+            if self.prompt_cache:
+                try:
+                    # Cache system prompt
+                    cached_system_prompt, system_from_cache = await self.prompt_cache.get_cached_system_prompt(self.system_prompt)
+                    
+                    # Cache messages
+                    cached_messages, messages_from_cache = await self.prompt_cache.get_cached_messages(messages)
+                    
+                    # Cache tools
+                    cached_tools, tools_from_cache = await self.prompt_cache.get_cached_tools(self.tools)
+                    
+                    if system_from_cache or messages_from_cache or tools_from_cache:
+                        logger.info(f"CACHE-HIT: System={system_from_cache}, Messages={messages_from_cache}, Tools={tools_from_cache}")
+                    
+                    # Prepare request with caching optimizations
+                    if self.prompt_cache.enable_anthropic_caching and cached_system_prompt:
+                        # Use Anthropic's prompt caching format
+                        claude_system = [
+                            {
+                                "type": "text", 
+                                "text": cached_system_prompt,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ]
+                    else:
+                        claude_system = cached_system_prompt
+                    
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: self.client.messages.create(
+                            model=self.model,
+                            max_tokens=self.max_tokens,
+                            temperature=self.temperature,
+                            system=claude_system,
+                            messages=cached_messages,
+                            tools=cached_tools,
+                            timeout=60.0  # Add timeout to prevent streaming errors
+                        )
+                    )
+                except Exception as cache_error:
+                    logger.warning(f"Cache error, falling back to normal request: {cache_error}")
+                    # Fallback to normal request without caching
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: self.client.messages.create(
+                            model=self.model,
+                            max_tokens=self.max_tokens,
+                            temperature=self.temperature,
+                            system=self.system_prompt,
+                            messages=messages,
+                            tools=self.tools,
+                            timeout=60.0  # Add timeout to prevent streaming errors
+                        )
+                    )
+            else:
+                # Normal request without caching
+                response = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.messages.create(
+                        model=self.model,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        system=self.system_prompt,
+                        messages=messages,
+                        tools=self.tools,
+                        timeout=60.0  # Add timeout to prevent streaming errors
+                    )
                 )
-            )
             logger.info(f"AGENT-TIMING: LLM call took {int((time.time()-t_llm)*1000)} ms user={user_id} iter={iteration+1}")
+            
+            # Log cache statistics if caching is enabled
+            if self.prompt_cache and iteration == 0:  # Log stats on first iteration only
+                cache_stats = self.prompt_cache.get_cache_stats()
+                logger.info(f"CACHE-STATS: {cache_stats}")
             
             logger.info(f"Claude response iteration {iteration + 1}: {response}")
             
@@ -1220,10 +1302,53 @@ Generate updated insights:"""
     
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""
-        return {
+        status = {
             "agent_type": "ClientAgent",
-            "model": "gemini-2.5-flash",
+            "model": self.model,
             "api_configured": bool(self.api_key),
             "tools_loaded": len(self.tool_executor.get_loaded_tools()),
-            "status": "active"
+            "status": "active",
+            "caching_enabled": self.enable_caching
         }
+        
+        # Add cache statistics if caching is enabled
+        if self.prompt_cache:
+            status["cache_stats"] = self.prompt_cache.get_cache_stats()
+        
+        return status
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get current cache statistics"""
+        if self.prompt_cache:
+            return self.prompt_cache.get_cache_stats()
+        return {"caching_enabled": False}
+    
+    async def clear_cache(self, pattern: Optional[str] = None):
+        """Clear cache entries matching pattern or all if no pattern"""
+        if self.prompt_cache:
+            await self.prompt_cache.clear_cache(pattern)
+            logger.info(f"Cache cleared{f' (pattern: {pattern})' if pattern else ''}")
+        else:
+            logger.warning("Caching not enabled")
+    
+    def toggle_caching(self, enable: bool = True):
+        """Enable or disable caching"""
+        if enable and not self.prompt_cache:
+            try:
+                redis_url = os.getenv("REDIS_URL")
+                self.prompt_cache = PromptCache(
+                    redis_url=redis_url,
+                    max_memory_entries=1000,
+                    default_ttl=3600,
+                    system_prompt_ttl=86400,
+                    enable_anthropic_caching=True
+                )
+                self.enable_caching = True
+                logger.info("Prompt caching enabled")
+            except Exception as e:
+                logger.error(f"Failed to enable caching: {e}")
+                self.prompt_cache = None
+                self.enable_caching = False
+        elif not enable:
+            self.enable_caching = False
+            logger.info("Prompt caching disabled")
