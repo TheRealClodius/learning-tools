@@ -448,10 +448,17 @@ class ClientAgent:
                 if tool_call.name in ["memory_retrieve", "memory_add"]:
                     logger.info(f"MEMORY-DEBUG tool={tool_call.name} result_type={type(result)} result_preview={str(result)[:500]}")
                 
+                # For memory tools, try JSON formatting for better Claude parsing
+                if tool_call.name in ["memory_retrieve", "memory_add"] and isinstance(result, dict):
+                    import json
+                    content = json.dumps(result, indent=2)
+                else:
+                    content = str(result)
+                
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tool_call.id,
-                    "content": str(result)
+                    "content": content
                 })
                 
                 # Note: Tools are now discovered purely through registry search
