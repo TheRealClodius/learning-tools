@@ -11,6 +11,12 @@ from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
 # Import agent components
 from agents.client_agent import ClientAgent
 
+# Import rate limit handler
+from runtime.rate_limit_handler import (
+    RateLimitHandler, RateLimitConfig, RateLimitError,
+    with_rate_limit, get_global_handler
+)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -942,16 +948,41 @@ class SlackInterface:
             logger.info(f"SLACK-TIMING: end-to-end for user={user_id} ms={int((time.time()-t_overall)*1000)}")
             logger.info(f"Sent response to {user_id}: {response_text[:50]}...")
             
+        except RateLimitError as e:
+            logger.warning(f"Rate limit error for user {user_id}: {e}")
+            
+            # Show user-friendly rate limit message
+            if streaming_handler and streaming_handler.message_ts:
+                try:
+                    # The RateLimitError already contains a user-friendly message
+                    await streaming_handler.finish_with_response(str(e), self)
+                except:
+                    pass  # Fallback failed, just log
+                    
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             
-            # If streaming was started, try to show error in that message
-            if streaming_handler and streaming_handler.message_ts:
-                try:
-                    error_text = f"❌ **Error Processing Request**\n\nSorry, I encountered an error while processing your message:\n\n`{str(e)}`"
-                    await streaming_handler.finish_with_response(error_text, self)
-                except:
-                    pass  # Fallback failed, just log
+            # Check if this is a rate limit error that wasn't caught above
+            error_str = str(e).lower()
+            if 'rate_limit_error' in error_str or '429' in error_str:
+                friendly_msg = (
+                    "⏳ The service is experiencing high demand. "
+                    "I'll automatically retry your request in a moment. "
+                    "If this persists, please try again in a few minutes."
+                )
+                if streaming_handler and streaming_handler.message_ts:
+                    try:
+                        await streaming_handler.finish_with_response(friendly_msg, self)
+                    except:
+                        pass
+            else:
+                # Other errors - show generic message
+                if streaming_handler and streaming_handler.message_ts:
+                    try:
+                        error_text = f"❌ **Error Processing Request**\n\nSorry, I encountered an error while processing your message:\n\n`{str(e)}`"
+                        await streaming_handler.finish_with_response(error_text, self)
+                    except:
+                        pass  # Fallback failed, just log
     
     async def _get_user_timezone(self, user_id: str) -> str:
         """Get user's timezone from their Slack profile"""

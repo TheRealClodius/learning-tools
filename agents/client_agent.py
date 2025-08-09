@@ -17,6 +17,9 @@ import yaml
 
 from runtime.tool_executor import ToolExecutor
 from agents.convo_insights_agent import ConvoInsightsAgent
+from runtime.rate_limit_handler import (
+    RateLimitHandler, RateLimitConfig, with_rate_limit
+)
 
 # Load environment variables from .env.local file
 load_dotenv('.env.local', override=True)
@@ -43,6 +46,13 @@ class ClientAgent:
                 "anthropic-beta": "prompt-caching-2024-07-31",
             },
         )
+        
+        # Initialize rate limit handler with configuration from YAML
+        from runtime.rate_limit_handler import load_config_from_yaml
+        tier = os.getenv('ANTHROPIC_TIER', 'default')
+        rate_limit_config = load_config_from_yaml(tier)
+        self.rate_limit_handler = RateLimitHandler(rate_limit_config)
+        logger.info(f"Initialized rate limiter for tier: {tier} with {rate_limit_config.tokens_per_minute} tokens/min")
         
         # Load configuration from YAML file
         self.config = self._load_config()
@@ -350,22 +360,41 @@ class ClientAgent:
             if streaming_callback:
                 await streaming_callback(f"Agent iteration {iteration + 1}", "status")
             
-            # Generate response using Claude
+            # Generate response using Claude with rate limiting
             loop = asyncio.get_event_loop()
             t_llm = time.time()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    # Mark system prompt as cacheable
-                    system=[{"type": "text", "text": self.system_prompt, "cache_control": {"type": "ephemeral"}}],
-                    messages=messages,
-                    tools=self.tools,
-                    timeout=60.0  # Add timeout to prevent streaming errors
-                )
+            
+            # Estimate tokens for rate limiting (rough estimate)
+            message_text = " ".join([
+                msg.get("content", "") if isinstance(msg.get("content"), str) 
+                else " ".join([c.get("text", "") for c in msg.get("content", []) if c.get("type") == "text"])
+                for msg in messages
+            ])
+            token_estimate = self.rate_limit_handler.estimate_tokens(
+                self.system_prompt + message_text
             )
+            
+            # Make API call with rate limit handling
+            async def make_api_call():
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self.client.messages.create(
+                        model=self.model,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        # Mark system prompt as cacheable
+                        system=[{"type": "text", "text": self.system_prompt, "cache_control": {"type": "ephemeral"}}],
+                        messages=messages,
+                        tools=self.tools,
+                        timeout=60.0  # Add timeout to prevent streaming errors
+                    )
+                )
+            
+            response = await self.rate_limit_handler.execute_with_retry(
+                make_api_call,
+                estimate_tokens=token_estimate
+            )
+            
             logger.info(f"AGENT-TIMING: LLM call took {int((time.time()-t_llm)*1000)} ms user={user_id} iter={iteration+1}")
             
             logger.info(f"Claude response iteration {iteration + 1}: {response}")

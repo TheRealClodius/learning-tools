@@ -1,0 +1,71 @@
+# Rate Limit Configuration
+# Adjust these values based on your Anthropic API plan
+
+# Default configuration (suitable for most plans)
+default:
+  max_retries: 3
+  initial_delay: 2.0  # seconds
+  max_delay: 60.0     # seconds
+  backoff_factor: 2.0
+  
+  # Token limits - adjust based on your plan
+  # See: https://docs.anthropic.com/en/api/rate-limits
+  tokens_per_minute: 40000    # Default tier
+  burst_size: 8000            # Maximum tokens in a single burst
+  
+  # Queue settings
+  max_queue_size: 100
+  queue_timeout: 300.0  # 5 minutes
+
+# Tier-specific configurations
+tiers:
+  # Free tier
+  free:
+    tokens_per_minute: 10000
+    burst_size: 2000
+    
+  # Build tier 1
+  build_1:
+    tokens_per_minute: 50000
+    burst_size: 10000
+    
+  # Build tier 2
+  build_2:
+    tokens_per_minute: 100000
+    burst_size: 20000
+    
+  # Build tier 3
+  build_3:
+    tokens_per_minute: 200000
+    burst_size: 40000
+    
+  # Build tier 4
+  build_4:
+    tokens_per_minute: 400000
+    burst_size: 80000
+    
+  # Scale tier
+  scale:
+    tokens_per_minute: 800000
+    burst_size: 160000
+
+# User-friendly messages for different scenarios
+messages:
+  first_retry: "🔄 I'm experiencing high demand right now. Let me try again in just a moment..."
+  subsequent_retry: "⏳ Still working on your request (attempt {attempt}). The service is quite busy, but I'll keep trying..."
+  final_failure: |
+    😔 I'm sorry, but the service is currently overloaded and I couldn't complete your request.
+    This usually happens during peak usage times. Please try again in a few minutes,
+    or try breaking your request into smaller parts.
+  
+  # Specific messages for different interfaces
+  slack:
+    waiting: "⏱️ Your request is in queue due to high demand. I'll process it as soon as possible..."
+    processing: "🔄 Processing your request..."
+    
+  cli:
+    waiting: "⏳ Request queued due to rate limits. Waiting for available capacity..."
+    processing: "🔄 Retrying request..."
+    
+  api:
+    rate_limit_response: "Service is experiencing high demand. Please retry after {retry_after} seconds."
