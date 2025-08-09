@@ -20,6 +20,7 @@ from agents.convo_insights_agent import ConvoInsightsAgent
 from runtime.rate_limit_handler import (
     RateLimitHandler, RateLimitConfig, with_rate_limit
 )
+from tools.memory_mcp import close_mcp_client  # Import cleanup function
 
 # Load environment variables from .env.local file
 load_dotenv('.env.local', override=True)
@@ -204,6 +205,9 @@ class ClientAgent:
                 }
             }
         ]
+        
+        # Track background tasks for cleanup
+        self._background_tasks: set[asyncio.Task] = set()
         
         # Initialize tool executor for dynamic tool discovery
         self.tool_executor = ToolExecutor()
@@ -547,9 +551,10 @@ class ClientAgent:
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
         
         # Update insights asynchronously using Conversation Insights Agent (non-blocking)
-        asyncio.create_task(self.insights_agent.analyze_interaction(
+        insights_task = asyncio.create_task(self.insights_agent.analyze_interaction(
             user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
         ))
+        self._track_background_task(insights_task)
         
         return final_response
     
@@ -1282,3 +1287,38 @@ Generate updated insights:"""
             "tools_loaded": len(self.tool_executor.get_loaded_tools()),
             "status": "active"
         }
+
+    async def cleanup(self):
+        """Cleanup resources including background tasks and MCP connections"""
+        logger.info("ClientAgent cleanup: Starting cleanup process")
+        
+        # Cancel all background tasks
+        for task in self._background_tasks:
+            if not task.done():
+                task.cancel()
+                
+        # Wait for all tasks to complete or be cancelled
+        if self._background_tasks:
+            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            
+        # Clear the task set
+        self._background_tasks.clear()
+        
+        # Close MCP client connection
+        await close_mcp_client()
+        
+        logger.info("ClientAgent cleanup: Cleanup completed")
+    
+    def _track_background_task(self, task: asyncio.Task):
+        """Track a background task and remove it when done"""
+        self._background_tasks.add(task)
+        task.add_done_callback(lambda t: self._background_tasks.discard(t))
+    
+    async def __aenter__(self):
+        """Enter context manager"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager with cleanup"""
+        await self.cleanup()
+        return False

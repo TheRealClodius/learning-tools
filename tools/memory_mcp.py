@@ -455,19 +455,28 @@ async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     Tool function for adding memory via MCP with robust error handling
     """
     try:
-        client = get_mcp_client()
-        
-        user_input = input_data.get("user_input", "")
-        agent_response = input_data.get("agent_response", "")
-        user_id = input_data.get("user_id")
-        
-        if not user_input or not agent_response:
-            return {
-                "status": "error",
-                "message": "Both user_input and agent_response are required"
-            }
-        
-        return await client.add_memory(user_input, agent_response, user_id)
+        # Add overall timeout to prevent hanging
+        async with asyncio.timeout(30):  # 30 second hard timeout
+            client = get_mcp_client()
+            
+            user_input = input_data.get("user_input", "")
+            agent_response = input_data.get("agent_response", "")
+            user_id = input_data.get("user_id")
+            
+            if not user_input or not agent_response:
+                return {
+                    "status": "error",
+                    "message": "Both user_input and agent_response are required"
+                }
+            
+            return await client.add_memory(user_input, agent_response, user_id)
+    except asyncio.TimeoutError:
+        logger.error("Memory add operation timed out after 30 seconds")
+        return {
+            "status": "error",
+            "message": "Memory operation timed out",
+            "error_type": "TimeoutError"
+        }
     except Exception as e:
         logger.error(f"Failed to add memory: {e}")
         return {
@@ -481,31 +490,44 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     Tool function for retrieving memory via MCP with robust error handling
     """
     try:
-        client = get_mcp_client()
-        
-        query = input_data.get("query", "")
-        user_id = input_data.get("user_id")
-        relationship_with_user = input_data.get("relationship_with_user", "friend")
-        style_hint = input_data.get("style_hint", "")
-        max_results = input_data.get("max_results", 10)
-        
-        if not query:
-            return {
-                "status": "error",
-                "query": "",
-                "timestamp": "",
-                "short_term_memory": [],
-                "short_term_count": 0,
-                "error": "Query parameter is required"
-            }
-        
-        return await client.retrieve_memory(
-            query=query,
-            user_id=user_id,
-            relationship_with_user=relationship_with_user,
-            style_hint=style_hint,
-            max_results=max_results
-        )
+        # Add overall timeout to prevent hanging
+        async with asyncio.timeout(30):  # 30 second hard timeout
+            client = get_mcp_client()
+            
+            query = input_data.get("query", "")
+            user_id = input_data.get("user_id")
+            relationship_with_user = input_data.get("relationship_with_user", "friend")
+            style_hint = input_data.get("style_hint", "")
+            max_results = input_data.get("max_results", 10)
+            
+            if not query:
+                return {
+                    "status": "error",
+                    "query": "",
+                    "timestamp": "",
+                    "short_term_memory": [],
+                    "short_term_count": 0,
+                    "error": "Query parameter is required"
+                }
+            
+            return await client.retrieve_memory(
+                query=query,
+                user_id=user_id,
+                relationship_with_user=relationship_with_user,
+                style_hint=style_hint,
+                max_results=max_results
+            )
+    except asyncio.TimeoutError:
+        logger.error("Memory retrieve operation timed out after 30 seconds")
+        return {
+            "status": "error",
+            "query": input_data.get("query", ""),
+            "timestamp": "",
+            "short_term_memory": [],
+            "short_term_count": 0,
+            "error": "Memory operation timed out",
+            "error_type": "TimeoutError"
+        }
     except Exception as e:
         logger.error(f"Failed to retrieve memory: {e}")
         return {
