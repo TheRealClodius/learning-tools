@@ -83,8 +83,13 @@ class MemoryMCPClient:
             # Tear down any half-open state first
             await self._close_session(silent=True)
             try:
-                # Open client transport
-                self._client_cm = streamablehttp_client(self.server_url)
+                # Open client transport with SSE headers
+                headers = {
+                    "Accept": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
+                self._client_cm = streamablehttp_client(self.server_url, headers=headers)
                 if hasattr(asyncio, "timeout"):
                     async with asyncio.timeout(self._fast_timeout):
                         self._read, self._write, _ = await self._client_cm.__aenter__()
