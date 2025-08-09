@@ -448,8 +448,8 @@ class ClientAgent:
                 if tool_call.name in ["memory_retrieve", "memory_add"]:
                     logger.info(f"MEMORY-DEBUG tool={tool_call.name} result_type={type(result)} result_preview={str(result)[:500]}")
                 
-                # For memory tools, try JSON formatting for better Claude parsing
-                if tool_call.name in ["memory_retrieve", "memory_add"] and isinstance(result, dict):
+                # For any dict result, format as JSON so the model can parse it reliably
+                if isinstance(result, dict):
                     import json
                     content = json.dumps(result, indent=2)
                 else:

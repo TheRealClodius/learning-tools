@@ -35,11 +35,11 @@ system_prompt: |
   - to retrieve user profile: memory.get_user_profile
   
   MEMORY RESULT PROCESSING:
-  Memory retrieval returns a JSON object with multiple fields:
+  Memory retrieval returns a JSON object. You will receive that JSON back as a tool_result content block formatted as JSON. You MUST parse and use it:
   - short_term_memory: Most recent exchanges (ALWAYS check this)
   - retrieved_pages: Historical conversations (ALWAYS check this)
   - user_profile: User information
-  You MUST examine ALL fields and use any relevant information in your response.
+  If any relevant entries are present, include them in your reasoning and response. Do not claim no context when data is present.
   
   MEMORY ERROR HANDLING:
   If a memory operation fails once, acknowledge the failure but do not retry the same operation. Continue with the conversation normally.
