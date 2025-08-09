@@ -75,14 +75,46 @@ class MemoryMCPClient:
     
     async def _ensure_session(self) -> None:
         """Ensure a persistent MCP session is established and initialized."""
-        # TEMPORARY FIX: Disable MCP connection due to SSE protocol mismatch
-        # The Memory-Signal server requires Accept: text/event-stream header
-        # which the current MCP client doesn't support properly
-        logger.warning("MCP session disabled - Memory-Signal server requires SSE protocol")
-        raise ConnectionError(
-            "Memory-Signal MCP server connection disabled due to protocol mismatch. "
-            "Server requires SSE (text/event-stream) which is not supported by current client."
-        )
+        if self._session_ready and self._session is not None:
+            return
+        async with self._connection_lock:
+            if self._session_ready and self._session is not None:
+                return
+            # Tear down any half-open state first
+            await self._close_session(silent=True)
+            try:
+                # Open client transport with SSE headers
+                headers = {
+                    "Accept": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
+                self._client_cm = streamablehttp_client(self.server_url, headers=headers)
+                if hasattr(asyncio, "timeout"):
+                    async with asyncio.timeout(self._fast_timeout):
+                        self._read, self._write, _ = await self._client_cm.__aenter__()
+                else:
+                    self._read, self._write, _ = await self._client_cm.__aenter__()
+
+                # Open MCP client session
+                self._session_cm = ClientSession(self._read, self._write)
+                if hasattr(asyncio, "timeout"):
+                    async with asyncio.timeout(self._fast_timeout):
+                        self._session = await self._session_cm.__aenter__()
+                        await self._session.initialize()
+                else:
+                    self._session = await self._session_cm.__aenter__()
+                    await self._session.initialize()
+
+                self._session_ready = True
+            except asyncio.TimeoutError:
+                logger.error(f"MCP session creation timed out after {self._fast_timeout}s")
+                await self._close_session(silent=True)
+                raise
+            except Exception as e:
+                logger.error(f"Failed to create MCP session: {e}")
+                await self._close_session(silent=True)
+                raise
 
     async def _close_session(self, silent: bool = False) -> None:
         """Close and reset the persistent session and transport safely."""
