@@ -7,6 +7,7 @@ import logging
 # Import agent and runtime components
 from agents.research_agent import ResearchAgent
 from runtime.tool_executor import ToolExecutor
+from runtime.rate_limit_handler import RateLimitError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -67,8 +68,18 @@ async def chat_with_agent(message: ChatMessage):
             context=response.get("context", {})
         )
         
+    except RateLimitError as e:
+        logger.warning(f"Rate limit error: {str(e)}")
+        raise HTTPException(status_code=429, detail=str(e))
+        
     except Exception as e:
         logger.error(f"Error processing chat message: {str(e)}")
+        # Check if it's a rate limit error that wasn't caught
+        if 'rate_limit_error' in str(e).lower() or '429' in str(e):
+            raise HTTPException(
+                status_code=429, 
+                detail="Service is experiencing high demand. Please try again in a moment."
+            )
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.websocket("/api/chat/stream")

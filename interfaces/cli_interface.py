@@ -13,6 +13,7 @@ load_dotenv('.env.local', override=True)
 # Import agent and runtime components
 from agents.client_agent import ClientAgent
 from runtime.tool_executor import ToolExecutor
+from runtime.rate_limit_handler import RateLimitError
 
 # Configure logging for CLI
 logging.basicConfig(
@@ -144,9 +145,18 @@ class CLIInterface:
             # Display response
             self._display_response(response)
             
+        except RateLimitError as e:
+            self.thinking_active = False
+            # Rate limit errors already have user-friendly messages
+            print(f"\n{str(e)}")
+            
         except Exception as e:
             self.thinking_active = False
-            print(f"\n❌ Agent Error: {str(e)}")
+            # Check if it's a rate limit error that wasn't caught
+            if 'rate_limit_error' in str(e).lower() or '429' in str(e):
+                print("\n⏳ The service is experiencing high demand. Please try again in a moment.")
+            else:
+                print(f"\n❌ Agent Error: {str(e)}")
             if self.verbose:
                 logger.exception("Agent processing error:")
     
