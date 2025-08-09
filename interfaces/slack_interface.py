@@ -17,6 +17,9 @@ from runtime.rate_limit_handler import (
     with_rate_limit, get_global_handler
 )
 
+# Import database for user caching
+from database import user_db
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -904,8 +907,9 @@ class SlackInterface:
             import datetime
             from zoneinfo import ZoneInfo
             
-            # Get user's timezone from Slack profile
-            user_timezone = await self._get_user_timezone(user_id)
+            # Get user's full information including name, role, and timezone
+            user_info = await self._get_user_info(user_id)
+            user_timezone = user_info.get('timezone', 'UTC')
             
             try:
                 user_tz = ZoneInfo(user_timezone)
@@ -923,7 +927,10 @@ class SlackInterface:
                 "channel_id": channel_id,
                 "thread_ts": thread_ts,
                 "timestamp": timestamp,
-                "user_timezone": user_timezone
+                "user_timezone": user_timezone,
+                "user_name": user_info.get('real_name', ''),
+                "user_display_name": user_info.get('display_name', ''),
+                "user_title": user_info.get('title', '')
             }
             
             t_agent = time.time()
@@ -1030,6 +1037,60 @@ class SlackInterface:
         except Exception as e:
             logger.error(f"Error getting user timezone for {user_id}: {e}")
             return "UTC"
+    
+    async def _get_user_info(self, user_id: str) -> Dict[str, Any]:
+        """Get user information with database caching
+        
+        First checks database, then fetches from Slack API if not found or stale
+        """
+        try:
+            # Check database first
+            cached_user = await user_db.get_user(user_id)
+            
+            if cached_user:
+                logger.info(f"Found user {user_id} in database cache")
+                return {
+                    'real_name': cached_user.get('real_name', ''),
+                    'display_name': cached_user.get('display_name', ''),
+                    'title': cached_user.get('title', ''),
+                    'timezone': cached_user.get('timezone', 'UTC')
+                }
+            
+            # Not in database, fetch from Slack API
+            logger.info(f"User {user_id} not in database, fetching from Slack API")
+            response = await self.app.client.users_info(user=user_id)
+            
+            if response["ok"]:
+                user_info = response["user"]
+                
+                # Save to database for future use
+                await user_db.save_user(user_id, user_info)
+                
+                # Extract key fields
+                profile = user_info.get('profile', {})
+                return {
+                    'real_name': user_info.get('real_name', profile.get('real_name', '')),
+                    'display_name': profile.get('display_name', user_info.get('name', '')),
+                    'title': profile.get('title', ''),
+                    'timezone': user_info.get('tz', 'UTC')
+                }
+            else:
+                logger.error(f"Slack API error for user {user_id}: {response.get('error')}")
+                return {
+                    'real_name': '',
+                    'display_name': '',
+                    'title': '',
+                    'timezone': 'UTC'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting user info for {user_id}: {e}")
+            return {
+                'real_name': '',
+                'display_name': '',
+                'title': '',
+                'timezone': 'UTC'
+            }
     
     async def _parse_slack_mentions(self, text: str) -> tuple[str, dict]:
         """Parse incoming Slack message to clean text and extract mentions.
