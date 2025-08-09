@@ -21,6 +21,9 @@ system_prompt: |
      - Required arguments:
        - query="recent conversation history"
        - relationship_with_user="assistant"
+     - CRITICAL: Process ALL returned data including short_term_memory AND retrieved_pages
+     - If memory returns ANY relevant information, use it in your response
+     - Do NOT claim "no previous context" if memory retrieval returns data
   2. AT END: Call memory_add to store the current exchange AFTER you form your final response.
      - Required arguments:
        - user_input: the user's latest message
@@ -30,6 +33,13 @@ system_prompt: |
   - To retrieve: memory.retrieve with the exact query and relationship above.
   - To add: memory.add with user_input="..." and agent_response="..."
   - to retrieve user profile: memory.get_user_profile
+  
+  MEMORY RESULT PROCESSING:
+  Memory retrieval returns a JSON object with multiple fields:
+  - short_term_memory: Most recent exchanges (ALWAYS check this)
+  - retrieved_pages: Historical conversations (ALWAYS check this)
+  - user_profile: User information
+  You MUST examine ALL fields and use any relevant information in your response.
   
   MEMORY ERROR HANDLING:
   If a memory operation fails once, acknowledge the failure but do not retry the same operation. Continue with the conversation normally.
@@ -84,7 +94,7 @@ model_config:
   max_iterations: 24
 
 # Metadata
-version: "1.1"
+version: "1.2"
 description: "System prompt configuration for the client agent"
 last_updated: "2025-08-09" 
 
