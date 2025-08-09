@@ -36,8 +36,13 @@ class ClientAgent:
         if not self.api_key:
             raise ValueError("Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable or pass api_key parameter.")
         
-        # Initialize Claude client
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        # Initialize Claude client with Prompt Caching beta header
+        self.client = anthropic.Anthropic(
+            api_key=self.api_key,
+            default_headers={
+                "anthropic-beta": "prompt-caching-2024-07-31",
+            },
+        )
         
         # Load configuration from YAML file
         self.config = self._load_config()
@@ -321,7 +326,13 @@ class ClientAgent:
             logger.info(f"ENRICHED-PROMPT-DEBUG: User {user_id} prompt was enriched")
             logger.info(f"ENRICHED-CONTENT: {enriched_message}")
         
-        messages = [{"role": "user", "content": enriched_message}]
+        # Mark the initial user message as cacheable to benefit across agent loop iterations
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": enriched_message, "cache_control": {"type": "ephemeral"}}
+            ]
+        }]
         max_iterations = self.max_iterations  # Load from config
         
         # Capture thinking content and tool usage for run summary
@@ -348,7 +359,8 @@ class ClientAgent:
                     model=self.model,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
-                    system=self.system_prompt,
+                    # Mark system prompt as cacheable
+                    system=[{"type": "text", "text": self.system_prompt, "cache_control": {"type": "ephemeral"}}],
                     messages=messages,
                     tools=self.tools,
                     timeout=60.0  # Add timeout to prevent streaming errors
