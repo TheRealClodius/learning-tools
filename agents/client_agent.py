@@ -334,22 +334,25 @@ class ClientAgent:
             }
     
 
-    def _is_simple_message(self, message: str) -> bool:
+    def _needs_reasoning(self, message: str) -> bool:
         """
-        Determine if a message is simple (can be answered directly) or complex (needs reasoning/tools)
+        Determine if a message needs explicit reasoning (thinking tags) or can be answered directly.
         
-        Simple messages include:
+        Messages that DON'T need reasoning:
         - Greetings and pleasantries
         - Basic chitchat
         - Thank you messages
         - Simple acknowledgments
         - Basic questions about the assistant itself
+        - Simple factual responses
         
-        Complex messages include:
-        - Requests for information that require tools
-        - Multi-step tasks
+        Messages that DO need reasoning:
+        - Multi-step problem solving
         - Questions requiring analysis or calculation
-        - Anything mentioning specific tools or searches
+        - Complex information synthesis
+        - Requests that need planning or strategy
+        
+        Note: This is NOT about tool usage - even simple messages should use memory tools!
         """
         normalized = message.lower().strip()
         
@@ -375,41 +378,45 @@ class ClientAgent:
             'yes', 'no', 'yeah', 'nope', 'yep', 'nah', 'maybe', 'perhaps'
         ]
         
-        # Check if it's a simple pattern
+        # Check if it's a simple pattern - these DON'T need reasoning
         if normalized in simple_patterns:
-            return True
+            return False  # False = doesn't need reasoning
         
         # Check if it starts with a simple pattern and is short
         if len(normalized.split()) <= 5:
             for pattern in simple_patterns:
                 if normalized.startswith(pattern) or normalized.endswith(pattern):
-                    return True
+                    return False  # False = doesn't need reasoning
         
-        # Complex indicators that definitely need reasoning/tools
-        complex_indicators = [
-            'search', 'find', 'look up', 'tell me about', 'what is', 'how to',
-            'calculate', 'analyze', 'explain', 'weather', 'news', 'current',
-            'help me', 'can you', 'could you', 'would you', 'show me',
-            'list', 'describe', 'compare', 'why', 'when', 'where', 'which',
-            'tool', 'execute', 'run', 'memory', 'remember', 'recall'
+        # Indicators that definitely NEED reasoning
+        reasoning_indicators = [
+            'how to', 'why', 'explain', 'analyze', 'compare', 'calculate',
+            'plan', 'strategy', 'solve', 'debug', 'fix', 'troubleshoot',
+            'optimize', 'improve', 'design', 'create', 'build', 'develop',
+            'what should', 'how should', 'what would', 'how would',
+            'pros and cons', 'advantages', 'disadvantages', 'best way'
         ]
         
-        # If it contains complex indicators, it needs reasoning
-        for indicator in complex_indicators:
+        # If it contains reasoning indicators, it needs reasoning
+        for indicator in reasoning_indicators:
             if indicator in normalized:
-                return False
+                return True  # True = needs reasoning
         
-        # Very short messages (1-3 words) are usually simple
+        # Very short messages (1-3 words) usually don't need reasoning
         word_count = len(normalized.split())
         if word_count <= 3:
-            return True
+            return False  # False = doesn't need reasoning
         
-        # Questions that are longer than 10 words probably need reasoning
-        if '?' in normalized and word_count > 10:
-            return False
+        # Complex questions (long with question mark) probably need reasoning
+        if '?' in normalized and word_count > 15:
+            return True  # True = needs reasoning
         
-        # Default to complex for safety (better to over-reason than under-reason)
-        return False
+        # Simple factual questions don't need reasoning
+        if normalized.startswith(('what is', 'who is', 'where is', 'when is')):
+            return False  # False = doesn't need reasoning
+        
+        # Default to no reasoning for simple responses
+        return False  # False = doesn't need reasoning
     
     async def run_agent_loop(self, user_message: str, streaming_callback=None, user_id: Optional[str] = None) -> str:
         """Run the agent loop with iterative tool calling"""
@@ -417,38 +424,13 @@ class ClientAgent:
         if not user_id:
             raise ValueError("user_id is required for agent processing - cannot proceed without user identification")
         
-        # Route messages: determine if this needs reasoning/tools or can be answered directly
-        is_simple_message = self._is_simple_message(user_message)
+        # Determine if this message needs explicit reasoning
+        needs_reasoning = self._needs_reasoning(user_message)
         
-        if is_simple_message:
-            logger.info(f"SIMPLE-MESSAGE: Skipping reasoning for: '{user_message[:50]}...'")
-            # For simple messages, bypass the full agent loop and return a direct response
-            # Still use Claude but with a streamlined approach
-            
-            loop = asyncio.get_event_loop()
-            simple_response = await loop.run_in_executor(
-                None,
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=500,  # Simple messages still might need decent responses
-                    temperature=0.7,
-                    system="You are Signal, a friendly and helpful AI assistant. Respond directly and conversationally without any <thinking> tags or complex reasoning. Be natural, warm, and helpful.",
-                    messages=[{"role": "user", "content": user_message}],
-                    timeout=30.0
-                )
-            )
-            
-            # Extract the response text
-            response_text = ""
-            for content_block in simple_response.content:
-                if content_block.type == "text":
-                    response_text += content_block.text
-            
-            # Update buffer with the simple exchange
-            self._update_buffer(user_message, response_text, [], [], user_id)
-            
-            logger.info(f"SIMPLE-RESPONSE: Returned direct response without reasoning")
-            return response_text.strip()
+        if not needs_reasoning:
+            logger.info(f"NO-REASONING: Message doesn't need thinking tags: '{user_message[:50]}...'")
+        else:
+            logger.info(f"NEEDS-REASONING: Message requires thinking process: '{user_message[:50]}...'")
         
         # DEBUG: Log buffer system usage
         logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
@@ -502,6 +484,13 @@ class ClientAgent:
                 self.system_prompt + message_text
             )
             
+            # Adjust system prompt based on reasoning needs
+            if not needs_reasoning:
+                # Add instruction to skip thinking tags for this message
+                adjusted_prompt = self.system_prompt + "\n\nIMPORTANT: For this specific message, respond directly WITHOUT using <thinking> tags. Still use memory and other tools as needed, but skip the reasoning process."
+            else:
+                adjusted_prompt = self.system_prompt
+            
             # Make API call with rate limit handling
             async def make_api_call():
                 return await loop.run_in_executor(
@@ -511,7 +500,7 @@ class ClientAgent:
                         max_tokens=self.max_tokens,
                         temperature=self.temperature,
                         # Mark system prompt as cacheable
-                        system=[{"type": "text", "text": self.system_prompt, "cache_control": {"type": "ephemeral"}}],
+                        system=[{"type": "text", "text": adjusted_prompt, "cache_control": {"type": "ephemeral"}}],
                         messages=messages,
                         tools=self.tools,
                         timeout=60.0  # Add timeout to prevent streaming errors
