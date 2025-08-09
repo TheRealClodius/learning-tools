@@ -444,6 +444,10 @@ class ClientAgent:
                     "result_preview": str(result)[:200]
                 })
                 
+                # Enhanced tool result logging for memory debugging
+                if tool_call.name in ["memory_retrieve", "memory_add"]:
+                    logger.info(f"MEMORY-DEBUG tool={tool_call.name} result_type={type(result)} result_preview={str(result)[:500]}")
+                
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tool_call.id,
