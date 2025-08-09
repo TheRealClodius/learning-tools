@@ -609,8 +609,14 @@ class SlackInterface:
         # Create FastAPI handler
         self.handler = AsyncSlackRequestHandler(self.app)
         
-        # Start background task for cache cleanup
-        asyncio.create_task(self._cleanup_cache_periodically())
+        # Flag to track if background task has been started
+        self._cleanup_task_started = False
+    
+    async def _ensure_cleanup_task_started(self):
+        """Start the cleanup task if not already started"""
+        if not self._cleanup_task_started:
+            self._cleanup_task_started = True
+            asyncio.create_task(self._cleanup_cache_periodically())
     
     def _setup_handlers(self):
         """Setup basic Slack event handlers"""
@@ -625,6 +631,9 @@ class SlackInterface:
         
         @self.app.action("view_execution_details")
         async def handle_execution_details_button(ack, body, client):
+            # Ensure cleanup task is started
+            await self._ensure_cleanup_task_started()
+            
             # Ack immediately to avoid Slack 3s timeout
             try:
                 await ack()
@@ -909,6 +918,9 @@ class SlackInterface:
     async def _handle_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming messages - simplified version"""
         try:
+            # Ensure cleanup task is started
+            await self._ensure_cleanup_task_started()
+            
             t_start = time.time()
             # Skip bot messages
             if event.get("bot_id"):
