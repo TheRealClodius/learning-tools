@@ -54,40 +54,46 @@ class CLIInterface:
         """Run interactive CLI mode"""
         self._print_welcome()
         
-        while self.running:
-            try:
-                # Get user input
-                user_input = await self._get_user_input()
-                
-                if not user_input:
-                    continue
-                
-                # Handle special commands
-                if user_input.lower() in ['exit', 'quit', 'q']:
+        try:
+            while self.running:
+                try:
+                    # Get user input
+                    user_input = await self._get_user_input()
+                    
+                    if not user_input:
+                        continue
+                    
+                    # Handle special commands
+                    if user_input.lower() in ['exit', 'quit', 'q']:
+                        break
+                    elif user_input.lower() in ['help', 'h']:
+                        self._print_help()
+                        continue
+                    elif user_input.lower() in ['status']:
+                        await self._print_status()
+                        continue
+                    elif user_input.lower() in ['tools']:
+                        await self._print_available_tools()
+                        continue
+                    elif user_input.lower().startswith('clear'):
+                        self._clear_screen()
+                        continue
+                    
+                    # Process agent request
+                    await self._process_user_message(user_input)
+                    
+                except KeyboardInterrupt:
+                    print("\n\n👋 Goodbye!")
                     break
-                elif user_input.lower() in ['help', 'h']:
-                    self._print_help()
-                    continue
-                elif user_input.lower() in ['status']:
-                    await self._print_status()
-                    continue
-                elif user_input.lower() in ['tools']:
-                    await self._print_available_tools()
-                    continue
-                elif user_input.lower().startswith('clear'):
-                    self._clear_screen()
-                    continue
-                
-                # Process agent request
-                await self._process_user_message(user_input)
-                
-            except KeyboardInterrupt:
-                print("\n\n👋 Goodbye!")
-                break
-            except Exception as e:
-                print(f"❌ Error: {str(e)}")
-                if self.verbose:
-                    logger.exception("CLI error details:")
+                except Exception as e:
+                    print(f"❌ Error: {str(e)}")
+                    if self.verbose:
+                        logger.exception("CLI error details:")
+        finally:
+            # Cleanup on exit
+            print("\n🧹 Cleaning up resources...")
+            await self.agent.cleanup()
+            print("✅ Cleanup complete")
     
     async def single_command_mode(self, command: str):
         """Process a single command and exit"""
@@ -102,6 +108,9 @@ class CLIInterface:
             if self.verbose:
                 logger.exception("Command execution error:")
             sys.exit(1)
+        finally:
+            # Cleanup on exit
+            await self.agent.cleanup()
     
     async def _get_user_input(self) -> str:
         """Get user input asynchronously"""
