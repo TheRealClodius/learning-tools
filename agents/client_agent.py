@@ -257,6 +257,7 @@ class ClientAgent:
             Dict containing response data
         """
         try:
+            t_overall = time.time()
             # Extract user_id from context and add basic context information
             user_id = context.get('user_id') if context else None
             
@@ -277,7 +278,9 @@ class ClientAgent:
             
             # Run the agent loop with iterative tool calling and user isolation
             logger.info(f"CLIENT-AGENT-BUFFER: Calling run_agent_loop with user_id='{user_id}'")
+            t_loop = time.time()
             response = await self.run_agent_loop(full_message, streaming_callback, user_id)
+            logger.info(f"AGENT-TIMING: run_agent_loop took {int((time.time()-t_loop)*1000)} ms user={user_id}")
             
             return {
                 "success": True,
@@ -330,6 +333,7 @@ class ClientAgent:
         text_responses = []
         
         for iteration in range(max_iterations):
+            t_iter = time.time()
             logger.info(f"Agent iteration {iteration + 1}")
             
             if streaming_callback:
@@ -337,6 +341,7 @@ class ClientAgent:
             
             # Generate response using Claude
             loop = asyncio.get_event_loop()
+            t_llm = time.time()
             response = await loop.run_in_executor(
                 None,
                 lambda: self.client.messages.create(
@@ -349,6 +354,7 @@ class ClientAgent:
                     timeout=60.0  # Add timeout to prevent streaming errors
                 )
             )
+            logger.info(f"AGENT-TIMING: LLM call took {int((time.time()-t_llm)*1000)} ms user={user_id} iter={iteration+1}")
             
             logger.info(f"Claude response iteration {iteration + 1}: {response}")
             
@@ -426,7 +432,9 @@ class ClientAgent:
                 if streaming_callback:
                     await streaming_callback(tool_call.name, "tool_start")
                 
+                t_tool = time.time()
                 result = await self._execute_claude_tool(tool_call, streaming_callback, user_id)
+                logger.info(f"AGENT-TIMING: tool {tool_call.name} took {int((time.time()-t_tool)*1000)} ms user={user_id}")
                 
                 # Log tool usage for run summary
                 tool_usage_log.append({

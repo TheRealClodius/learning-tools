@@ -133,6 +133,8 @@ class ToolExecutor:
         for the corresponding service and then re-attempts execution.
         """
         logger.info(f"Executing command: {command}")
+        import time
+        t_overall = time.time()
 
         # Handle registry commands with their specific caching logic first
         if command == "reg.search":
@@ -144,10 +146,12 @@ class ToolExecutor:
         if command not in self.available_tools:
             logger.warning(f"Tool '{command}' not loaded. Attempting discovery...")
             try:
+                t_discover = time.time()
                 service, _ = command.split(".", 1)
                 # This will attempt to load all tools for the service.
                 # Caching within discover_and_load_service prevents redundant registry calls.
                 await self._discover_and_load_service(service)
+                logger.info(f"TOOL-TIMING: discovery for service={service} took {int((time.time()-t_discover)*1000)} ms")
             except ValueError:
                 raise ToolNotFoundError(f"Invalid command format for discovery: {command}")
             except Exception as e:
@@ -157,7 +161,10 @@ class ToolExecutor:
 
         # Final attempt to execute the tool after potential discovery
         if command in self.available_tools:
-            return await self._execute_tool(command, input_data, user_id)
+            t_exec = time.time()
+            result = await self._execute_tool(command, input_data, user_id)
+            logger.info(f"TOOL-TIMING: execute {command} took {int((time.time()-t_exec)*1000)} ms (total {int((time.time()-t_overall)*1000)} ms)")
+            return result
         else:
             # If the tool is still not available, raise a definitive error.
             # Check if the service was loaded to provide a more specific error message.

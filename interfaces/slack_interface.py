@@ -2,6 +2,7 @@ import os
 import logging
 import asyncio
 import re
+import time
 from typing import Dict, Any, Optional, List
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
@@ -718,6 +719,7 @@ class SlackInterface:
     async def _handle_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming messages - simplified version"""
         try:
+            t_start = time.time()
             # Skip bot messages
             if event.get("bot_id"):
                 return
@@ -756,6 +758,8 @@ class SlackInterface:
             asyncio.create_task(self._process_and_respond(
                 user_id, channel_id, message_text, thread_ts, mention_context
             ))
+
+            logger.info(f"SLACK-TIMING: _handle_message dispatched in {int((time.time()-t_start)*1000)} ms for user={user_id}")
             
         except Exception as e:
             logger.error(f"Error handling message: {e}")
@@ -764,11 +768,14 @@ class SlackInterface:
         """Process message and send response with execution streaming"""
         streaming_handler = None
         try:
+            t_overall = time.time()
             # Create streaming handler for this message
             streaming_handler = SlackStreamingHandler(self.app.client, channel_id, thread_ts)
             
             # Start streaming display
+            t_stream_start = time.time()
             await streaming_handler.start_streaming()
+            logger.info(f"SLACK-TIMING: start_streaming took {int((time.time()-t_stream_start)*1000)} ms user={user_id}")
             
             # Create simple streaming callback
             async def slack_streaming_callback(content: str, content_type: str):
@@ -819,11 +826,13 @@ class SlackInterface:
                 "user_timezone": user_timezone
             }
             
+            t_agent = time.time()
             response = await self.agent.process_request(
                 message_text, 
                 context=context,
                 streaming_callback=slack_streaming_callback
             )
+            logger.info(f"SLACK-TIMING: agent.process_request took {int((time.time()-t_agent)*1000)} ms user={user_id}")
             
             # Get response text from Claude (not status message)
             response_text = response.get("response", "No response generated")
@@ -832,8 +841,11 @@ class SlackInterface:
             response_text = await self._resolve_and_format_mentions(response_text, mention_context)
             
             # Replace thinking message with final response
+            t_finish = time.time()
             await streaming_handler.finish_with_response(response_text, self)
+            logger.info(f"SLACK-TIMING: finish_with_response took {int((time.time()-t_finish)*1000)} ms user={user_id}")
             
+            logger.info(f"SLACK-TIMING: end-to-end for user={user_id} ms={int((time.time()-t_overall)*1000)}")
             logger.info(f"Sent response to {user_id}: {response_text[:50]}...")
             
         except Exception as e:

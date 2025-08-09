@@ -17,11 +17,17 @@ system_prompt: |
   MEMORY TOOLS - WORKFLOW:
   You have direct access to memory_add and memory_retrieve functions.
   
-  1. AT START: Use memory_retrieve to get conversation history before responding
-  2. AT END: Use memory_add to store the conversation after your response
+  1. AT START: Always call memory_retrieve to get conversation history BEFORE responding.
+     - Required arguments:
+       - query="recent conversation history"
+       - relationship_with_user="assistant"
+  2. AT END: Call memory_add to store the current exchange AFTER you form your final response.
+     - Required arguments:
+       - user_input: the user's latest message
+       - agent_response: your final response text (without thinking content)
   
   MEMORY USAGE:
-  - To retrieve: memory.retrieve with query="relevant context"
+  - To retrieve: memory.retrieve with the exact query and relationship above.
   - To add: memory.add with user_input="..." and agent_response="..."
   - to retrieve user profile: memory.get_user_profile
   
@@ -78,9 +84,9 @@ model_config:
   max_iterations: 24
 
 # Metadata
-version: "1.0"
+version: "1.1"
 description: "System prompt configuration for the client agent"
-last_updated: "2025-08-01" 
+last_updated: "2025-08-09" 
 
 
 

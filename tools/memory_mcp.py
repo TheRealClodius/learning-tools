@@ -57,25 +57,100 @@ class MemoryMCPClient:
             self.server_url = f"{protocol}://{self.host}{self.path}"
         else:
             self.server_url = f"{protocol}://{self.host}:{self.port}{self.path}"
+        
+        # Performance optimizations
+        self._retry_attempts = 2  # Retry failed operations once
+        self._fast_timeout = 5.0  # Much faster timeout
         logger.info(f"MemoryOS MCP Client initialized for {self.server_url}")
+
+        # Persistent session management
+        self._connection_lock: Optional[asyncio.Lock] = asyncio.Lock()
+        self._session_use_lock: Optional[asyncio.Lock] = asyncio.Lock()
+        self._client_cm = None
+        self._session_cm = None
+        self._read = None
+        self._write = None
+        self._session: Optional[ClientSession] = None
+        self._session_ready: bool = False
     
+    async def _ensure_session(self) -> None:
+        """Ensure a persistent MCP session is established and initialized."""
+        if self._session_ready and self._session is not None:
+            return
+        async with self._connection_lock:
+            if self._session_ready and self._session is not None:
+                return
+            # Tear down any half-open state first
+            await self._close_session(silent=True)
+            try:
+                # Open client transport
+                self._client_cm = streamablehttp_client(self.server_url)
+                if hasattr(asyncio, "timeout"):
+                    async with asyncio.timeout(self._fast_timeout):
+                        self._read, self._write, _ = await self._client_cm.__aenter__()
+                else:
+                    self._read, self._write, _ = await self._client_cm.__aenter__()
+
+                # Open MCP client session
+                self._session_cm = ClientSession(self._read, self._write)
+                if hasattr(asyncio, "timeout"):
+                    async with asyncio.timeout(self._fast_timeout):
+                        self._session = await self._session_cm.__aenter__()
+                        await self._session.initialize()
+                else:
+                    self._session = await self._session_cm.__aenter__()
+                    await self._session.initialize()
+
+                self._session_ready = True
+            except asyncio.TimeoutError:
+                logger.error(f"MCP session creation timed out after {self._fast_timeout}s")
+                await self._close_session(silent=True)
+                raise
+            except Exception as e:
+                logger.error(f"Failed to create MCP session: {e}")
+                await self._close_session(silent=True)
+                raise
+
+    async def _close_session(self, silent: bool = False) -> None:
+        """Close and reset the persistent session and transport safely."""
+        errors = []
+        if self._session_cm is not None:
+            try:
+                await self._session_cm.__aexit__(None, None, None)
+            except Exception as e:
+                errors.append(e)
+        if self._client_cm is not None:
+            try:
+                await self._client_cm.__aexit__(None, None, None)
+            except Exception as e:
+                errors.append(e)
+        self._session_cm = None
+        self._client_cm = None
+        self._read = None
+        self._write = None
+        self._session = None
+        self._session_ready = False
+        if errors and not silent:
+            # Log but do not raise to avoid propagating teardown noise
+            logger.warning(f"Errors during MCP session close: {[type(e).__name__ for e in errors]}")
+
+    async def close(self) -> None:
+        """Public API to gracefully close the persistent MCP session."""
+        async with self._connection_lock:
+            await self._close_session(silent=True)
+
     @asynccontextmanager
     async def _get_session(self):
-        """
-        Get an MCP session with proper connection management and error handling
-        """
-        session = None
-        try:
-            async with streamablehttp_client(self.server_url) as (read, write, _):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    yield session
-        except Exception as e:
-            logger.error(f"Failed to create MCP session: {e}")
-            # Re-raise with more context about the error
-            if "TaskGroup" in str(e):
-                logger.error("TaskGroup error detected - this may be due to concurrent session access")
-            raise
+        """Yield a ready persistent session; serialize usage with a lock."""
+        await self._ensure_session()
+        async with self._session_use_lock:
+            try:
+                yield self._session
+            except Exception as e:
+                # If the active session becomes unhealthy, reset it
+                logger.warning(f"MCP session error during use; resetting session: {e}")
+                await self._close_session(silent=True)
+                raise
     
     async def add_memory(self, user_input: str, agent_response: str, user_id: str = None) -> Dict[str, Any]:
         """
@@ -91,6 +166,8 @@ class MemoryMCPClient:
         """
         try:
             logger.info(f"Adding memory for user_id={user_id}")
+            import time
+            t0 = time.time()
             
             params = {
                 "user_input": user_input,
@@ -101,17 +178,35 @@ class MemoryMCPClient:
             if user_id:
                 params["user_id"] = user_id
             
-            async with self._get_session() as session:
-                # Add timeout to prevent hanging
-                result = await asyncio.wait_for(
-                    session.call_tool("add_memory", params),
-                    timeout=10.0  # 10 second timeout instead of 30
-                )
+            # Add retry logic with exponential backoff
+            for attempt in range(self._retry_attempts):
+                try:
+                    t_ensure_start = time.time()
+                    async with self._get_session() as session:
+                        t_ensure_ms = int((time.time() - t_ensure_start) * 1000)
+                        t_call_start = time.time()
+                        # Invoke tool without per-call cancellation to avoid transport teardown races
+                        result = await session.call_tool("add_memory", params)
+                        t_call_ms = int((time.time() - t_call_start) * 1000)
+                        logger.info(f"MCP-TIMING add_memory: ensure_session={t_ensure_ms} ms, call_tool={t_call_ms} ms")
+                        break  # Success, exit retry loop
+                except (asyncio.TimeoutError, Exception) as e:
+                    if attempt == self._retry_attempts - 1:  # Last attempt
+                        logger.error(f"Memory add failed after {self._retry_attempts} attempts: {e}")
+                        raise
+                    else:
+                        wait_time = 0.5 * (2 ** attempt)  # Exponential backoff
+                        logger.warning(f"Memory add attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                        await asyncio.sleep(wait_time)
                 
-            logger.info(f"Memory added successfully for user_id={user_id}")
+            t_after_call = time.time()
             
             # Parse the MCP CallToolResult to extract the actual JSON data
             if hasattr(result, 'structuredContent') and result.structuredContent:
+                parse_ms = int((time.time() - t_after_call) * 1000)
+                total_ms = int((time.time() - t0) * 1000)
+                logger.info(f"MCP-TIMING add_memory: parse={parse_ms} ms, total={total_ms} ms")
+                logger.info(f"Memory added successfully for user_id={user_id} in {total_ms} ms")
                 return result.structuredContent.get('result', result.structuredContent)
             elif hasattr(result, 'content') and result.content:
                 # Try to parse JSON from text content
@@ -119,11 +214,19 @@ class MemoryMCPClient:
                 for content_item in result.content:
                     if hasattr(content_item, 'text'):
                         try:
-                            return json.loads(content_item.text)
+                            parsed = json.loads(content_item.text)
+                            parse_ms = int((time.time() - t_after_call) * 1000)
+                            total_ms = int((time.time() - t0) * 1000)
+                            logger.info(f"MCP-TIMING add_memory: parse={parse_ms} ms, total={total_ms} ms")
+                            logger.info(f"Memory added successfully for user_id={user_id} in {total_ms} ms")
+                            return parsed
                         except json.JSONDecodeError:
                             pass
             
             # Fallback: return the raw result if we can't parse it
+            total_ms = int((time.time() - t0) * 1000)
+            logger.info(f"MCP-TIMING add_memory: total={total_ms} ms (fallback parse)")
+            logger.info(f"Memory added successfully for user_id={user_id} in {total_ms} ms")
             return {"status": "success", "message": "Memory added but could not parse response format"}
             
         except Exception as e:
@@ -156,6 +259,8 @@ class MemoryMCPClient:
         """
         try:
             logger.info(f"Retrieving memory for query='{query}' user_id={user_id}")
+            import time
+            start_time = time.time()
             
             params = {
                 "query": query,
@@ -168,14 +273,24 @@ class MemoryMCPClient:
             if user_id:
                 params["user_id"] = user_id
             
-            async with self._get_session() as session:
-                # Add timeout to prevent hanging
-                result = await asyncio.wait_for(
-                    session.call_tool("retrieve_memory", params),
-                    timeout=10.0  # 10 second timeout instead of 30
-                )
+            # Add retry logic with exponential backoff
+            for attempt in range(self._retry_attempts):
+                try:
+                    async with self._get_session() as session:
+                        # Invoke tool without per-call cancellation to avoid transport teardown races
+                        result = await session.call_tool("retrieve_memory", params)
+                        break  # Success, exit retry loop
+                except (asyncio.TimeoutError, Exception) as e:
+                    if attempt == self._retry_attempts - 1:  # Last attempt
+                        logger.error(f"Memory retrieve failed after {self._retry_attempts} attempts: {e}")
+                        raise
+                    else:
+                        wait_time = 0.5 * (2 ** attempt)  # Exponential backoff
+                        logger.warning(f"Memory retrieve attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                        await asyncio.sleep(wait_time)
                 
-            logger.info(f"Memory retrieved successfully for user_id={user_id}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.info(f"Memory retrieved successfully for user_id={user_id} in {duration_ms} ms")
             
             # Parse the MCP CallToolResult to extract the actual JSON data
             if hasattr(result, 'structuredContent') and result.structuredContent:
@@ -229,6 +344,8 @@ class MemoryMCPClient:
         """
         try:
             logger.info(f"Getting user profile for user_id={user_id}")
+            import time
+            start_time = time.time()
             
             params = {
                 "include_knowledge": include_knowledge,
@@ -242,7 +359,8 @@ class MemoryMCPClient:
             async with self._get_session() as session:
                 result = await session.call_tool("get_user_profile", params)
                 
-            logger.info(f"User profile retrieved successfully for user_id={user_id}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.info(f"User profile retrieved successfully for user_id={user_id} in {duration_ms} ms")
             
             # Parse the MCP CallToolResult to extract the actual JSON data
             if hasattr(result, 'structuredContent') and result.structuredContent:
@@ -301,6 +419,15 @@ def get_mcp_client() -> MemoryMCPClient:
     if _mcp_client is None:
         _mcp_client = MemoryMCPClient()
     return _mcp_client
+
+async def close_mcp_client() -> None:
+    """Close the global MCP client if it exists."""
+    global _mcp_client
+    if _mcp_client is not None:
+        try:
+            await _mcp_client.close()
+        finally:
+            _mcp_client = None
 
 # Tool functions for integration with tool executor
 async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -436,6 +563,8 @@ async def test_mcp_client():
     print(f"   Result: {profile_result}")
     
     print("Testing complete!")
+    # Cleanly close the persistent session to avoid exit-time warnings
+    await client.close()
 
 if __name__ == "__main__":
     asyncio.run(test_mcp_client())
