@@ -359,6 +359,23 @@ class SlackStreamingHandler:
                 return f"retrieved analytical response from web search"  
             else:
                 return f"completed web search with results"
+        
+        elif "memory" in tool_name.lower():
+            # Handle memory tool results
+            if "memory_retrieve" in tool_name:
+                if "short_term_memory" in result_data and "retrieved_pages" in result_data:
+                    return f"retrieved conversation history and context"
+                elif "status" in result_data and "success" in result_data:
+                    return f"found relevant conversation history"
+                else:
+                    return f"searched conversation history"
+            elif "memory_add" in tool_name:
+                if "success" in result_data.lower():
+                    return f"saved conversation to memory"
+                else:
+                    return f"attempted to save conversation"
+            else:
+                return f"completed memory operation"
             
         else:
             # Generic summary - try to extract key info

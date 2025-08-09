@@ -595,7 +595,13 @@ class ClientAgent:
                 if isinstance(result, dict):
                     # Check both "success" (boolean) and "status" (string) fields for compatibility
                     success = (result.get("success") == True) or (result.get("status") == "success")
-                    message = result.get("message", "No message")
+                    # Provide a more helpful default message for tools that do not include 'message'
+                    default_message = "Operation completed successfully"
+                    if function_name in ("memory_retrieve", "memory_add"):
+                        # memory tools often return structured data without a 'message'
+                        # so avoid confusing 'No message' in the stream
+                        default_message = "OK"
+                    message = result.get("message", default_message)
                     if success:
                         await streaming_callback(f"{function_name} succeeded: {message}", "result")
                         # Also stream key data if available

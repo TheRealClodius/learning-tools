@@ -293,27 +293,42 @@ class MemoryMCPClient:
             logger.info(f"Memory retrieved successfully for user_id={user_id} in {duration_ms} ms")
             
             # Parse the MCP CallToolResult to extract the actual JSON data
+            parsed = None
             if hasattr(result, 'structuredContent') and result.structuredContent:
-                return result.structuredContent.get('result', result.structuredContent)
+                parsed = result.structuredContent.get('result', result.structuredContent)
             elif hasattr(result, 'content') and result.content:
                 # Try to parse JSON from text content
                 import json
                 for content_item in result.content:
                     if hasattr(content_item, 'text'):
                         try:
-                            return json.loads(content_item.text)
+                            parsed = json.loads(content_item.text)
+                            break
                         except json.JSONDecodeError:
                             pass
-            
-            # Fallback: return error format if we can't parse it
-            return {
-                "status": "error",
-                "query": query,
-                "timestamp": "",
-                "short_term_memory": [],
-                "short_term_count": 0,
-                "error": "Could not parse response format"
-            }
+
+            if not isinstance(parsed, dict):
+                # Fallback: return error format if we can't parse it
+                return {
+                    "status": "error",
+                    "query": query,
+                    "timestamp": "",
+                    "short_term_memory": [],
+                    "short_term_count": 0,
+                    "error": "Could not parse response format"
+                }
+
+            # Ensure a helpful message is present for streaming UIs
+            try:
+                stm = parsed.get("short_term_memory", []) if isinstance(parsed, dict) else []
+                pages = parsed.get("retrieved_pages", []) if isinstance(parsed, dict) else []
+                if "message" not in parsed:
+                    parsed["message"] = f"Retrieved {len(stm)} recent and {len(pages)} historical entries"
+            except Exception:
+                # Do not fail if shape is unexpected
+                parsed.setdefault("message", "Retrieved conversation history")
+
+            return parsed
             
         except Exception as e:
             error_msg = f"Failed to retrieve memory: {e}"
