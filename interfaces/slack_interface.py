@@ -610,8 +610,13 @@ class SlackInterface:
         
         @self.app.action("view_execution_details")
         async def handle_execution_details_button(ack, body, client):
-            await ack()
-            await self._show_execution_details_modal(body, client)
+            # Ack immediately to avoid Slack 3s timeout, then open modal in background
+            try:
+                await ack()
+            except Exception as e:
+                logger.warning(f"Slack ack failed for view_execution_details: {e}")
+            # Run modal open without blocking the ack lifecycle
+            asyncio.create_task(self._show_execution_details_modal(body, client))
     
     async def _show_execution_details_modal(self, body, client):
         """Show execution details in a modal"""
