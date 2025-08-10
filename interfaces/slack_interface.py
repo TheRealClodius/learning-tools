@@ -1586,6 +1586,142 @@ class SlackInterface:
             logger.info(f"Cache cleanup complete. {len(keys_to_delete)} entries deleted.")
             await asyncio.sleep(self.cache_ttl) # Check every TTL seconds
 
+class ExecutionSummarizer:
+    """Lightweight LLM-based summarizer for tool execution results"""
+    
+    def __init__(self):
+        self.anthropic_client = None
+        self.openai_client = None
+        self._init_clients()
+    
+    def _init_clients(self):
+        """Initialize available LLM clients"""
+        try:
+            import anthropic
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if api_key:
+                self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+                logger.info("Initialized Anthropic client for result summarization")
+        except ImportError:
+            logger.warning("Anthropic library not available")
+        
+        try:
+            import openai
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = openai.OpenAI(api_key=api_key)
+                logger.info("Initialized OpenAI client for result summarization")
+        except ImportError:
+            logger.warning("OpenAI library not available")
+    
+    async def summarize_tool_result(self, tool_name: str, tool_args: Dict, result_data: str, purpose: str = "") -> str:
+        """
+        Use a small LLM to create a natural language summary of tool results.
+        
+        Args:
+            tool_name: Name of the tool that was executed
+            tool_args: Arguments that were passed to the tool
+            result_data: Raw result data (usually JSON)
+            purpose: The purpose extracted from the operation
+            
+        Returns:
+            Natural language summary of what happened
+        """
+        # Try Claude Haiku first (fast and cheap)
+        if self.anthropic_client:
+            try:
+                prompt = f"""Summarize this tool execution result in a single, natural phrase (max 15 words).
+
+Tool: {tool_name}
+Purpose: {purpose}
+Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
+Result: {result_data[:500]}
+
+Examples of good summaries:
+- "retrieved current weather: 72°F and sunny in San Francisco"
+- "found 5 relevant Slack messages about the project"
+- "successfully updated user preferences"
+- "error: API rate limit exceeded"
+
+Summary:"""
+                
+                response = await asyncio.to_thread(
+                    self.anthropic_client.messages.create,
+                    model="claude-3-haiku-20240307",
+                    max_tokens=50,
+                    temperature=0,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                
+                summary = response.content[0].text.strip().lower()
+                # Don't start with "summary:" or similar
+                summary = re.sub(r'^(summary|result|output)[:\s]+', '', summary, flags=re.IGNORECASE)
+                return summary
+                
+            except Exception as e:
+                logger.warning(f"Claude Haiku summarization failed: {e}")
+        
+        # Try OpenAI GPT-3.5-turbo as fallback
+        if self.openai_client:
+            try:
+                response = await asyncio.to_thread(
+                    self.openai_client.chat.completions.create,
+                    model="gpt-3.5-turbo",
+                    max_tokens=50,
+                    temperature=0,
+                    messages=[
+                        {"role": "system", "content": "You summarize tool execution results in natural, concise phrases (max 15 words)."},
+                        {"role": "user", "content": f"Tool: {tool_name}\nArgs: {tool_args}\nResult: {result_data[:500]}\n\nSummary:"}
+                    ]
+                )
+                
+                summary = response.choices[0].message.content.strip().lower()
+                return summary
+                
+            except Exception as e:
+                logger.warning(f"GPT-3.5 summarization failed: {e}")
+        
+        # Fallback to pattern-based summary
+        return self._fallback_summary(tool_name, result_data)
+    
+    def _fallback_summary(self, tool_name: str, result_data: str) -> str:
+        """Fallback pattern-based summarization when LLM is not available"""
+        try:
+            # Try to parse as JSON for better analysis
+            if result_data.startswith("{") or result_data.startswith("["):
+                data = json.loads(result_data)
+                
+                if isinstance(data, dict):
+                    # Check for common patterns
+                    if data.get("status") == "success":
+                        if "weather" in tool_name.lower():
+                            temp = data.get("data", {}).get("temperature")
+                            if temp:
+                                return f"got weather: {temp}°F"
+                            return "retrieved weather information"
+                        elif "slack" in tool_name.lower():
+                            if "messages" in str(data):
+                                return "found relevant Slack messages"
+                            elif "channels" in str(data):
+                                return "retrieved Slack channels"
+                        return "completed successfully"
+                    elif "error" in data:
+                        return f"error: {str(data['error'])[:50]}"
+                    elif "results" in data:
+                        count = len(data["results"]) if isinstance(data["results"], list) else 1
+                        return f"found {count} results"
+                    
+                elif isinstance(data, list):
+                    return f"retrieved {len(data)} items"
+                    
+        except:
+            pass
+        
+        # Generic fallback
+        if len(result_data) > 100:
+            return "received detailed response"
+        return "completed"
+
 # For FastAPI integration
 def create_slack_app():
     """Create simplified Slack interface for FastAPI"""
