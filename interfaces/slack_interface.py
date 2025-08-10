@@ -347,8 +347,65 @@ class SlackStreamingHandler:
         # Clean up the result data
         result_data = result_data.strip()
         
+        # Handle execute_tool results specially - extract the actual tool name from the ⚡️ prefix
+        if tool_name.startswith("⚡️"):
+            actual_tool = tool_name.replace("⚡️", "").strip()
+            
+            # Try to parse the result for better summary
+            try:
+                import json
+                if result_data.startswith("{") or result_data.startswith("["):
+                    result_obj = json.loads(result_data)
+                    
+                    # Handle different result structures
+                    if isinstance(result_obj, dict):
+                        if "status" in result_obj and result_obj["status"] == "success":
+                            if "data" in result_obj:
+                                # Summarize based on the tool type and data
+                                if "weather" in actual_tool.lower():
+                                    return f"Retrieved weather data successfully"
+                                elif "slack" in actual_tool.lower():
+                                    if "messages" in str(result_obj.get("data", "")):
+                                        count = len(result_obj.get("data", {}).get("messages", []))
+                                        return f"Found {count} Slack messages"
+                                    elif "channels" in str(result_obj.get("data", "")):
+                                        count = len(result_obj.get("data", {}).get("channels", []))
+                                        return f"Retrieved {count} Slack channels"
+                                    else:
+                                        return f"Completed Slack operation successfully"
+                                elif "search" in actual_tool.lower():
+                                    return f"Search completed with results"
+                                else:
+                                    return f"Operation completed successfully"
+                            else:
+                                return f"Completed successfully"
+                        elif "error" in result_obj:
+                            return f"⚠️ Error: {result_obj.get('error', 'Unknown error')[:100]}"
+                        else:
+                            # Try to extract meaningful info from the result
+                            if len(result_data) > 100:
+                                return f"Received detailed response"
+                            else:
+                                return f"Result: {result_data[:80]}..."
+                    elif isinstance(result_obj, list):
+                        return f"Retrieved {len(result_obj)} items"
+                    else:
+                        return f"Completed with result"
+                else:
+                    # Plain text result
+                    if len(result_data) > 100:
+                        return f"Received response: {result_data[:80]}..."
+                    else:
+                        return f"Result: {result_data}"
+            except:
+                # If parsing fails, provide generic summary
+                if len(result_data) > 100:
+                    return f"Completed with detailed output"
+                else:
+                    return f"Result: {result_data[:50]}..."
+        
         # Handle different tool types with appropriate summaries
-        if "reg_search" in tool_name or "registry" in tool_name.lower():
+        elif "reg_search" in tool_name or "registry" in tool_name.lower():
             if "found" in result_data.lower() or "tools" in result_data.lower():
                 return f"found relevant tools and capabilities"
             elif "no" in result_data.lower() and "results" in result_data.lower():
