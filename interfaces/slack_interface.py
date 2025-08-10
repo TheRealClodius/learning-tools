@@ -1621,9 +1621,9 @@ class ExecutionSummarizer:
             api_key = os.environ.get("GEMINI_API_KEY")
             if api_key:
                 genai.configure(api_key=api_key)
-                # Use the new model name format
-                self.gemini_client = genai.GenerativeModel('gemini-2.0-flash-exp')
-                logger.info("Initialized Gemini 2.0 Flash for result summarization")
+                # Use Gemini 2.5 Flash as requested
+                self.gemini_client = genai.GenerativeModel('gemini-2.5-flash')
+                logger.info("Initialized Gemini 2.5 Flash for result summarization")
         except ImportError:
             logger.warning("Google generativeai library not available")
         except Exception as e:
@@ -1664,7 +1664,7 @@ class ExecutionSummarizer:
         # Extract the base tool category (e.g., "weather" from "weather.get")
         tool_category = tool_name.split('.')[0] if '.' in tool_name else tool_name
         
-        # Try Gemini 2.0 Flash first (fastest and cheapest)
+        # Try Gemini 2.5 Flash first (fastest and cheapest)
         if self.gemini_client:
             try:
                 import google.generativeai as genai
@@ -1709,7 +1709,7 @@ Write the narrative summary:"""
                 return narrative
                 
             except Exception as e:
-                logger.warning(f"Gemini 2.0 Flash narrative generation failed: {e}")
+                logger.warning(f"Gemini 2.5 Flash narrative generation failed: {e}")
         
         # Try Claude Haiku as first fallback
         if self.anthropic_client:
