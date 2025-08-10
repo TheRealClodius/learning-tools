@@ -52,6 +52,11 @@ class ToolRegistry:
                             "name": "Communication",
                             "description": "Tools for messaging and team communication",
                             "icon": "💬"
+            },
+            "slack": {
+                "name": "Slack Integration",
+                "description": "Tools for searching and interacting with Slack messages",
+                "icon": "💼"
             }
         }
     
@@ -190,7 +195,7 @@ class ToolRegistry:
             "capabilities": capabilities,
             "use_cases": use_cases,
             "complexity": complexity,
-            "implementation_type": "rest_api" if service_name not in ["registry"] else "internal",
+            "implementation_type": "mcp_server" if service_name in ["slack", "memory"] else "rest_api" if service_name not in ["registry"] else "internal",
             "input_schema": f"schemas/services/{service_name}/{action}_input.json",
             "output_schema": f"schemas/services/{service_name}/{action}_output.json"
         }

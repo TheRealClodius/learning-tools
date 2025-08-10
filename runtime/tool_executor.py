@@ -51,8 +51,6 @@ class ToolExecutor:
                 "memory.get_user_profile": "tools.memory_mcp:get_user_profile"
             },
             "slack": {
-                "slack.send_message": "tools.slack:slack_send_message",
-                "slack.search_channels": "tools.slack:slack_search_channels",
                 "slack.vector_search": "tools.slack_mcp:vector_search",
                 "slack.get_channels": "tools.slack_mcp:get_channels",
                 "slack.get_search_stats": "tools.slack_mcp:get_search_stats"
