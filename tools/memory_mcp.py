@@ -83,9 +83,10 @@ class MemoryMCPClient:
             # Tear down any half-open state first
             await self._close_session(silent=True)
             try:
-                # Pure SSE transport (MCP standard)
+                # Hybrid headers required for ALL HTTP requests (GET for SSE + POST for JSON-RPC)
+                # MCP clients need both: text/event-stream for SSE, application/json for JSON-RPC calls
                 headers = {
-                    "Accept": "text/event-stream",
+                    "Accept": "application/json, text/event-stream",
                     "Cache-Control": "no-cache", 
                     "Connection": "keep-alive"
                 }

@@ -57,6 +57,7 @@ class ToolExecutor:
         
         # Load essential tools at startup
         self._load_registry_tools()
+        self._load_memory_tools()
     
     def _load_registry_tools(self):
         """Load registry tools that are always available"""
@@ -80,6 +81,23 @@ class ToolExecutor:
             
         except ImportError as e:
             logger.warning(f"Could not load registry tools: {e}")
+    
+    def _load_memory_tools(self):
+        """Load memory tools that are always available"""
+        try:
+            from tools.memory_mcp import add_memory, retrieve_memory, get_user_profile
+            
+            self.available_tools.update({
+                "memory.add": add_memory,
+                "memory.retrieve": retrieve_memory,
+                "memory.get_user_profile": get_user_profile
+            })
+            
+            self.loaded_services.add("memory")
+            logger.info("Memory tools loaded successfully")
+            
+        except ImportError as e:
+            logger.warning(f"Could not load memory tools: {e}")
     
 
     

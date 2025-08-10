@@ -1,0 +1,213 @@
+{
+  "test_metadata": {
+    "user_id": "perf_test_1754797314",
+    "total_messages": 14,
+    "test_duration": "31965.9ms",
+    "timestamp": "2025-08-10T05:42:28.529653"
+  },
+  "timing_stats": {
+    "add_memory": {
+      "min_ms": 103.59,
+      "max_ms": 7367.47,
+      "avg_ms": 2144.9764285714286,
+      "total_ms": 30029.670000000002
+    },
+    "retrieve_memory": {
+      "min_ms": 111.8,
+      "max_ms": 176.89,
+      "avg_ms": 138.30214285714283,
+      "total_ms": 1936.2299999999996
+    },
+    "combined": {
+      "min_ms": 218.0,
+      "max_ms": 7528.08,
+      "avg_ms": 2283.277857142857,
+      "total_ms": 31965.89
+    }
+  },
+  "memory_analysis": {
+    "memory_counts": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "max_short_term": 9,
+    "final_count": 9
+  },
+  "performance_trends": {
+    "early_avg_ms": 354.028,
+    "late_avg_ms": 4396.433999999999,
+    "performance_change_percent": 1141.832284452077
+  },
+  "success_rates": {
+    "add_success_rate": 1.0,
+    "retrieve_success_rate": 1.0
+  },
+  "detailed_results": [
+    {
+      "message_num": 1,
+      "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work on distributed systems.",
+      "agent_response": "Hello Sarah! Nice to meet you. Distributed systems is such an interesting field. What specific technologies do you work with at TechCorp?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 714.66,
+      "retrieve_time_ms": 120.58,
+      "short_term_count": 2,
+      "timestamp": "2025-08-10T05:41:54.991745"
+    },
+    {
+      "message_num": 2,
+      "user_input": "We mainly use Kubernetes, Go, and PostgreSQL. I'm currently working on a microservices migration project.",
+      "agent_response": "That sounds like a complex but rewarding project! Microservices migrations can be challenging. What's the biggest hurdle you're facing with the migration?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 117.32,
+      "retrieve_time_ms": 112.26,
+      "short_term_count": 3,
+      "timestamp": "2025-08-10T05:41:55.322540"
+    },
+    {
+      "message_num": 3,
+      "user_input": "The main challenge is handling data consistency across services. We're considering using event sourcing.",
+      "agent_response": "Event sourcing is a great approach for distributed data consistency. Have you looked into CQRS patterns to complement it?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 108.85,
+      "retrieve_time_ms": 111.8,
+      "short_term_count": 4,
+      "timestamp": "2025-08-10T05:41:55.644457"
+    },
+    {
+      "message_num": 4,
+      "user_input": "Yes, we're exploring CQRS too. By the way, I love hiking on weekends. Just climbed Mount Tamalpais last Saturday.",
+      "agent_response": "That's awesome! Mount Tamalpais has beautiful views. Do you have a favorite hiking trail there? I'd love to hear more about your outdoor adventures.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 125.56,
+      "retrieve_time_ms": 136.44,
+      "short_term_count": 5,
+      "timestamp": "2025-08-10T05:41:56.007431"
+    },
+    {
+      "message_num": 5,
+      "user_input": "The Matt Davis Trail is my favorite - it has amazing ocean views. I try to hike there monthly.",
+      "agent_response": "The Matt Davis Trail sounds wonderful! Monthly hiking is a great routine. Do you usually go solo or with friends?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 108.23,
+      "retrieve_time_ms": 114.44,
+      "short_term_count": 6,
+      "timestamp": "2025-08-10T05:41:56.331354"
+    },
+    {
+      "message_num": 6,
+      "user_input": "Usually with my partner Alex. We both love photography, so we take lots of nature shots during our hikes.",
+      "agent_response": "That's perfect - combining hiking with photography! What kind of camera gear do you prefer for nature shots?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 103.59,
+      "retrieve_time_ms": 114.41,
+      "short_term_count": 7,
+      "timestamp": "2025-08-10T05:41:56.650247"
+    },
+    {
+      "message_num": 7,
+      "user_input": "I use a Canon EOS R6 with a 24-70mm lens. Speaking of work, our migration deadline is next month.",
+      "agent_response": "The Canon EOS R6 is excellent for nature photography! That's a tight deadline for your migration project. How's the team handling the pressure?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 118.19,
+      "retrieve_time_ms": 122.32,
+      "short_term_count": 8,
+      "timestamp": "2025-08-10T05:41:56.991993"
+    },
+    {
+      "message_num": 8,
+      "user_input": "The team is stressed but we're making good progress. We've migrated 60% of our services already.",
+      "agent_response": "That's substantial progress! 60% completion with a month to go sounds manageable. Which services are you tackling next?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 105.75,
+      "retrieve_time_ms": 121.24,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:41:57.320204"
+    },
+    {
+      "message_num": 9,
+      "user_input": "Next up are the payment processing and user authentication services - the most critical ones.",
+      "agent_response": "Those are indeed critical services to get right. Payment and auth services require extra care. Are you doing gradual rollouts?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 7367.47,
+      "retrieve_time_ms": 160.6,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:04.948921"
+    },
+    {
+      "message_num": 10,
+      "user_input": "Yes, we're using blue-green deployments for those. Oh, I forgot to mention - I'm vegetarian and love cooking.",
+      "agent_response": "Blue-green deployments are smart for critical services! And that's interesting about cooking - do you have a favorite type of vegetarian cuisine?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 4444.32,
+      "retrieve_time_ms": 161.86,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:09.655383"
+    },
+    {
+      "message_num": 11,
+      "user_input": "I love Mediterranean and Thai vegetarian dishes. My specialty is a mushroom risotto with truffle oil.",
+      "agent_response": "Mushroom risotto with truffle oil sounds absolutely delicious! Do you grow your own herbs or shop at farmers markets?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 3783.2,
+      "retrieve_time_ms": 165.87,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:13.705779"
+    },
+    {
+      "message_num": 12,
+      "user_input": "I have a small herb garden on my apartment balcony - basil, thyme, and rosemary. Very therapeutic after long coding sessions.",
+      "agent_response": "A balcony herb garden is perfect for a software engineer! That's a wonderful way to unwind. Do you find gardening helps with stress from work?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 4341.01,
+      "retrieve_time_ms": 176.89,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:18.325272"
+    },
+    {
+      "message_num": 13,
+      "user_input": "Definitely! It's meditative. Can you remind me what we discussed about my work project earlier?",
+      "agent_response": "Of course! You mentioned you're a software engineer at TechCorp working on a microservices migration project using Kubernetes, Go, and PostgreSQL. You're dealing with data consistency challenges and exploring event sourcing with CQRS patterns. You've completed 60% of the migration with payment processing and user authentication services coming next, using blue-green deployments for the critical services. The deadline is next month.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 4269.13,
+      "retrieve_time_ms": 169.25,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:22.864807"
+    },
+    {
+      "message_num": 14,
+      "user_input": "Perfect recall! And what about my hobbies?",
+      "agent_response": "You enjoy hiking monthly at Mount Tamalpais, especially the Matt Davis Trail with ocean views. You go with your partner Alex and both of you love photography - you use a Canon EOS R6 with a 24-70mm lens for nature shots. You're also vegetarian, love cooking Mediterranean and Thai dishes, and your specialty is mushroom risotto with truffle oil. You have a therapeutic herb garden on your balcony with basil, thyme, and rosemary.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 4322.39,
+      "retrieve_time_ms": 148.27,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T05:42:27.435855"
+    }
+  ]
+}
