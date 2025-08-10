@@ -758,23 +758,41 @@ class ClientAgent:
                 tool_args = args.get("tool_args", {})
                 
                 if streaming_callback:
-                    # Create a more narrative description of what's happening
-                    # Format the tool arguments in a readable way
-                    args_description = []
-                    for key, value in tool_args.items():
-                        if isinstance(value, str) and len(value) > 50:
-                            args_description.append(f"{key}: {value[:50]}...")
-                        elif isinstance(value, (list, dict)):
-                            args_description.append(f"{key}: {type(value).__name__} with {len(value)} items")
+                    # Create a narrative description of what we're doing
+                    # Extract key information from arguments to build the purpose
+                    purpose_parts = []
+                    
+                    # Common parameter patterns to extract purpose
+                    if "query" in tool_args:
+                        purpose_parts.append(f"search for '{tool_args['query']}'")
+                    elif "location" in tool_args or "city" in tool_args:
+                        location = tool_args.get("location") or tool_args.get("city")
+                        purpose_parts.append(f"get info for {location}")
+                    elif "message" in tool_args or "text" in tool_args:
+                        msg = tool_args.get("message") or tool_args.get("text")
+                        if len(msg) > 30:
+                            purpose_parts.append(f"process message: '{msg[:30]}...'")
                         else:
-                            args_description.append(f"{key}: {value}")
+                            purpose_parts.append(f"process: '{msg}'")
+                    elif "channel" in tool_args:
+                        purpose_parts.append(f"in channel {tool_args['channel']}")
                     
-                    if args_description:
-                        args_text = "\n".join([f"  • {arg}" for arg in args_description])
-                        operation_text = f"⚡️ Using *{tool_name}* with parameters:\n{args_text}"
+                    # Add other significant parameters
+                    for key, value in tool_args.items():
+                        if key not in ["query", "location", "city", "message", "text", "channel"]:
+                            if isinstance(value, bool) and value:
+                                purpose_parts.append(key.replace("_", " "))
+                            elif isinstance(value, (str, int, float)) and key in ["limit", "count", "days"]:
+                                purpose_parts.append(f"{key}: {value}")
+                    
+                    # Build the purpose string
+                    if purpose_parts:
+                        purpose = " to " + ", ".join(purpose_parts)
                     else:
-                        operation_text = f"⚡️ Using *{tool_name}*"
+                        purpose = ""
                     
+                    # Store the narrative for later completion
+                    operation_text = f"⚡️Using *{tool_name}*{purpose}"
                     await streaming_callback(operation_text, "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)

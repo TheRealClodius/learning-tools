@@ -325,11 +325,47 @@ class SlackStreamingHandler:
         """Complete current tool and add result summary"""
         if self.current_tool_block:
             self.current_tool_block["status"] = "completed"
-            if result_summary:
-                # Create a human-readable summary
-                summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
-                if summary:
-                    self.current_tool_block["operations"].append(summary)
+            
+            # Special handling for execute_tool - create complete narrative
+            if self.current_tool_block["name"].startswith("⚡️"):
+                # Extract the existing operation that has the purpose
+                existing_ops = self.current_tool_block.get("operations", [])
+                if existing_ops and existing_ops[0].startswith("⚡️Using"):
+                    # Parse the existing operation to get tool name and purpose
+                    first_op = existing_ops[0]
+                    # Change "Using" to "Used" and append the result
+                    narrative = first_op.replace("⚡️Using", "⚡️Used")
+                    
+                    # Add the result in a narrative way
+                    if result_summary:
+                        # Clean up the result summary for narrative flow
+                        if result_summary.startswith("Retrieved"):
+                            narrative += f". {result_summary}"
+                        elif result_summary.startswith("Found"):
+                            narrative += f". {result_summary}"
+                        elif result_summary.startswith("Completed"):
+                            narrative += f". {result_summary}"
+                        elif result_summary.startswith("⚠️"):
+                            narrative += f". {result_summary}"
+                        else:
+                            narrative += f". Got {result_summary}"
+                    else:
+                        narrative += "."
+                    
+                    # Replace all operations with the single narrative
+                    self.current_tool_block["operations"] = [narrative]
+                else:
+                    # Fallback if we don't have the expected format
+                    if result_summary:
+                        summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
+                        if summary:
+                            self.current_tool_block["operations"].append(summary)
+            else:
+                # Regular tool handling
+                if result_summary:
+                    summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
+                    if summary:
+                        self.current_tool_block["operations"].append(summary)
             
             # Add completed tool block to content blocks and execution summary
             completed_tool = self.current_tool_block.copy()
