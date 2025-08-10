@@ -1622,18 +1622,33 @@ class ExecutionSummarizer:
     """Lightweight LLM-based summarizer for tool execution results"""
     
     def __init__(self):
+        self.gemini_client = None
         self.anthropic_client = None
         self.openai_client = None
         self._init_clients()
     
     def _init_clients(self):
         """Initialize available LLM clients"""
+        # Try Gemini first (fastest and cheapest)
+        try:
+            import google.generativeai as genai
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if api_key:
+                genai.configure(api_key=api_key)
+                self.gemini_client = genai.GenerativeModel('gemini-2.5-flash')
+                logger.info("Initialized Gemini 2.5 Flash for result summarization")
+        except ImportError:
+            logger.warning("Google generativeai library not available")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini client: {e}")
+        
+        # Fallback clients
         try:
             import anthropic
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if api_key:
                 self.anthropic_client = anthropic.Anthropic(api_key=api_key)
-                logger.info("Initialized Anthropic client for result summarization")
+                logger.info("Initialized Anthropic client as fallback for result summarization")
         except ImportError:
             logger.warning("Anthropic library not available")
         
@@ -1642,7 +1657,7 @@ class ExecutionSummarizer:
             api_key = os.environ.get("OPENAI_API_KEY")
             if api_key:
                 self.openai_client = openai.OpenAI(api_key=api_key)
-                logger.info("Initialized OpenAI client for result summarization")
+                logger.info("Initialized OpenAI client as fallback for result summarization")
         except ImportError:
             logger.warning("OpenAI library not available")
     
@@ -1662,7 +1677,52 @@ class ExecutionSummarizer:
         # Extract the base tool category (e.g., "weather" from "weather.get")
         tool_category = tool_name.split('.')[0] if '.' in tool_name else tool_name
         
-        # Try Claude Haiku first (fast and cheap)
+        # Try Gemini 2.5 Flash first (fastest and cheapest)
+        if self.gemini_client:
+            try:
+                prompt = f"""Complete this tool execution narrative by adding what was retrieved/found. Be specific and natural.
+
+Initial narrative: {initial_narrative}
+
+Tool executed: {tool_name}
+Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
+Result JSON: {result_data[:800]}
+
+IMPORTANT: Complete the sentence naturally. Examples:
+- Input: "⚡️Used *weather.get* to get info for London"
+  Output: "⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy with 65% humidity"
+  
+- Input: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'"  
+  Output: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels"
+
+- Input: "⚡️Used *execute_tool* for *weather*"
+  Output: "⚡️Used *execute_tool* for *weather* to get info about London. Got relevant information about the weather in London"
+
+Complete the narrative (include the original and add the result):"""
+                
+                # Generate with Gemini
+                generation_config = {
+                    "temperature": 0,
+                    "max_output_tokens": 100,
+                }
+                
+                response = await asyncio.to_thread(
+                    self.gemini_client.generate_content,
+                    prompt,
+                    generation_config=generation_config
+                )
+                
+                completed_narrative = response.text.strip()
+                # Ensure it starts with the emoji if not present
+                if not completed_narrative.startswith("⚡️"):
+                    completed_narrative = initial_narrative + ". " + completed_narrative
+                    
+                return completed_narrative
+                
+            except Exception as e:
+                logger.warning(f"Gemini 2.5 Flash narrative completion failed: {e}")
+        
+        # Try Claude Haiku as first fallback
         if self.anthropic_client:
             try:
                 prompt = f"""Complete this tool execution narrative by adding what was retrieved/found. Be specific and natural.
@@ -1703,7 +1763,7 @@ Complete the narrative (include the original and add the result):"""
             except Exception as e:
                 logger.warning(f"Claude Haiku narrative completion failed: {e}")
         
-        # Try OpenAI GPT-3.5-turbo as fallback
+        # Try OpenAI GPT-3.5-turbo as second fallback
         if self.openai_client:
             try:
                 response = await asyncio.to_thread(
