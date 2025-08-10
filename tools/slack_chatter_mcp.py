@@ -43,14 +43,15 @@ class SlackChatterMCPClient:
             api_key: Optional API key for authentication
             timeout: Request timeout in seconds
         """
-        # Default to the Replit deployment URL
-        self.host = host or os.getenv('SLACK_CHATTER_MCP_HOST', 'slack-chatter-service.andreiclodius.repl.co')
-        self.port = port or int(os.getenv('SLACK_CHATTER_MCP_PORT', '5000'))
-        self.api_key = api_key or os.getenv('SLACK_CHATTER_API_KEY')
+        # Default to the correct Slack Chronicler URL
+        self.host = host or os.getenv('SLACK_CHATTER_MCP_HOST', 'slack-chronicler-andreiclodius.replit.app')
+        self.port = port or int(os.getenv('SLACK_CHATTER_MCP_PORT', '443'))
+        # Use the discovered API key as default if not provided
+        self.api_key = api_key or os.getenv('SLACK_CHATTER_API_KEY', 'mcp_key_035e8af1ff630a5dac461a150e27c4ad0ab07bc4fb1a7bbd')
         self.timeout = timeout
         
         # Use HTTPS for Replit deployment
-        protocol = "https" if self.host.endswith('.repl.co') else "http"
+        protocol = "https" if (self.host.endswith('.repl.co') or self.host.endswith('.replit.app')) else "http"
         if protocol == "https" and self.port == 443:
             # For HTTPS on standard port, don't include port in URL
             self.base_url = f"{protocol}://{self.host}"
@@ -67,11 +68,17 @@ class SlackChatterMCPClient:
         """Ensure an HTTP session is available."""
         if self._session is None:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+            # Create connector with HTTP/1.1 to avoid potential HTTP/2 issues
+            connector = aiohttp.TCPConnector(force_close=True)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector
+            )
     
     async def _make_mcp_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Make a JSON-RPC request to the MCP server."""
-        await self._ensure_session()
+        # Don't use persistent session due to HTTP/2 issues with Replit
+        # await self._ensure_session()
         
         # Prepare JSON-RPC request
         request_id = 1
@@ -99,25 +106,42 @@ class SlackChatterMCPClient:
         url = f"{self.base_url}/mcp"
         
         try:
-            async with self._session.post(url, json=json_rpc_request, headers=headers) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    
-                    # Extract session ID if provided
-                    if "session_info" in result and "session_id" in result["session_info"]:
-                        self._session_id = result["session_info"]["session_id"]
-                    
-                    # Check for JSON-RPC error
-                    if "error" in result:
-                        raise Exception(f"MCP error: {result['error'].get('message', 'Unknown error')}")
-                    
-                    return result.get("result", {})
-                else:
-                    error_text = await response.text()
-                    raise Exception(f"HTTP {response.status}: {error_text}")
+            # Create a new session for each request to avoid HTTP/2 issues
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json=json_rpc_request, headers=headers) as response:
+                    if response.status == 200:
+                        try:
+                            result = await response.json()
+                        except Exception as json_error:
+                            # Try to read as text if JSON parsing fails
+                            text = await response.text()
+                            logger.error(f"Failed to parse JSON response: {json_error}")
+                            logger.error(f"Response text: {text[:500]}")
+                            raise Exception(f"Invalid JSON response from server")
+                        
+                        # Extract session ID if provided
+                        if "session_info" in result and "session_id" in result["session_info"]:
+                            self._session_id = result["session_info"]["session_id"]
+                        
+                        # Check for JSON-RPC error
+                        if "error" in result:
+                            raise Exception(f"MCP error: {result['error'].get('message', 'Unknown error')}")
+                        
+                        return result.get("result", {})
+                    elif response.status == 401:
+                        raise Exception("Authentication failed - API key may be invalid or expired")
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"HTTP {response.status}: {error_text}")
                     
         except aiohttp.ClientError as e:
             logger.error(f"Network error: {e}")
+            # Check if it's a specific error
+            if "Server disconnected" in str(e):
+                # This might be due to HTTP/2 issues, let's recreate the session
+                await self._close_session()
+                raise Exception(f"Server connection issue - please retry")
             raise Exception(f"Failed to connect to MCP server: {str(e)}")
     
     async def _close_session(self) -> None:
