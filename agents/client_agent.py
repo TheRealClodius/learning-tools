@@ -436,10 +436,73 @@ class ClientAgent:
         logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
         logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
         
+        # =============================================================================
+        # AUTOMATIC MEMORY RETRIEVAL - Retrieve conversation history at the start
+        # =============================================================================
+        memory_context = ""
+        try:
+            if streaming_callback:
+                await streaming_callback("Retrieving conversation history...", "operation")
+            
+            # Automatically retrieve recent conversation history
+            memory_args = {
+                "query": "recent history",  # Fixed query for automatic retrieval
+                "user_id": user_id,
+                "max_results": 10  # Fixed max results as per requirements
+            }
+            
+            logger.info(f"AUTO-MEMORY: Retrieving recent history for user {user_id}")
+            memory_result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
+            
+            # Parse memory result and add to context if successful
+            if isinstance(memory_result, dict) and memory_result.get("status") != "error":
+                # Extract relevant memory information
+                short_term = memory_result.get("short_term_memory", [])
+                retrieved_pages = memory_result.get("retrieved_pages", [])
+                
+                if short_term or retrieved_pages:
+                    memory_parts = []
+                    
+                    # Add short-term memory if available
+                    if short_term:
+                        memory_parts.append("Recent conversation context:")
+                        for entry in short_term[:3]:  # Limit to most recent 3 entries
+                            if isinstance(entry, dict):
+                                user_msg = entry.get("user_input", "")
+                                agent_msg = entry.get("agent_response", "")
+                                if user_msg:
+                                    memory_parts.append(f"User: {user_msg[:100]}...")
+                                if agent_msg:
+                                    memory_parts.append(f"Assistant: {agent_msg[:100]}...")
+                    
+                    # Add retrieved pages if available
+                    if retrieved_pages and len(memory_parts) < 10:  # Limit total context
+                        memory_parts.append("\nRelevant conversation history:")
+                        for page in retrieved_pages[:2]:  # Limit to 2 most relevant pages
+                            if isinstance(page, dict):
+                                content = page.get("content", "")
+                                if content:
+                                    memory_parts.append(f"- {content[:150]}...")
+                    
+                    if memory_parts:
+                        memory_context = "\n".join(memory_parts)
+                        logger.info(f"AUTO-MEMORY: Retrieved {len(short_term)} short-term and {len(retrieved_pages)} historical entries")
+                
+            logger.info(f"AUTO-MEMORY: Memory retrieval completed for user {user_id}")
+            
+        except Exception as e:
+            logger.warning(f"AUTO-MEMORY: Failed to retrieve memory: {e}")
+            # Continue without memory context if retrieval fails
+        
         if streaming_callback:
             await streaming_callback("Assembling context from conversation history...", "operation")
         
         enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
+        
+        # Add memory context to the enriched message if available
+        if memory_context:
+            enriched_message = f"{memory_context}\n\n{enriched_message}"
+            logger.info(f"AUTO-MEMORY: Added memory context to prompt")
         
         # DEBUG: Log enriched message to detect thinking-only issues
         if enriched_message != user_message:
@@ -660,6 +723,38 @@ class ClientAgent:
         
         # Update local buffer (immediate)
         self._update_buffer(user_message, final_response, tool_usage_log, all_thinking_content, user_id)
+        
+        # =============================================================================
+        # AUTOMATIC MEMORY ADDITION - Store conversation in memory at the end
+        # =============================================================================
+        try:
+            logger.info(f"AUTO-MEMORY: Adding conversation to memory for user {user_id}")
+            
+            # Automatically add the conversation to memory
+            memory_add_args = {
+                "user_input": user_message,
+                "agent_response": final_response,
+                "user_id": user_id
+            }
+            
+            # Run memory addition in background to not block response
+            async def add_memory_background():
+                try:
+                    result = await self.tool_executor.execute_command("memory.add", memory_add_args, user_id=user_id)
+                    if isinstance(result, dict) and result.get("status") != "error":
+                        logger.info(f"AUTO-MEMORY: Successfully added conversation to memory for user {user_id}")
+                    else:
+                        logger.warning(f"AUTO-MEMORY: Failed to add memory - result: {result}")
+                except Exception as e:
+                    logger.warning(f"AUTO-MEMORY: Failed to add conversation to memory: {e}")
+            
+            # Create background task for memory addition
+            memory_task = asyncio.create_task(add_memory_background())
+            self._track_background_task(memory_task)
+            
+        except Exception as e:
+            logger.warning(f"AUTO-MEMORY: Failed to initiate memory addition: {e}")
+            # Continue without storing memory if addition fails
         
         # Update insights asynchronously using Conversation Insights Agent (non-blocking)
         insights_task = asyncio.create_task(self.insights_agent.analyze_interaction(
