@@ -468,31 +468,83 @@ class ClientAgent:
                         memory_parts.append("=== PREVIOUS CONVERSATION CONTEXT ===")
                         memory_parts.append("Here are the most recent exchanges from our conversation:")
                         memory_parts.append("")
-                        for i, entry in enumerate(short_term[:5], 1):  # Show up to 5 recent entries
+                        
+                        # Track character counts for limits
+                        user_char_count = 0
+                        agent_char_count = 0
+                        max_user_chars = 3000
+                        max_agent_chars = 6000
+                        
+                        for i, entry in enumerate(short_term[:5], 1):  # Process up to 5 recent entries
                             if isinstance(entry, dict):
                                 user_msg = entry.get("user_input", "")
                                 agent_msg = entry.get("agent_response", "")
+                                
                                 if user_msg or agent_msg:
+                                    # Check if we have room for more content
+                                    if user_char_count >= max_user_chars and agent_char_count >= max_agent_chars:
+                                        memory_parts.append(f"[... {len(short_term) - i + 1} more exchanges truncated for space ...]")
+                                        break
+                                    
                                     memory_parts.append(f"Exchange {i}:")
-                                    if user_msg:
-                                        # Show FULL user message (no truncation)
-                                        memory_parts.append(f"  User: {user_msg}")
-                                    if agent_msg:
-                                        # Show FULL agent response (no truncation)
-                                        memory_parts.append(f"  Assistant: {agent_msg}")
+                                    
+                                    if user_msg and user_char_count < max_user_chars:
+                                        # Calculate how much of this message we can include
+                                        remaining_user_chars = max_user_chars - user_char_count
+                                        if len(user_msg) <= remaining_user_chars:
+                                            # Can include full message
+                                            memory_parts.append(f"  User: {user_msg}")
+                                            user_char_count += len(user_msg)
+                                        else:
+                                            # Need to truncate this message
+                                            truncated_msg = user_msg[:remaining_user_chars]
+                                            memory_parts.append(f"  User: {truncated_msg}... [truncated from {len(user_msg)} chars]")
+                                            user_char_count = max_user_chars
+                                    
+                                    if agent_msg and agent_char_count < max_agent_chars:
+                                        # Calculate how much of this response we can include
+                                        remaining_agent_chars = max_agent_chars - agent_char_count
+                                        if len(agent_msg) <= remaining_agent_chars:
+                                            # Can include full response
+                                            memory_parts.append(f"  Assistant: {agent_msg}")
+                                            agent_char_count += len(agent_msg)
+                                        else:
+                                            # Need to truncate this response
+                                            truncated_msg = agent_msg[:remaining_agent_chars]
+                                            memory_parts.append(f"  Assistant: {truncated_msg}... [truncated from {len(agent_msg)} chars]")
+                                            agent_char_count = max_agent_chars
+                                    
                                     memory_parts.append("")  # Add spacing between exchanges
+                        
+                        logger.info(f"AUTO-MEMORY: Included {user_char_count} user chars (max {max_user_chars}), {agent_char_count} agent chars (max {max_agent_chars})")
                     
-                    # Add retrieved pages if available
+                    # Add retrieved pages if available (these count toward the agent character limit)
                     if retrieved_pages:
                         memory_parts.append("=== RELEVANT HISTORICAL CONTEXT ===")
                         memory_parts.append("Related information from earlier conversations:")
                         memory_parts.append("")
-                        for page in retrieved_pages[:3]:  # Show up to 3 historical pages
+                        
+                        # Use remaining agent character budget for historical context
+                        historical_char_count = 0
+                        max_historical_chars = 1000  # Reserve some space for historical context
+                        
+                        for j, page in enumerate(retrieved_pages[:3], 1):  # Process up to 3 historical pages
                             if isinstance(page, dict):
                                 content = page.get("content", "")
                                 if content:
-                                    # Show FULL content (no truncation)
-                                    memory_parts.append(f"• {content}")
+                                    remaining_chars = max_historical_chars - historical_char_count
+                                    if remaining_chars <= 0:
+                                        memory_parts.append(f"[... {len(retrieved_pages) - j + 1} more historical pages truncated for space ...]")
+                                        break
+                                    
+                                    if len(content) <= remaining_chars:
+                                        memory_parts.append(f"• {content}")
+                                        historical_char_count += len(content)
+                                    else:
+                                        truncated_content = content[:remaining_chars]
+                                        memory_parts.append(f"• {truncated_content}... [truncated from {len(content)} chars]")
+                                        historical_char_count = max_historical_chars
+                        
                         memory_parts.append("")  # Add spacing at the end
                     
                     if memory_parts:
