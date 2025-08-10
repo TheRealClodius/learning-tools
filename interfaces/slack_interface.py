@@ -335,51 +335,37 @@ class SlackStreamingHandler:
             
             # Special handling for execute_tool - create complete narrative using LLM
             if self.current_tool_block["name"].startswith("⚡️"):
-                # Extract the existing operation that has the purpose
-                existing_ops = self.current_tool_block.get("operations", [])
-                if existing_ops and existing_ops[0].startswith("⚡️Using"):
-                    # Get the initial narrative
-                    initial_narrative = existing_ops[0].replace("⚡️Using", "⚡️Used")
+                # Get tool context (args) if stored
+                tool_name = self.current_tool_block["name"].replace("⚡️", "").strip()
+                tool_args = self.tool_context.get(tool_name, {})
+                
+                try:
+                    # Use LLM to create complete narrative from JSON
+                    complete_narrative = await self.summarizer.create_narrative_summary(
+                        tool_name=tool_name,
+                        tool_args=tool_args,
+                        result_data=result_summary,
+                        initial_narrative=""  # Not used anymore except for fallback
+                    )
                     
-                    # Get tool context (args) if stored
-                    tool_name = self.current_tool_block["name"].replace("⚡️", "").strip()
-                    tool_args = self.tool_context.get(tool_name, {})
+                    # Replace all operations with the single narrative
+                    self.current_tool_block["operations"] = [complete_narrative]
                     
-                    try:
-                        # Use LLM to create complete narrative
-                        complete_narrative = await self.summarizer.create_narrative_summary(
-                            tool_name=tool_name,
-                            tool_args=tool_args,
-                            result_data=result_summary,
-                            initial_narrative=initial_narrative
-                        )
-                        
-                        # Replace all operations with the single narrative
-                        self.current_tool_block["operations"] = [complete_narrative]
-                        
-                    except Exception as e:
-                        logger.warning(f"Failed to generate narrative summary: {e}")
-                        # Fallback to simple completion
+                except Exception as e:
+                    logger.warning(f"Failed to generate narrative summary: {e}")
+                    # Fallback to simple format
+                    existing_ops = self.current_tool_block.get("operations", [])
+                    if existing_ops and existing_ops[0].startswith("⚡️Using"):
+                        fallback_narrative = existing_ops[0].replace("⚡️Using", "⚡️Used")
                         if result_summary:
-                            # Clean up the result summary for narrative flow
-                            if result_summary.startswith("Retrieved"):
-                                initial_narrative += f". {result_summary}"
-                            elif result_summary.startswith("Found"):
-                                initial_narrative += f". {result_summary}"
-                            elif result_summary.startswith("⚠️"):
-                                initial_narrative += f". {result_summary}"
+                            if "error" in result_summary.lower():
+                                fallback_narrative += f". {result_summary}"
                             else:
-                                initial_narrative += f". Got {result_summary}"
-                        else:
-                            initial_narrative += "."
-                        
-                        self.current_tool_block["operations"] = [initial_narrative]
-                else:
-                    # Fallback if we don't have the expected format
-                    if result_summary:
-                        summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
-                        if summary:
-                            self.current_tool_block["operations"].append(summary)
+                                fallback_narrative += f". Completed successfully"
+                        self.current_tool_block["operations"] = [fallback_narrative]
+                    else:
+                        # Last resort fallback
+                        self.current_tool_block["operations"].append(f"Completed: {result_summary[:100]}")
             else:
                 # Regular tool handling
                 if result_summary:
@@ -1663,13 +1649,13 @@ class ExecutionSummarizer:
     
     async def create_narrative_summary(self, tool_name: str, tool_args: Dict, result_data: str, initial_narrative: str) -> str:
         """
-        Use a small LLM to complete the narrative summary of a tool execution.
+        Use a small LLM to create a complete narrative summary of a tool execution.
         
         Args:
             tool_name: Name of the tool that was executed (e.g., "weather.get")
             tool_args: Arguments that were passed to the tool
             result_data: Raw result data (usually JSON)
-            initial_narrative: The initial narrative like "⚡️Used *weather.get* to get info for London"
+            initial_narrative: The initial narrative (used for fallback only)
             
         Returns:
             Complete narrative with result summary
@@ -1680,25 +1666,25 @@ class ExecutionSummarizer:
         # Try Gemini 2.5 Flash first (fastest and cheapest)
         if self.gemini_client:
             try:
-                prompt = f"""Complete this tool execution narrative by adding what was retrieved/found. Be specific and natural.
-
-Initial narrative: {initial_narrative}
+                prompt = f"""Create a single-line narrative summary of this tool execution using the template format.
 
 Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {result_data[:800]}
 
-IMPORTANT: Complete the sentence naturally. Examples:
-- Input: "⚡️Used *weather.get* to get info for London"
-  Output: "⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy with 65% humidity"
+Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+
+Examples:
+- Tool: weather.get, Args: {{"location": "London"}}, Result: {{"temperature": 72, "conditions": "partly cloudy"}}
+  Output: ⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy
   
-- Input: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'"  
-  Output: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels"
+- Tool: slack_chatter.search_messages, Args: {{"query": "project updates"}}, Result: {{"messages": [...5 items...], "channels": ["#general", "#dev-team"]}}
+  Output: ⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels
 
-- Input: "⚡️Used *execute_tool* for *weather*"
-  Output: "⚡️Used *execute_tool* for *weather* to get info about London. Got relevant information about the weather in London"
+- Tool: weather, Args: {{"city": "London"}}, Result: {{"status": "success", "data": {{"temp": 18, "description": "cloudy"}}}}
+  Output: ⚡️Used *weather* to get info for London. Got 18°C, cloudy
 
-Complete the narrative (include the original and add the result):"""
+Write the narrative summary:"""
                 
                 # Generate with Gemini
                 generation_config = {
@@ -1712,38 +1698,38 @@ Complete the narrative (include the original and add the result):"""
                     generation_config=generation_config
                 )
                 
-                completed_narrative = response.text.strip()
+                narrative = response.text.strip()
                 # Ensure it starts with the emoji if not present
-                if not completed_narrative.startswith("⚡️"):
-                    completed_narrative = initial_narrative + ". " + completed_narrative
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
                     
-                return completed_narrative
+                return narrative
                 
             except Exception as e:
-                logger.warning(f"Gemini 2.5 Flash narrative completion failed: {e}")
+                logger.warning(f"Gemini 2.5 Flash narrative generation failed: {e}")
         
         # Try Claude Haiku as first fallback
         if self.anthropic_client:
             try:
-                prompt = f"""Complete this tool execution narrative by adding what was retrieved/found. Be specific and natural.
-
-Initial narrative: {initial_narrative}
+                prompt = f"""Create a single-line narrative summary of this tool execution using the template format.
 
 Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {result_data[:800]}
 
-IMPORTANT: Complete the sentence naturally. Examples:
-- Input: "⚡️Used *weather.get* to get info for London"
-  Output: "⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy with 65% humidity"
+Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+
+Examples:
+- Tool: weather.get, Args: {{"location": "London"}}, Result: {{"temperature": 72, "conditions": "partly cloudy"}}
+  Output: ⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy
   
-- Input: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'"  
-  Output: "⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels"
+- Tool: slack_chatter.search_messages, Args: {{"query": "project updates"}}, Result: {{"messages": [...5 items...], "channels": ["#general", "#dev-team"]}}
+  Output: ⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels
 
-- Input: "⚡️Used *execute_tool* for *weather*"
-  Output: "⚡️Used *execute_tool* for *weather* to get info about London. Got relevant information about the weather in London"
+- Tool: weather, Args: {{"city": "London"}}, Result: {{"status": "success", "data": {{"temp": 18, "description": "cloudy"}}}}
+  Output: ⚡️Used *weather* to get info for London. Got 18°C, cloudy
 
-Complete the narrative (include the original and add the result):"""
+Write the narrative summary:"""
                 
                 response = await asyncio.to_thread(
                     self.anthropic_client.messages.create,
@@ -1753,15 +1739,15 @@ Complete the narrative (include the original and add the result):"""
                     messages=[{"role": "user", "content": prompt}]
                 )
                 
-                completed_narrative = response.content[0].text.strip()
+                narrative = response.content[0].text.strip()
                 # Ensure it starts with the emoji if not present
-                if not completed_narrative.startswith("⚡️"):
-                    completed_narrative = initial_narrative + ". " + completed_narrative
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
                     
-                return completed_narrative
+                return narrative
                 
             except Exception as e:
-                logger.warning(f"Claude Haiku narrative completion failed: {e}")
+                logger.warning(f"Claude Haiku narrative generation failed: {e}")
         
         # Try OpenAI GPT-3.5-turbo as second fallback
         if self.openai_client:
@@ -1772,21 +1758,21 @@ Complete the narrative (include the original and add the result):"""
                     max_tokens=100,
                     temperature=0,
                     messages=[
-                        {"role": "system", "content": "You complete tool execution narratives by adding what was found/retrieved. Keep the original narrative and add the result naturally."},
-                        {"role": "user", "content": f"Complete this narrative:\n{initial_narrative}\n\nTool: {tool_name}\nArgs: {tool_args}\nResult: {result_data[:500]}\n\nCompleted narrative:"}
+                        {"role": "system", "content": "Create narrative summaries of tool executions. Format: ⚡️Used *[tool]* to/for [purpose]. [Result]"},
+                        {"role": "user", "content": f"Tool: {tool_name}\nArgs: {json.dumps(tool_args, indent=2)}\nResult: {result_data[:500]}\n\nNarrative:"}
                     ]
                 )
                 
-                completed_narrative = response.choices[0].message.content.strip()
-                if not completed_narrative.startswith("⚡️"):
-                    completed_narrative = initial_narrative + ". " + completed_narrative
+                narrative = response.choices[0].message.content.strip()
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
                     
-                return completed_narrative
+                return narrative
                 
             except Exception as e:
-                logger.warning(f"GPT-3.5 narrative completion failed: {e}")
+                logger.warning(f"GPT-3.5 narrative generation failed: {e}")
         
-        # Fallback to simple completion
+        # Fallback using the initial narrative
         return self._fallback_narrative(initial_narrative, tool_name, result_data)
     
     def _fallback_narrative(self, initial_narrative: str, tool_name: str, result_data: str) -> str:
