@@ -83,28 +83,34 @@ class MemoryMCPClient:
             # Tear down any half-open state first
             await self._close_session(silent=True)
             try:
-                # Open client transport with SSE headers
+                # Pure SSE transport (MCP standard)
                 headers = {
                     "Accept": "text/event-stream",
-                    "Cache-Control": "no-cache",
+                    "Cache-Control": "no-cache", 
                     "Connection": "keep-alive"
                 }
                 self._client_cm = streamablehttp_client(self.server_url, headers=headers)
-                if hasattr(asyncio, "timeout"):
-                    async with asyncio.timeout(self._fast_timeout):
-                        self._read, self._write, _ = await self._client_cm.__aenter__()
-                else:
-                    self._read, self._write, _ = await self._client_cm.__aenter__()
+                # Connection with timeout
+                try:
+                    self._read, self._write, _ = await asyncio.wait_for(
+                        self._client_cm.__aenter__(), timeout=self._fast_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Connection timeout after {self._fast_timeout}s")
+                    raise
 
                 # Open MCP client session
                 self._session_cm = ClientSession(self._read, self._write)
-                if hasattr(asyncio, "timeout"):
-                    async with asyncio.timeout(self._fast_timeout):
-                        self._session = await self._session_cm.__aenter__()
-                        await self._session.initialize()
-                else:
-                    self._session = await self._session_cm.__aenter__()
-                    await self._session.initialize()
+                try:
+                    self._session = await asyncio.wait_for(
+                        self._session_cm.__aenter__(), timeout=self._fast_timeout
+                    )
+                    await asyncio.wait_for(
+                        self._session.initialize(), timeout=self._fast_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Session initialization timeout after {self._fast_timeout}s")
+                    raise
 
                 self._session_ready = True
             except asyncio.TimeoutError:
@@ -455,8 +461,8 @@ async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     Tool function for adding memory via MCP with robust error handling
     """
     try:
-        # Add overall timeout to prevent hanging
-        async with asyncio.timeout(30):  # 30 second hard timeout
+        # Add overall timeout to prevent hanging (Python 3.10 compatible)
+        async def _add_memory_operation():
             client = get_mcp_client()
             
             user_input = input_data.get("user_input", "")
@@ -470,6 +476,8 @@ async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
                 }
             
             return await client.add_memory(user_input, agent_response, user_id)
+        
+        return await asyncio.wait_for(_add_memory_operation(), timeout=30.0)
     except asyncio.TimeoutError:
         logger.error("Memory add operation timed out after 30 seconds")
         return {
@@ -490,8 +498,8 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     Tool function for retrieving memory via MCP with robust error handling
     """
     try:
-        # Add overall timeout to prevent hanging
-        async with asyncio.timeout(30):  # 30 second hard timeout
+        # Add overall timeout to prevent hanging (Python 3.10 compatible)
+        async def _retrieve_memory_operation():
             client = get_mcp_client()
             
             query = input_data.get("query", "")
@@ -517,6 +525,8 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
                 style_hint=style_hint,
                 max_results=max_results
             )
+        
+        return await asyncio.wait_for(_retrieve_memory_operation(), timeout=30.0)
     except asyncio.TimeoutError:
         logger.error("Memory retrieve operation timed out after 30 seconds")
         return {
