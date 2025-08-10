@@ -42,7 +42,8 @@ class ToolExecutor:
             },
             "perplexity": {
                 "perplexity.search": "tools.perplexity:perplexity_search",
-                "perplexity.research": "tools.perplexity:perplexity_research"
+                "perplexity.research": "tools.perplexity:perplexity_research",
+                "perplexity.research_stream": "tools.perplexity:perplexity_research_stream"
             },
             "memory": {
                 "memory.add": "tools.memory_mcp:add_memory",
@@ -144,9 +145,9 @@ class ToolExecutor:
         self.cache_timestamps.clear()
         logger.info("Tool schema cache cleared")
 
-    async def execute_command(self, command: str, input_data: Any, user_id: str = None) -> Any:
+    async def execute_command(self, command: str, input_data: Any, user_id: str = None, stream_callback: Optional[Callable] = None) -> Any:
         """
-        Main command execution flow with dynamic discovery.
+        Main command execution flow with dynamic discovery and streaming support.
         If a tool is not immediately available, it triggers a discovery process
         for the corresponding service and then re-attempts execution.
         """
@@ -180,7 +181,7 @@ class ToolExecutor:
         # Final attempt to execute the tool after potential discovery
         if command in self.available_tools:
             t_exec = time.time()
-            result = await self._execute_tool(command, input_data, user_id)
+            result = await self._execute_tool(command, input_data, user_id, stream_callback)
             logger.info(f"TOOL-TIMING: execute {command} took {int((time.time()-t_exec)*1000)} ms (total {int((time.time()-t_overall)*1000)} ms)")
             return result
         else:
@@ -199,21 +200,22 @@ class ToolExecutor:
             logger.error(error_message)
             raise ToolNotFoundError(error_message)
     
-    async def _execute_tool(self, command: str, input_data: Any, user_id: str = None) -> Any:
-        """Execute a loaded tool with error handling and optional user_id"""
+    async def _execute_tool(self, command: str, input_data: Any, user_id: str = None, stream_callback: Optional[Callable] = None) -> Any:
+        """Execute a loaded tool with error handling, optional user_id, and streaming"""
         try:
             tool_func = self.available_tools[command]
             
-            # Inspect the tool function to see if it accepts user_id
+            # Inspect the tool function to see if it accepts user_id and stream_callback
             import inspect
             sig = inspect.signature(tool_func)
             
+            call_kwargs = {}
             if 'user_id' in sig.parameters:
-                # Pass user_id if the tool function accepts it
-                result = await tool_func(input_data, user_id=user_id)
-            else:
-                # Otherwise, call it without user_id
-                result = await tool_func(input_data)
+                call_kwargs['user_id'] = user_id
+            if 'stream_callback' in sig.parameters and stream_callback:
+                call_kwargs['stream_callback'] = stream_callback
+            
+            result = await tool_func(input_data, **call_kwargs)
                 
             logger.info(f"Successfully executed {command}")
             return result

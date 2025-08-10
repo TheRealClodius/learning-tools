@@ -18,7 +18,7 @@ Configuration via environment variables:
 import asyncio
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from contextlib import asynccontextmanager
 
 from mcp import ClientSession
@@ -35,7 +35,8 @@ class MemoryMCPClient:
                  host: str = None, 
                  port: int = None, 
                  path: str = None,
-                 timeout: int = 30):
+                 timeout: int = 30,
+                 user_id: Optional[str] = None):
         """
         Initialize MemoryOS MCP client
         
@@ -49,6 +50,10 @@ class MemoryMCPClient:
         self.port = port or int(os.getenv('MEMORYOS_MCP_PORT', '443'))
         self.path = path or os.getenv('MEMORYOS_MCP_PATH', '/mcp')
         self.timeout = timeout
+        # Optional: bind this client session to a specific user for isolation
+        self.session_user_id: Optional[str] = user_id
+        # Track which user id was applied to the currently open session (if any)
+        self._applied_user_id: Optional[str] = None
         
         # Use HTTPS for production Railway deployment
         protocol = "https" if self.host.endswith('.railway.app') else "http"
@@ -75,8 +80,12 @@ class MemoryMCPClient:
     
     async def _ensure_session(self) -> None:
         """Ensure a persistent MCP session is established and initialized."""
+        # If a session exists but the desired user header changed, recreate the session
         if self._session_ready and self._session is not None:
-            return
+            if self._applied_user_id != self.session_user_id:
+                await self._close_session(silent=True)
+            else:
+                return
         async with self._connection_lock:
             if self._session_ready and self._session is not None:
                 return
@@ -90,6 +99,9 @@ class MemoryMCPClient:
                     "Cache-Control": "no-cache", 
                     "Connection": "keep-alive"
                 }
+                # Propagate per-user header when available to help server isolate sessions
+                if self.session_user_id:
+                    headers["X-User-Id"] = self.session_user_id
                 self._client_cm = streamablehttp_client(self.server_url, headers=headers)
                 # Connection with timeout
                 try:
@@ -114,6 +126,7 @@ class MemoryMCPClient:
                     raise
 
                 self._session_ready = True
+                self._applied_user_id = self.session_user_id
             except asyncio.TimeoutError:
                 logger.error(f"MCP session creation timed out after {self._fast_timeout}s")
                 await self._close_session(silent=True)
@@ -438,13 +451,16 @@ class MemoryMCPClient:
 # Global MCP client instance
 _mcp_client = None
 
-def get_mcp_client() -> MemoryMCPClient:
+def get_mcp_client(user_id: Optional[str] = None) -> MemoryMCPClient:
     """
     Get the global MCP client instance (singleton pattern)
     """
     global _mcp_client
     if _mcp_client is None:
-        _mcp_client = MemoryMCPClient()
+        _mcp_client = MemoryMCPClient(user_id=user_id)
+    # If a new user_id is provided and differs, update header for future connections
+    if user_id and getattr(_mcp_client, 'session_user_id', None) != user_id:
+        _mcp_client.session_user_id = user_id
     return _mcp_client
 
 async def close_mcp_client() -> None:
@@ -464,7 +480,7 @@ async def add_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # Add overall timeout to prevent hanging (Python 3.10 compatible)
         async def _add_memory_operation():
-            client = get_mcp_client()
+            client = get_mcp_client(user_id=input_data.get("user_id"))
             
             user_input = input_data.get("user_input", "")
             agent_response = input_data.get("agent_response", "")
@@ -501,7 +517,7 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # Add overall timeout to prevent hanging (Python 3.10 compatible)
         async def _retrieve_memory_operation():
-            client = get_mcp_client()
+            client = get_mcp_client(user_id=input_data.get("user_id"))
             
             query = input_data.get("query", "")
             user_id = input_data.get("user_id")
@@ -551,11 +567,13 @@ async def retrieve_memory(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "error_type": type(e).__name__
         }
 
-async def get_user_profile(input_data: Dict[str, Any]) -> Dict[str, Any]:
+
+
+async def get_user_profile(input_data: Dict[str, Any], user_id: str = None) -> Dict[str, Any]:
     """
     Tool function for getting user profile via MCP
     """
-    client = get_mcp_client()
+    client = get_mcp_client(user_id=input_data.get("user_id"))
     
     user_id = input_data.get("user_id")
     include_knowledge = input_data.get("include_knowledge", True)

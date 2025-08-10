@@ -13,10 +13,11 @@ API Documentation: https://docs.perplexity.ai/
 
 import httpx
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import json
 
 # Load environment variables from .env.local
 load_dotenv('.env.local')
@@ -199,7 +200,7 @@ async def perplexity_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "data": {"answer": "", "model": ""}
         }
 
-async def perplexity_research(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def perplexity_research(input_data: Dict[str, Any], stream_callback: Optional[Callable] = None) -> Dict[str, Any]:
     """
     Execute comprehensive research using Perplexity's Sonar Deep Research model
     
@@ -264,27 +265,75 @@ async def perplexity_research(input_data: Dict[str, Any]) -> Dict[str, Any]:
         
         logger.debug(f"Sending research request to Perplexity API: {payload}")
         
+        # Add streaming flag if stream_callback is provided
+        if stream_callback:
+            payload["stream"] = True
+        
         # Make the API request (longer timeout for research)
         async with httpx.AsyncClient(timeout=1800.0) as client:  # 30 min timeout for research
-            response = await client.post(
-                PERPLEXITY_CHAT_ENDPOINT,
-                headers=headers,
-                json=payload
-            )
-            
-            # Check for authentication errors
-            if response.status_code == 401:
-                raise PerplexityAuthError("Invalid API key")
-            
-            # Check for other API errors
-            if response.status_code != 200:
-                error_msg = f"Perplexity API error {response.status_code}: {response.text}"
-                logger.error(error_msg)
-                raise PerplexityAPIError(error_msg)
-            
-            # Parse response
-            api_response = response.json()
-            logger.debug(f"Perplexity research API response: {api_response}")
+            if stream_callback:
+                # Streaming mode
+                full_response = []
+                async with client.stream("POST", PERPLEXITY_CHAT_ENDPOINT, headers=headers, json=payload) as response:
+                    if response.status_code == 401:
+                        raise PerplexityAuthError("Invalid API key")
+                    if response.status_code != 200:
+                        error_msg = f"Perplexity API error {response.status_code}: {await response.aread()}"
+                        logger.error(error_msg)
+                        raise PerplexityAPIError(error_msg)
+                    
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[len("data: "):]
+                            if data.strip() == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                await stream_callback(chunk)
+                                full_response.append(chunk)
+                            except json.JSONDecodeError:
+                                continue
+                
+                # Build final response from accumulated chunks
+                if full_response:
+                    # Extract content from the last chunk or combine chunks
+                    research_report = ""
+                    for chunk in full_response:
+                        if "choices" in chunk and chunk["choices"]:
+                            delta = chunk["choices"][0].get("delta", {})
+                            if "content" in delta:
+                                research_report += delta["content"]
+                    
+                    # Use the last chunk for metadata
+                    last_chunk = full_response[-1] if full_response else {}
+                    api_response = {
+                        "choices": [{"message": {"content": research_report}}],
+                        "model": last_chunk.get("model", input_data.get("model", "sonar-deep-research")),
+                        "usage": last_chunk.get("usage", {})
+                    }
+                else:
+                    raise PerplexityAPIError("No response chunks received")
+            else:
+                # Non-streaming mode
+                response = await client.post(
+                    PERPLEXITY_CHAT_ENDPOINT,
+                    headers=headers,
+                    json=payload
+                )
+                
+                # Check for authentication errors
+                if response.status_code == 401:
+                    raise PerplexityAuthError("Invalid API key")
+                
+                # Check for other API errors
+                if response.status_code != 200:
+                    error_msg = f"Perplexity API error {response.status_code}: {response.text}"
+                    logger.error(error_msg)
+                    raise PerplexityAPIError(error_msg)
+                
+                # Parse response
+                api_response = response.json()
+                logger.debug(f"Perplexity research API response: {api_response}")
             
             # Extract the research report and metadata
             research_report = api_response["choices"][0]["message"]["content"]
@@ -361,6 +410,8 @@ async def perplexity_research(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "message": f"Unexpected error: {str(e)}",
             "data": {"research_report": "", "model": ""}
         }
+
+
 
 def _extract_key_findings(research_report: str) -> List[str]:
     """

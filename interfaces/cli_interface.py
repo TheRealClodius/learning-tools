@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import argparse
+import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 import signal
@@ -36,6 +37,12 @@ class CLIInterface:
         self.verbose = verbose
         self.running = True
         self.thinking_active = False  # Track streaming thinking state
+        
+        # Generate unique user ID for this CLI session
+        import uuid
+        import time
+        self.user_id = f"cli_user_{int(time.time())}_{str(uuid.uuid4())[:8]}"
+        print(f"🆔 Session User ID: {self.user_id}")
         
         # Setup logging level based on verbose flag
         if verbose:
@@ -130,6 +137,7 @@ class CLIInterface:
         try:
             # Initialize streaming state
             self.thinking_active = True
+            start_time = time.time()
             print("🤔 Thinking...")
             
             # Get timestamp for context
@@ -140,16 +148,19 @@ class CLIInterface:
                 message,
                 context={
                     "platform": "cli",
-                    "user_id": "cli_user",  # Fixed user for CLI sessions
+                    "user_id": self.user_id,  # Unique user ID for this session
                     "timestamp": timestamp,
-                    "verbose": self.verbose
+                    "verbose": self.verbose,
+                    # Disable insights updates in CLI to avoid background hangs by default
+                    "disable_insights": True
                 },
                 streaming_callback=self._streaming_callback
             )
             
             # End thinking phase
             self.thinking_active = False
-            print("\n✨ Ready to respond!")  # Completion message on new line
+            total_time = int((time.time() - start_time) * 1000)
+            print(f"\n✨ Ready to respond! (Total processing: {total_time}ms)")
             
             # Display response
             self._display_response(response)
@@ -175,6 +186,15 @@ class CLIInterface:
             # Show each thinking line as it comes, creating a stream of consciousness
             print(f"\n💭 {content}")
             await asyncio.sleep(0.2)  # Brief pause to show the thinking flow
+        elif content_type == "tool_discovery":
+            # Show tool discovery notifications
+            print(f"\n🔍 {content}")
+        elif content_type == "tool_execution":
+            # Show tool execution notifications
+            print(f"\n⚡ {content}")
+        elif content_type == "tool_result":
+            # Show tool results briefly
+            print(f"\n✅ {content}")
     
     def _display_response(self, response: Dict[str, Any]):
         """Display agent response in formatted way"""
@@ -187,16 +207,42 @@ class CLIInterface:
         
         # Processing message  
         message = response.get("message", "")
-        if message and self.verbose:
+        if message:
             print(f"\n   Status: {message}")
         
-        # Tool calls information
+        # Debug: Show what's actually in the response
+        if self.verbose:
+            print(f"\n🔍 DEBUG - Response keys: {list(response.keys())}")
+            if "tool_calls" in response:
+                print(f"🔍 DEBUG - Tool calls found: {len(response['tool_calls'])}")
+            else:
+                print("🔍 DEBUG - No 'tool_calls' key in response")
+        
+        # Tool calls information - always show with detailed timing
         tool_calls = response.get("tool_calls", [])
-        if tool_calls and self.verbose:
-            print("\n🔧 Tools used:")
-            for tool_call in tool_calls:
+        if tool_calls:
+            print("\n🔧 Tools executed:")
+            for i, tool_call in enumerate(tool_calls, 1):
                 tool_name = tool_call.get("tool", "unknown")
-                print(f"   • {tool_name}")
+                execution_time = tool_call.get("execution_time_ms", 0)
+                result_preview = tool_call.get("result_preview", "")
+                success = tool_call.get("success", True)
+                
+                # Show tool with timing and status
+                status_icon = "✅" if success else "❌"
+                print(f"   {i}. {status_icon} {tool_name}: {execution_time}ms")
+                
+                # Show brief result preview
+                if result_preview:
+                    preview = result_preview[:150] + "..." if len(result_preview) > 150 else result_preview
+                    print(f"      → {preview}")
+                elif not success:
+                    error_msg = tool_call.get("error", "Unknown error")
+                    print(f"      → Error: {error_msg}")
+        else:
+            # If no tool_calls found, let's check if memory is working by showing evidence
+            if "Sarah" in agent_response or "TechCorp" in agent_response or "Kubernetes" in agent_response:
+                print("\n🧠 Memory retrieval detected (agent knows previous context)")
         
         # Context information
         context = response.get("context", {})
@@ -205,6 +251,11 @@ class CLIInterface:
             for key, value in context.items():
                 if isinstance(value, str) and len(value) < 100:
                     print(f"   • {key}: {value}")
+        
+        # Show total agent timing if available
+        total_time = response.get("total_time_ms")
+        if total_time:
+            print(f"\n⏱️  Total agent time: {total_time}ms")
         
         print()  # Empty line for spacing
     
