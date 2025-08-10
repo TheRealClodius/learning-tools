@@ -1617,15 +1617,16 @@ class ExecutionSummarizer:
         """Initialize available LLM clients"""
         # Try Gemini first (fastest and cheapest)
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
             api_key = os.environ.get("GEMINI_API_KEY")
             if api_key:
-                genai.configure(api_key=api_key)
-                # Use Gemini 2.5 Flash as requested
-                self.gemini_client = genai.GenerativeModel('gemini-2.5-flash')
+                # Use the new google-genai SDK (google-generativeai is deprecated)
+                self.gemini_client = genai.Client(api_key=api_key)
+                self.gemini_types = types  # Store types module for later use
                 logger.info("Initialized Gemini 2.5 Flash for result summarization")
         except ImportError:
-            logger.warning("Google generativeai library not available")
+            logger.warning("google-genai library not available (pip install google-genai)")
         except Exception as e:
             logger.warning(f"Failed to initialize Gemini client: {e}")
         
@@ -1667,7 +1668,7 @@ class ExecutionSummarizer:
         # Try Gemini 2.5 Flash first (fastest and cheapest)
         if self.gemini_client:
             try:
-                import google.generativeai as genai
+                from google.genai import types
                 
                 prompt = f"""Create a single-line narrative summary of this tool execution using the template format.
 
@@ -1689,16 +1690,17 @@ Examples:
 
 Write the narrative summary:"""
                 
-                # Use the new generation config format
-                generation_config = genai.GenerationConfig(
+                # Use the new SDK format with GenerateContentConfig
+                config = types.GenerateContentConfig(
                     temperature=0,
                     max_output_tokens=1000,
                 )
                 
                 response = await asyncio.to_thread(
-                    self.gemini_client.generate_content,
-                    prompt,
-                    generation_config=generation_config
+                    self.gemini_client.models.generate_content,
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                    config=config
                 )
                 
                 narrative = response.text.strip()
