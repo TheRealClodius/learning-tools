@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchSlackMessagesOutput",
+  "description": "Output schema for Slack message search results",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the search was successful"
+    },
+    "results": {
+      "type": "string",
+      "description": "Formatted search results with messages, channels, users, and relevance scores"
+    },
+    "raw_content": {
+      "type": "array",
+      "description": "Raw content items from the MCP response",
+      "items": {
+        "type": "object"
+      }
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if the search failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false
+}

@@ -53,12 +53,18 @@ class ToolExecutor:
             "slack": {
                 "slack.send_message": "tools.slack:slack_send_message",
                 "slack.search_channels": "tools.slack:slack_search_channels"
+            },
+            "slack_chatter": {
+                "slack_chatter.search_slack_messages": "tools.slack_chatter_mcp:search_slack_messages",
+                "slack_chatter.get_slack_channels": "tools.slack_chatter_mcp:get_slack_channels",
+                "slack_chatter.get_slack_search_stats": "tools.slack_chatter_mcp:get_slack_search_stats"
             }
         }
         
         # Load essential tools at startup
         self._load_registry_tools()
         self._load_memory_tools()
+        self._load_slack_chatter_tools()
     
     def _load_registry_tools(self):
         """Load registry tools that are always available"""
@@ -99,6 +105,27 @@ class ToolExecutor:
             
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
+    
+    def _load_slack_chatter_tools(self):
+        """Load Slack Chatter MCP tools that are always available"""
+        try:
+            from tools.slack_chatter_mcp import (
+                search_slack_messages,
+                get_slack_channels,
+                get_slack_search_stats
+            )
+            
+            self.available_tools.update({
+                "slack_chatter.search_slack_messages": search_slack_messages,
+                "slack_chatter.get_slack_channels": get_slack_channels,
+                "slack_chatter.get_slack_search_stats": get_slack_search_stats
+            })
+            
+            self.loaded_services.add("slack_chatter")
+            logger.info("Slack Chatter MCP tools loaded successfully")
+            
+        except ImportError as e:
+            logger.warning(f"Could not load Slack Chatter MCP tools: {e}")
     
 
     
