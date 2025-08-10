@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchSlackMessagesInput",
+  "description": "Input schema for searching Slack messages using semantic search",
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Search query for finding relevant messages",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "top_k": {
+      "type": "integer",
+      "description": "Number of results to return (1-50)",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10
+    },
+    "channel_filter": {
+      "type": "string",
+      "description": "Filter results by channel name"
+    },
+    "user_filter": {
+      "type": "string",
+      "description": "Filter results by user name"
+    },
+    "date_from": {
+      "type": "string",
+      "description": "Filter messages from this date (YYYY-MM-DD)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "date_to": {
+      "type": "string",
+      "description": "Filter messages to this date (YYYY-MM-DD)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "required": ["query"],
+  "additionalProperties": false,
+  "_meta": {
+    "tool_name": "slack_chatter.search_slack_messages",
+    "category": "communication",
+    "tags": ["slack", "search", "messages", "semantic", "mcp"],
+    "capabilities": [
+      "Semantic search through Slack messages",
+      "Filter by channel, user, and date range",
+      "AI-enhanced query processing",
+      "Real-time message retrieval"
+    ],
+    "use_cases": [
+      "Finding relevant discussions in Slack",
+      "Searching for specific topics or keywords",
+      "Retrieving historical conversations",
+      "Filtering messages by user or channel"
+    ],
+    "rate_limits": {
+      "requests_per_minute": 60
+    }
+  }
+}

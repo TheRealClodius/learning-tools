@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetSlackChannelsOutput",
+  "description": "Output schema for Slack channels list",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the request was successful"
+    },
+    "channels": {
+      "type": "string",
+      "description": "List of available Slack channels"
+    },
+    "raw_content": {
+      "type": "array",
+      "description": "Raw content items from the MCP response",
+      "items": {
+        "type": "object"
+      }
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if the request failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false
+}
