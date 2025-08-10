@@ -519,6 +519,9 @@ class SlackStreamingHandler:
                 # Thinking block: small font, italics - handle multi-line properly
                 thinking_lines = content.split('\n')
                 thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
+                # Ensure text is never empty (Slack requires at least 1 character)
+                if not thinking_formatted:
+                    thinking_formatted = "_..._"
                 blocks.append({
                     "type": "context",
                     "elements": [
@@ -545,6 +548,9 @@ class SlackStreamingHandler:
                 
                 # Format each line with italics
                 tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+                # Ensure text is never empty (Slack requires at least 1 character)
+                if not tool_formatted:
+                    tool_formatted = "_..._"
                 
                 blocks.append({
                     "type": "context",
@@ -560,6 +566,9 @@ class SlackStreamingHandler:
         if self.all_thinking and not self.current_tool_block:
             thinking_lines = self.all_thinking
             thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
+            # Ensure text is never empty (Slack requires at least 1 character)
+            if not thinking_formatted:
+                thinking_formatted = "_..._"
             blocks.append({
                 "type": "context",
                 "elements": [
@@ -589,6 +598,9 @@ class SlackStreamingHandler:
             
             # Format each line with italics
             tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+            # Ensure text is never empty (Slack requires at least 1 character)
+            if not tool_formatted:
+                tool_formatted = "_..._"
             
             blocks.append({
                 "type": "context", 
@@ -1009,6 +1021,9 @@ class SlackInterface:
             if block_type == "thinking":
                 thinking_lines = content.split('\n') if isinstance(content, str) else [content]
                 thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
+                # Ensure thinking_formatted is never empty
+                if not thinking_formatted:
+                    thinking_formatted = "_..._"
                 for chunk in self._split_text_for_slack(f"*Reasoning:*\n{thinking_formatted}"):
                     add_block({
                         "type": "section",
@@ -1027,11 +1042,13 @@ class SlackInterface:
                 operations_text = '\n'.join([op.strip() for op in tool_info.get('operations', []) if op])
                 if tool_info.get('operations') and tool_info.get('status') != 'completed':
                     operations_text += "\n..."
-                for chunk in self._split_text_for_slack(operations_text):
-                    add_block({
-                        "type": "section",
-                        "text": {"type": "mrkdwn", "text": f"_{chunk}_"}
-                    })
+                # Ensure operations_text is never empty before creating blocks
+                if operations_text:
+                    for chunk in self._split_text_for_slack(operations_text):
+                        add_block({
+                            "type": "section",
+                            "text": {"type": "mrkdwn", "text": f"_{chunk}_"}
+                        })
             add_block({"type": "divider"})
 
         # Remove trailing divider from last page
