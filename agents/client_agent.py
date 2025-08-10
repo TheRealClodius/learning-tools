@@ -701,19 +701,21 @@ class ClientAgent:
                 # Note: Tools are now discovered purely through registry search
                 # All execution is handled dynamically by tool_executor
                 
-                if streaming_callback:
-                    # For execute_tool, pass the actual tool name with consistent formatting
-                    if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
-                        actual_tool = tool_call.input.get("tool_name", "unknown")
-                        # Parse tool name into service and action for consistent formatting
-                        if "." in actual_tool:
-                            service, action = actual_tool.split(".", 1)
-                            formatted_tool = f"*{service}* *{action}*"
-                        else:
-                            formatted_tool = f"*{actual_tool}*"
-                        await streaming_callback(f"⚡️{formatted_tool}: {str(result)[:100]}...", "tool_result")
-                    else:
-                        await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
+                # REMOVED tool_result streaming for cleaner output
+                # The ⚡ summary is already shown at tool execution time
+                # if streaming_callback:
+                #     # For execute_tool, pass the actual tool name with consistent formatting
+                #     if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
+                #         actual_tool = tool_call.input.get("tool_name", "unknown")
+                #         # Parse tool name into service and action for consistent formatting
+                #         if "." in actual_tool:
+                #             service, action = actual_tool.split(".", 1)
+                #             formatted_tool = f"*{service}* *{action}*"
+                #         else:
+                #             formatted_tool = f"*{actual_tool}*"
+                #         await streaming_callback(f"⚡️{formatted_tool}: {str(result)[:100]}...", "tool_result")
+                #     else:
+                #         await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
             
             # Add tool results to conversation
             messages.append({"role": "user", "content": tool_results})
@@ -811,17 +813,15 @@ class ClientAgent:
             
             logger.info(f"Executing Claude tool: {function_name}, Args: {args}")
             
-            if streaming_callback:
-                # Format arguments in a more readable way for all tools
-                if function_name == "execute_tool":
-                    # Special handling for execute_tool - already done in the specific section
-                    pass
-                else:
-                    # Format args for other tools
+            # Stream tool details if callback provided
+            if streaming_callback and self.stream_tool_details:
+                # Don't show tool details for registry tools or execute_tool
+                if function_name not in ["reg_search", "reg_describe", "reg_list", "reg_categories", "execute_tool", "memory_add", "memory_retrieve"]:
+                    # Build a preview of arguments
                     args_preview = []
                     for key, value in args.items():
-                        if isinstance(value, str) and len(value) > 100:
-                            args_preview.append(f"{key}: {value[:100]}...")
+                        if isinstance(value, str) and len(value) > 50:
+                            args_preview.append(f"{key}: {value[:50]}...")
                         elif isinstance(value, (list, dict)):
                             args_preview.append(f"{key}: {type(value).__name__}[{len(value)}]")
                         else:
@@ -829,9 +829,12 @@ class ClientAgent:
                     
                     if args_preview:
                         formatted_args = ", ".join(args_preview)
-                        await streaming_callback(f"Parameters: {formatted_args}", "tool_details")
+                        # REMOVED: Parameters output for cleaner display
+                        # await streaming_callback(f"Parameters: {formatted_args}", "tool_details")
                     else:
-                        await streaming_callback(f"Running {function_name}", "tool_details")
+                        # REMOVED: Running message for cleaner display
+                        # await streaming_callback(f"Running {function_name}", "tool_details")
+                        pass
             
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
@@ -846,7 +849,9 @@ class ClientAgent:
                     if query != 'N/A':
                         purpose += f" with \"{query}\""
                     
-                    await streaming_callback(f"⚡️Used *registry* *search*{purpose}", "operation")
+                    # Keep only the concise summary with ⚡
+                    tools_count = ""
+                    
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
@@ -855,7 +860,11 @@ class ClientAgent:
                 if streaming_callback and isinstance(result, dict) and result.get("status") == "success":
                     tools = result.get("data", {}).get("tools", [])
                     if tools:
-                        await streaming_callback(f" and found {len(tools)} tools.", "operation")
+                        # Update the message to include count
+                        tools_count = f" and found {len(tools)} results"
+                        await streaming_callback(f"⚡️Used *registry* *search*{purpose}{tools_count}", "operation")
+                    else:
+                        await streaming_callback(f"⚡️Used *registry* *search*{purpose}", "operation")
             elif function_name == "reg_describe":
                 if streaming_callback:
                     tool_name = args.get('tool_name', 'N/A')
@@ -966,38 +975,39 @@ class ClientAgent:
             
             logger.info(f"Tool executor result: {result}")
             
-            # Stream the result details
-            if streaming_callback:
-                if isinstance(result, dict):
-                    # Check both "success" (boolean) and "status" (string) fields for compatibility
-                    success = (result.get("success") == True) or (result.get("status") == "success")
-                    # Provide a more helpful default message for tools that do not include 'message'
-                    default_message = "Operation completed successfully"
-                    if function_name in ("memory_retrieve", "memory_add"):
-                        # memory tools often return structured data without a 'message'
-                        # so avoid confusing 'No message' in the stream
-                        default_message = "OK"
-                    message = result.get("message", default_message)
-                    if success:
-                        await streaming_callback(f"{function_name} succeeded: {message}", "result")
-                        # Also stream key data if available
-                        data = result.get("data", {})
-                        if isinstance(data, dict):
-                            if "total_results" in data:
-                                await streaming_callback(f"Found {data['total_results']} results", "result_detail")
-                            elif "answer" in data:
-                                # Clean up answer display - remove think tags and show clean preview
-                                answer_text = str(data['answer'])
-                                # Remove <think> tags and their content
-                                import re
-                                clean_answer = re.sub(r'<think>.*?</think>', '', answer_text, flags=re.DOTALL)
-                                clean_answer = clean_answer.strip()
-                                preview = clean_answer[:150] + "..." if len(clean_answer) > 150 else clean_answer
-                                await streaming_callback(f"Retrieved analysis: {preview}", "result_detail")
-                    else:
-                        await streaming_callback(f"{function_name} failed: {message}", "error")
-                else:
-                    await streaming_callback(f"Got result: {str(result)[:150]}...", "result")
+            # Stream the result details - REMOVED for cleaner output
+            # Only keep the ⚡ summary messages above
+            # if streaming_callback:
+            #     if isinstance(result, dict):
+            #         # Check both "success" (boolean) and "status" (string) fields for compatibility
+            #         success = (result.get("success") == True) or (result.get("status") == "success")
+            #         # Provide a more helpful default message for tools that do not include 'message'
+            #         default_message = "Operation completed successfully"
+            #         if function_name in ("memory_retrieve", "memory_add"):
+            #             # memory tools often return structured data without a 'message'
+            #             # so avoid confusing 'No message' in the stream
+            #             default_message = "OK"
+            #         message = result.get("message", default_message)
+            #         if success:
+            #             await streaming_callback(f"{function_name} succeeded: {message}", "result")
+            #             # Also stream key data if available
+            #             data = result.get("data", {})
+            #             if isinstance(data, dict):
+            #                 if "total_results" in data:
+            #                     await streaming_callback(f"Found {data['total_results']} results", "result_detail")
+            #                 elif "answer" in data:
+            #                     # Clean up answer display - remove think tags and show clean preview
+            #                     answer_text = str(data['answer'])
+            #                     # Remove <think> tags and their content
+            #                     import re
+            #                     clean_answer = re.sub(r'<think>.*?</think>', '', answer_text, flags=re.DOTALL)
+            #                     clean_answer = clean_answer.strip()
+            #                     preview = clean_answer[:150] + "..." if len(clean_answer) > 150 else clean_answer
+            #                     await streaming_callback(f"Retrieved analysis: {preview}", "result_detail")
+            #         else:
+            #             await streaming_callback(f"{function_name} failed: {message}", "error")
+            #     else:
+            #         await streaming_callback(f"Got result: {str(result)[:150]}...", "result")
             
             # Return the FULL result so the model can actually use it
             # Do not collapse dict results to a short message; Anthropic expects the tool_result
