@@ -711,10 +711,16 @@ class ClientAgent:
                 # All execution is handled dynamically by tool_executor
                 
                 if streaming_callback:
-                    # For execute_tool, pass the actual tool name with ⚡️ prefix in the result
+                    # For execute_tool, pass the actual tool name with consistent formatting
                     if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
                         actual_tool = tool_call.input.get("tool_name", "unknown")
-                        await streaming_callback(f"⚡️{actual_tool}: {str(result)[:100]}...", "tool_result")
+                        # Parse tool name into service and action for consistent formatting
+                        if "." in actual_tool:
+                            service, action = actual_tool.split(".", 1)
+                            formatted_tool = f"*{service}* *{action}*"
+                        else:
+                            formatted_tool = f"*{actual_tool}*"
+                        await streaming_callback(f"⚡️{formatted_tool}: {str(result)[:100]}...", "tool_result")
                     else:
                         await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
             
@@ -906,8 +912,15 @@ class ClientAgent:
                     else:
                         purpose = ""
                     
+                    # Parse tool name into service and action for better formatting
+                    if "." in tool_name:
+                        service, action = tool_name.split(".", 1)
+                        formatted_tool = f"*{service}* *{action}*"
+                    else:
+                        formatted_tool = f"*{tool_name}*"
+                    
                     # Store the narrative for later completion
-                    operation_text = f"⚡️Using *{tool_name}*{purpose}"
+                    operation_text = f"⚡️Used {formatted_tool}{purpose}"
                     await streaming_callback(operation_text, "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)

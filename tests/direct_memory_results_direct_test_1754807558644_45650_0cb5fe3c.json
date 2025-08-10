@@ -1,0 +1,223 @@
+{
+  "test_metadata": {
+    "test_type": "direct_memory",
+    "user_id": "direct_test_1754807558644_45650_0cb5fe3c",
+    "total_messages": 15,
+    "test_duration": "40686.0ms",
+    "timestamp": "2025-08-10T08:33:35.702623"
+  },
+  "timing_stats": {
+    "add_memory": {
+      "min_ms": 107.52,
+      "max_ms": 6662.76,
+      "avg_ms": 2525.607333333333,
+      "total_ms": 37884.10999999999
+    },
+    "retrieve_memory": {
+      "min_ms": 107.87,
+      "max_ms": 333.68,
+      "avg_ms": 186.7913333333333,
+      "total_ms": 2801.87
+    },
+    "combined": {
+      "min_ms": 215.38,
+      "max_ms": 6847.26,
+      "avg_ms": 2712.397333333334,
+      "total_ms": 40685.96000000001
+    }
+  },
+  "memory_analysis": {
+    "memory_counts": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9
+    ],
+    "max_short_term": 9,
+    "final_count": 9,
+    "spillover_detected": true,
+    "spillover_message": 10
+  },
+  "success_rates": {
+    "add_success_rate": 1.0,
+    "retrieve_success_rate": 1.0
+  },
+  "detailed_results": [
+    {
+      "message_num": 1,
+      "user_input": "Hey there! I'm Sarah from TechCorp's platform team. Just wanted to check in.",
+      "agent_response": "Hi Sarah! Good to hear from you. How are things going at TechCorp? What's keeping you busy on the platform team?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 976.9,
+      "retrieve_time_ms": 265.1,
+      "short_term_count": 1,
+      "timestamp": "2025-08-10T08:32:39.886803"
+    },
+    {
+      "message_num": 2,
+      "user_input": "Oh, the usual chaos! We're in the middle of a massive microservices migration. It's... intense.",
+      "agent_response": "Microservices migrations are no joke! What's the biggest challenge you're facing? Data consistency? Service discovery?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 126.79,
+      "retrieve_time_ms": 116.45,
+      "short_term_count": 2,
+      "timestamp": "2025-08-10T08:32:41.131525"
+    },
+    {
+      "message_num": 3,
+      "user_input": "Data consistency for sure. We're using Kubernetes, Go, and PostgreSQL. Thinking about event sourcing but honestly? I'm a bit overwhelmed.",
+      "agent_response": "That's totally understandable - it's a complex stack! Event sourcing can help, especially with CQRS. Are you getting good support from your team?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 266.0,
+      "retrieve_time_ms": 265.07,
+      "short_term_count": 3,
+      "timestamp": "2025-08-10T08:32:42.663898"
+    },
+    {
+      "message_num": 4,
+      "user_input": "My team's great, but our deadline is next month and we're only at 60%. The payment and auth services are still pending - those are the scary ones.",
+      "agent_response": "Those are definitely the high-stakes services! At 60% with a month left, you're actually in decent shape. Are you planning blue-green deployments for the critical services?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 116.65,
+      "retrieve_time_ms": 260.83,
+      "short_term_count": 4,
+      "timestamp": "2025-08-10T08:32:44.042705"
+    },
+    {
+      "message_num": 5,
+      "user_input": "Yes! Blue-green is the plan. God, I need a break from all this. Last weekend I hiked Mount Tamalpais just to clear my head.",
+      "agent_response": "That sounds like the perfect stress relief! Mount Tamalpais is beautiful. Do you hike there often? It must be nice to get away from the code.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 120.89,
+      "retrieve_time_ms": 120.27,
+      "short_term_count": 5,
+      "timestamp": "2025-08-10T08:32:45.285157"
+    },
+    {
+      "message_num": 6,
+      "user_input": "I try to go monthly, usually the Matt Davis Trail. The ocean views are incredible. Alex (my partner) and I bring our cameras.",
+      "agent_response": "Photography and hiking - what a great combination! What kind of camera setup do you use for those ocean shots?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 128.4,
+      "retrieve_time_ms": 113.86,
+      "short_term_count": 6,
+      "timestamp": "2025-08-10T08:32:46.528692"
+    },
+    {
+      "message_num": 7,
+      "user_input": "Canon EOS R6 with a 24-70mm. Alex is more into the technical stuff, I just love capturing the moments. We're both vegetarian so we pack light lunches.",
+      "agent_response": "The R6 is fantastic for nature photography! And vegetarian trail food can be the best - probably way healthier than what most hikers bring.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 119.46,
+      "retrieve_time_ms": 116.07,
+      "short_term_count": 7,
+      "timestamp": "2025-08-10T08:32:47.765519"
+    },
+    {
+      "message_num": 8,
+      "user_input": "Totally! I actually love cooking. Mediterranean and Thai vegetarian dishes are my favorites. My mushroom risotto is pretty legendary at work potlucks.",
+      "agent_response": "Mushroom risotto sounds amazing! Do you grow your own herbs, or are you more of a farmers market person?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 107.52,
+      "retrieve_time_ms": 107.87,
+      "short_term_count": 8,
+      "timestamp": "2025-08-10T08:32:48.982263"
+    },
+    {
+      "message_num": 9,
+      "user_input": "I have this tiny herb garden on my apartment balcony - basil, thyme, rosemary. It's super therapeutic after long debugging sessions.",
+      "agent_response": "A balcony garden sounds perfect for a busy engineer! There's something so grounding about working with plants after dealing with abstract code all day.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 124.19,
+      "retrieve_time_ms": 254.48,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:32:50.362187"
+    },
+    {
+      "message_num": 10,
+      "user_input": "Exactly! Sometimes I'll just sit out there with my coffee in the morning before diving into Kubernetes configs. Speaking of which... ugh, back to reality.",
+      "agent_response": "Ha! The real world always calls us back. How are you feeling about the migration timeline? Any specific parts you're worried about?",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 6618.02,
+      "retrieve_time_ms": 172.95,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:32:58.154420"
+    },
+    {
+      "message_num": 11,
+      "user_input": "The event sourcing implementation is keeping me up at night. We're looking at Kafka but I've never worked with event streaming before.",
+      "agent_response": "Kafka can seem intimidating at first, but it's pretty powerful once you get the hang of it. The key is understanding partitioning and consumer groups - those are the foundation.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 6094.12,
+      "retrieve_time_ms": 159.52,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:33:05.410188"
+    },
+    {
+      "message_num": 12,
+      "user_input": "Consumer groups... okay, I need to study that. What about database choices? We're PostgreSQL everywhere but wondering about alternatives.",
+      "agent_response": "PostgreSQL is solid for most things! You might consider Redis for caching between services, and maybe MongoDB if you need document storage. But honestly, sticking with what you know during a migration is often smart.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 5802.93,
+      "retrieve_time_ms": 164.51,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:33:12.378751"
+    },
+    {
+      "message_num": 13,
+      "user_input": "That's reassuring. Sometimes I feel like I should know every technology. Do you work with Go much? I love it but still learning the concurrency patterns.",
+      "agent_response": "Go's concurrency is one of its best features! Goroutines and channels take some getting used to, but they're incredibly powerful for microservices. Your experience with distributed systems will definitely help.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 6662.76,
+      "retrieve_time_ms": 184.5,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:33:20.227492"
+    },
+    {
+      "message_num": 14,
+      "user_input": "Thanks for the encouragement! Can you remind me - what did we discuss about my work situation earlier? My brain is fried.",
+      "agent_response": "Of course! You're at TechCorp doing a microservices migration with Kubernetes, Go, and PostgreSQL. You're 60% done with a month left, working on payment and auth services next using blue-green deployments. You're considering event sourcing with Kafka for data consistency.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 4708.62,
+      "retrieve_time_ms": 166.71,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:33:26.104094"
+    },
+    {
+      "message_num": 15,
+      "user_input": "Perfect memory! And my hobbies?",
+      "agent_response": "You hike monthly at Mount Tamalpais on the Matt Davis Trail with Alex, taking photos with your Canon EOS R6. You love cooking vegetarian Mediterranean and Thai food, especially mushroom risotto, and you have a therapeutic herb garden with basil, thyme, and rosemary.",
+      "add_success": true,
+      "retrieve_success": true,
+      "add_time_ms": 5910.86,
+      "retrieve_time_ms": 333.68,
+      "short_term_count": 9,
+      "timestamp": "2025-08-10T08:33:33.350144"
+    }
+  ]
+}

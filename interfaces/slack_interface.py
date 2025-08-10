@@ -622,10 +622,13 @@ class SlackStreamingHandler:
         if self.current_tool_block:
             self.execution_summary.append(("tool", self.current_tool_block.copy()))
         
-        # Store execution details in the interface cache for button access
+        # IMPROVED: Store execution details in the interface cache for button access
         if slack_interface and self.execution_summary:
-            # Add timestamp to cache entry
-            slack_interface.execution_details_cache[self.message_ts] = (time.time(), self.execution_summary.copy())
+            # Add timestamp to cache entry with performance logging
+            cache_time = time.time()
+            slack_interface.execution_details_cache[self.message_ts] = (cache_time, self.execution_summary.copy())
+            logger.info(f"CACHE-STORED: Execution details cached for message_ts={self.message_ts}, "
+                       f"details_count={len(self.execution_summary)}, cache_size={len(slack_interface.execution_details_cache)}")
         
         # Parse the response as markdown and convert to Slack blocks
         try:
@@ -739,7 +742,7 @@ class SlackInterface:
             # Ensure cleanup task is started
             await self._ensure_cleanup_task_started()
             
-            # Ack immediately to avoid Slack 3s timeout
+            # CRITICAL: Ack immediately to avoid Slack 3s timeout - this must be first!
             try:
                 await ack()
                 logger.info(f"Acknowledged view_execution_details button click from user {body.get('user', {}).get('id')}")
@@ -748,12 +751,12 @@ class SlackInterface:
                 # If ack fails, we should not proceed as the trigger_id might be invalid
                 return
             
-            # Use a small delay to ensure Slack has processed the ack
-            await asyncio.sleep(0.1)
+            # OPTIMIZATION: Remove artificial delay - every millisecond counts with trigger_id timeout
+            # Original: await asyncio.sleep(0.1)  # REMOVED - wasting precious time
             
-            # Open the modal with retry logic for reliability
-            max_retries = 3
-            retry_delay = 0.5
+            # IMPROVED: Fast-fail approach with minimal retries to stay within 3s window
+            max_retries = 2  # Reduced from 3 to save time
+            retry_delay = 0.1  # Much faster initial retry
             
             for attempt in range(max_retries):
                 try:
@@ -764,7 +767,7 @@ class SlackInterface:
                     logger.error(f"Attempt {attempt + 1} failed to open modal: {e}")
                     if attempt < max_retries - 1:
                         await asyncio.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
+                        retry_delay = min(retry_delay * 1.5, 0.3)  # Gentler backoff, capped at 300ms
                     else:
                         # Final attempt failed, notify user
                         try:
@@ -807,45 +810,40 @@ class SlackInterface:
                 logger.error(f"Error handling prev page: {e}")
     
     async def _show_execution_details_modal(self, body, client):
-        """Show execution details in a modal"""
+        """Show execution details in a modal - optimized for trigger_id timeout"""
         try:
-            # Log the incoming request details
+            # FAST VALIDATION: Check critical fields immediately
             trigger_id = body.get("trigger_id")
-            user_id = body.get("user", {}).get("id")
-            logger.info(f"Opening execution details modal for user {user_id} with trigger_id {trigger_id}")
-            
-            # Validate trigger_id exists
             if not trigger_id:
                 logger.error("No trigger_id found in body - cannot open modal")
                 raise ValueError("Missing trigger_id")
             
-            # Get the message timestamp from the button value
+            user_id = body.get("user", {}).get("id")
             message_ts = body["actions"][0]["value"]
-            logger.info(f"Looking up execution details for message_ts: {message_ts}")
             
-            # Get execution details from cache
+            logger.info(f"Fast modal open for user {user_id}, message_ts: {message_ts}, trigger_id: {trigger_id[:8]}...")
+            
+            # FAST CACHE LOOKUP: Get execution details from cache immediately
             cached_entry = self.execution_details_cache.get(message_ts)
             
             if not cached_entry:
                 logger.warning(f"No execution details found in cache for message_ts: {message_ts}")
                 logger.debug(f"Current cache keys: {list(self.execution_details_cache.keys())}")
-                await client.chat_postEphemeral(
-                    channel=body["channel"]["id"],
-                    user=body["user"]["id"],
-                    text="Execution details not found or expired."
-                )
-                return
+                # Use raise instead of async ephemeral call to fail faster
+                raise ValueError(f"Execution details not found for message_ts: {message_ts}")
             
-            # Check if cache entry is stale
+            # FAST STALENESS CHECK: Check if cache entry is stale
             timestamp, execution_details = cached_entry
-            if time.time() - timestamp > self.cache_ttl:
-                logger.warning(f"Cache entry for message_ts {message_ts} is stale. TTL: {self.cache_ttl}s, Current age: {int(time.time() - timestamp)}s")
-                await client.chat_postEphemeral(
-                    channel=body["channel"]["id"],
-                    user=body["user"]["id"],
-                    text="Execution details are outdated. Please try again."
-                )
-                return
+            current_time = time.time()
+            cache_age = current_time - timestamp
+            
+            if cache_age > self.cache_ttl:
+                logger.warning(f"Cache entry for message_ts {message_ts} is stale. TTL: {self.cache_ttl}s, Current age: {int(cache_age)}s")
+                # Use raise instead of async ephemeral call to fail faster
+                raise ValueError(f"Execution details are outdated (age: {int(cache_age)}s)")
+            
+            # PERFORMANCE LOG: Track cache hit and freshness
+            logger.info(f"Cache hit: {len(execution_details)} execution details, cache age: {int(cache_age)}s")
 
             logger.info(f"Found {len(execution_details)} execution detail blocks")
             
@@ -857,40 +855,67 @@ class SlackInterface:
             
             modal_view = self._build_modal_view(pages[page_index] if pages else [], page_index, total_pages, message_ts)
             
-            # Log modal size for debugging
+            # CRITICAL SIZE CHECK: Validate modal size before sending to avoid silent failures
             modal_json = json.dumps(modal_view)
-            logger.info(f"Modal JSON size: {len(modal_json)} bytes")
+            modal_size = len(modal_json)
+            logger.info(f"Modal JSON size: {modal_size} bytes")
             
-            # Open the modal
-            logger.info(f"Attempting to open modal with trigger_id: {trigger_id}")
+            # Slack has a ~600KB limit for modals, but be conservative
+            MAX_MODAL_SIZE = 500000  # 500KB conservative limit
+            if modal_size > MAX_MODAL_SIZE:
+                logger.error(f"Modal size ({modal_size} bytes) exceeds safe limit ({MAX_MODAL_SIZE} bytes)")
+                raise ValueError(f"Modal too large: {modal_size} bytes > {MAX_MODAL_SIZE} bytes")
+            
+            # OPTIMIZED MODAL OPENING: Open the modal with minimal overhead
+            logger.info(f"Opening modal with trigger_id: {trigger_id[:8]}... (size: {modal_size} bytes)")
+            
             response = await client.views_open(
                 trigger_id=trigger_id,
                 view=modal_view
             )
             
+            # IMPROVED ERROR HANDLING: Log both success and failure details
             if response.get("ok"):
-                logger.info(f"Modal opened successfully with view_id: {response.get('view', {}).get('id')}")
+                view_id = response.get('view', {}).get('id', 'unknown')
+                logger.info(f"✅ Modal opened successfully! view_id: {view_id}")
             else:
-                logger.error(f"Slack API returned not ok: {response}")
+                error_msg = response.get('error', 'unknown_error')
+                logger.error(f"❌ Slack API returned not ok: {error_msg}, full response: {response}")
+                raise Exception(f"Slack API error: {error_msg}")
             
         except Exception as e:
             logger.error(f"Error showing execution details modal: {e}", exc_info=True)
-            # Log additional context
-            logger.error(f"Body keys: {list(body.keys())}")
-            logger.error(f"User: {body.get('user', {}).get('id')}")
-            logger.error(f"Channel: {body.get('channel', {}).get('id')}")
             
+            # FAST ERROR CLASSIFICATION: Determine user-friendly error message
+            error_str = str(e).lower()
+            if "not found" in error_str:
+                user_message = "Execution details not found or expired."
+            elif "outdated" in error_str or "stale" in error_str:
+                user_message = "Execution details are outdated. Please try again."
+            elif "too large" in error_str or "size" in error_str:
+                user_message = "Execution details are too large to display. Please check logs."
+            elif "trigger_id" in error_str:
+                user_message = "Request expired. Please click the button again."
+            else:
+                user_message = "Unable to display execution details. Please try again."
+            
+            # FAST USER NOTIFICATION: Send ephemeral message efficiently
             try:
                 channel_id = body.get("channel", {}).get("id") or body.get("container", {}).get("channel_id")
                 user_id = body.get("user", {}).get("id")
                 if channel_id and user_id:
+                    # Use specific error message for better user experience
                     await client.chat_postEphemeral(
                         channel=channel_id,
                         user=user_id,
-                        text="Error displaying execution details."
+                        text=user_message
                     )
-            except:
-                pass  # Ignore ephemeral message errors
+                    logger.info(f"Sent error message to user {user_id}: {user_message}")
+            except Exception as ephemeral_error:
+                logger.warning(f"Failed to send ephemeral error message: {ephemeral_error}")
+            
+            # RE-RAISE: Let the retry logic in the caller handle this
+            raise
 
     def _split_text_for_slack(self, text: str, max_len: int = 2900) -> list:
         """Split large text into multiple chunks that fit Slack text object limits."""

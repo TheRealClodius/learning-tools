@@ -1,0 +1,1643 @@
+{
+  "test_metadata": {
+    "test_type": "comprehensive_tool_test",
+    "user_id": "tool_test_1754811370253_68145_55b0b4f8",
+    "total_tests": 9,
+    "successful_tests": 9,
+    "test_duration_ms": 951.9999999999999,
+    "timestamp": "2025-08-10T09:36:15.745227"
+  },
+  "summary": {
+    "success_rate": 1.0,
+    "avg_execution_time_ms": 105.77777777777777
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "tool_name": "memory.add",
+      "description": "Add conversation memory",
+      "execution_time_ms": 543.34,
+      "success": true,
+      "analysis": "Partial success: found ['status'], missing ['success']",
+      "result_type": "dict",
+      "result_size": 209,
+      "raw_result": {
+        "status": "success",
+        "message": "Memory has been successfully added to MemoryOS",
+        "timestamp": "2025-08-10 07:36:10",
+        "details": {
+          "user_input_length": 78,
+          "agent_response_length": 92,
+          "has_meta_data": false
+        }
+      },
+      "timestamp": "2025-08-10T09:36:10.824118"
+    },
+    {
+      "test_num": 2,
+      "tool_name": "memory.retrieve",
+      "description": "Retrieve conversation history",
+      "execution_time_ms": 237.7,
+      "success": true,
+      "analysis": "Success: memory tool returned all expected fields ['short_term_memory', 'status']",
+      "result_type": "dict",
+      "result_size": 11375,
+      "raw_result": {
+        "status": "success",
+        "query": "recent conversation history",
+        "timestamp": "2025-08-10 07:36:11",
+        "user_profile": "**Updated User Profile:**\n\n*   **Openness (High)** - User is reading a \"fascinating book about distributed systems,\" and in the new conversation, asks about diverse topics like \"AI's impact on software engineering\" and \"advice for someone starting in tech,\" and engages with complex technical problems (memory leaks, Kubernetes, database migration, GraphQL, CI/CD, API rate limits), indicating a strong willingness to embrace new and complex ideas and experiences.\n*   **Cognitive Needs (High)** - Actively engaging with a \"fascinating book about distributed systems\" for leisure, asking detailed questions about staying current in tech, soft skills, and technical challenges, asking about \"AI's impact on software engineering,\" seeking \"advice\" for those \"starting in tech,\" and consistently engaging in solving complex technical problems, demonstrates a very high desire for knowledge and understanding, particularly in technical and professional development fields.\n*   **Complexity (High)** - User engages with a complex topic like \"AI's impact on software engineering\" and previously asked detailed questions. The new conversation reinforces this through engagement with highly complex technical issues such as Go microservice memory leaks, Kubernetes pod evictions, database migration considerations, GraphQL implementation debates, CI/CD pipeline optimization, and API rate limiting, suggesting a strong preference for detailed and complex information.\n*   **Conciseness (High)** - The user's questions in the new conversation are consistently short, direct, and to the point (\"What herbs...\", \"Can you recall...\", \"I'm debugging...\"), indicating a preference for brief and clear responses.\n*   **Conscientiousness (High)** - User is actively tracking project details (migration percentage, timeline, services), making technical decisions (deployment strategy, event handling tech), and proactively debugging complex issues (memory leak, pod evictions, CI/CD, rate limits). This demonstrates a strong sense of responsibility and diligence in their work.\n*   **Education Interest (High)** - User asks for \"advice\" for \"someone starting in tech,\" and actively seeks solutions and understanding for complex technical challenges, directly demonstrating a strong interest in learning, guidance, and professional development.\n*   **Helpfulness (High)** - The user's repeated questions for recalling previously stated information (personal",
+        "short_term_memory": [
+          {
+            "user_input": "[Follow-up] Our Docker images are getting too large - over 2GB now.",
+            "agent_response": "Good point! Large images slow everything down! Multi-stage builds and minimal base images can help a lot.",
+            "timestamp": "2025-08-10 07:20:49"
+          },
+          {
+            "user_input": "[Follow-up] The load balancer configuration is causing weird routing issues.",
+            "agent_response": "Good point! Load balancer issues can be subtle! Are you seeing specific patterns in the routing problems?",
+            "timestamp": "2025-08-10 07:20:51"
+          },
+          {
+            "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work on distributed systems using Kubernetes and Go.",
+            "agent_response": "Hello Sarah! Welcome! I'm Signal, and I'm delighted to meet you. I understand you're a software engineer at TechCorp specializing in distributed systems, specifically working with Kubernetes and Go. That's a fascinating area of technology!",
+            "timestamp": "2025-08-10 07:22:18"
+          },
+          {
+            "user_input": "I love hiking on weekends. My favorite trail is Mount Tamalpais, especially the Matt Davis Trail.",
+            "agent_response": "Based on the weather forecast for the Mount Tamalpais area, here's what you can expect:\n\nCurrent conditions:\n- Temperature: 58\u00b0F\n- Clear skies\n- Humidity: 86%\n- Light wind: 5 mph\n\nToday's forecast:\n- High: 78\u00b0F\n- Low: 54\u00b0F\n- Clear skies throughout the day\n- Wind picking up in the afternoon (10-13 mph)\n- UV Index will be high (8.8), so bring sun protection\n- No rain expected\n\nThe Matt Davis Trail is particularly beautiful this time of year. Since it's going to be a clear day with comfortable temperatures, it's a great day for hiking! Just remember to:\n1. Bring plenty of water\n2. Wear sunscreen and a hat (UV index will be high)\n3. Bring layers as temperatures will vary throughout the day\n4. Start early to avoid the stronger afternoon winds\n5. Bring a light jacket for the morning hours when it's cooler\n\nWould you like me to check the weather for any specific time of day, or would you like more detailed information about the trail conditions?",
+            "timestamp": "2025-08-10 07:23:24"
+          },
+          {
+            "user_input": "Hi! I am Sarah, a software engineer at TechCorp.",
+            "agent_response": "Hello Sarah! Welcome! I'm Signal, and I'm here to help you with any questions or tasks you might have. I understand you're a software engineer at TechCorp - that's great! I'm equipped to help with technical queries, information searches, and various other tasks.",
+            "timestamp": "2025-08-10 07:26:44"
+          },
+          {
+            "user_input": "Hi! I am Sarah, a software engineer at TechCorp.",
+            "agent_response": "Hello Sarah! Welcome! I'm Signal, and I'm here to help you with any questions or tasks you might have. I see from our previous conversations that you're working on some interesting projects, including a microservices migration, and you're dealing with various technical challenges. You also enjoy hiking, particularly at Mount Tamalpais, and have some interests in gardening too! \n\nIs there anything specific you'd like help with today? I can assist you with technical questions, project planning, or any other topics you'd like to discuss.",
+            "timestamp": "2025-08-10 07:28:00"
+          },
+          {
+            "user_input": "What should I have for lunch based on my dietary preferences and health goals?",
+            "agent_response": "I see from our previous conversations that you visited a farmers market yesterday and enjoy growing herbs (basil, thyme, and rosemary) on your balcony. However, I don't have specific information about your dietary preferences or health goals. To provide you with the most appropriate lunch recommendations, I'll need to know:\n\n1. Do you have any dietary restrictions or preferences (vegetarian, vegan, gluten-free, etc.)?\n2. What are your current health goals (weight management, muscle building, energy boost, etc.)?\n3. Do you have any food allergies I should be aware of?\n\nOnce you provide these details, I can give you personalized lunch recommendations that align with your preferences and goals. I can also incorporate some of those fresh herbs you're growing to make the meal more flavorful!",
+            "timestamp": "2025-08-10 07:28:28"
+          },
+          {
+            "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work with Kubernetes and Go.",
+            "agent_response": "Hello Sarah! Nice to meet you. I'd love to hear more about your work with Kubernetes and Go.",
+            "timestamp": "2025-08-10 07:31:58"
+          },
+          {
+            "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work with Kubernetes and Go.",
+            "agent_response": "Hello Sarah! Nice to meet you. I'd love to hear more about your work with Kubernetes and Go.",
+            "timestamp": "2025-08-10 07:36:10"
+          }
+        ],
+        "short_term_count": 9,
+        "retrieved_pages": [
+          {
+            "user_input": "[Follow-up] We need to implement better monitoring for our services.",
+            "agent_response": "Good point! Good monitoring is crucial! Are you looking at metrics, logs, traces, or all three?",
+            "timestamp": "2025-08-10 07:20:39",
+            "meta_info": ""
+          },
+          {
+            "user_input": "What technology were we considering for event handling?",
+            "agent_response": "You mentioned looking into Kafka for event streaming, though you haven't worked with it before.",
+            "timestamp": "2025-08-10 07:20:27",
+            "meta_info": ""
+          },
+          {
+            "user_input": "What's the timeline for our project again?",
+            "agent_response": "You said the migration deadline is next month, which is putting some pressure on the team.",
+            "timestamp": "2025-08-10 07:20:23",
+            "meta_info": ""
+          },
+          {
+            "user_input": "Which services are we migrating next?",
+            "agent_response": "You mentioned that payment processing and user authentication services are next - the critical ones.",
+            "timestamp": "2025-08-10 07:20:25",
+            "meta_info": ""
+          },
+          {
+            "user_input": "Can you recall what percentage of our migration is complete?",
+            "agent_response": "You mentioned that your team has completed about 60% of the microservices migration project.",
+            "timestamp": "2025-08-10 07:20:22",
+            "meta_info": ""
+          },
+          {
+            "user_input": "What herbs did I say I grow on my balcony?",
+            "agent_response": "You mentioned growing basil, thyme, and rosemary in your apartment balcony garden.",
+            "timestamp": "2025-08-10 07:20:21",
+            "meta_info": ""
+          }
+        ],
+        "retrieved_user_knowledge": [
+          {
+            "knowledge": "- User went to farmers market: on 2025-08-09",
+            "timestamp": "2025-08-10 07:20:31"
+          },
+          {
+            "knowledge": "- Visited farmers market: User visited farmers market on 2025-08-09.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Liked tomatoes: User found tomatoes amazing on 2025-08-09.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- User's team wants to implement GraphQL: 2025-08-10 07:20:33",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User's team migrating payment processing, user authentication services next: 2025-08-10 07:20:25",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User not convinced about GraphQL: 2025-08-10 07:20:33",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User's team considering Kafka for event streaming: 2025-08-10 07:20:27",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User hasn't worked with Kafka before: 2025-08-10 07:20:27",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User is reading book about distributed systems: on 2025-08-10",
+            "timestamp": "2025-08-10 07:20:31"
+          },
+          {
+            "knowledge": "- User considered Kafka for event streaming; no prior Kafka experience.",
+            "timestamp": "2025-08-10 07:21:31"
+          }
+        ],
+        "retrieved_assistant_knowledge": [
+          {
+            "knowledge": "- Assistant provided methods for staying current during tech discussion.",
+            "timestamp": "2025-08-10 07:20:56"
+          },
+          {
+            "knowledge": "- Assistant asked about tomato plans: Assistant asked about tomato plans at 2025-08-10 07:19:58.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Assistant recalled user's event handling consideration at 07:20:27.",
+            "timestamp": "2025-08-10 07:21:32"
+          },
+          {
+            "knowledge": "- Assistant asked about book insights: Assistant asked about book insights at 2025-08-10 07:19:59.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Assistant asked about basil use: Assistant asked about basil use at 2025-08-10 07:19:51",
+            "timestamp": "2025-08-10 07:20:48"
+          },
+          {
+            "knowledge": "- Assistant recalled user's migration progress at 07:20:22.",
+            "timestamp": "2025-08-10 07:21:32"
+          },
+          {
+            "knowledge": "- Assistant recalled user's next migration services at 07:20:25.",
+            "timestamp": "2025-08-10 07:21:32"
+          },
+          {
+            "knowledge": "- Assistant asked about GraphQL concerns at 07:20:33.",
+            "timestamp": "2025-08-10 07:21:33"
+          },
+          {
+            "knowledge": "- Assistant recalled next migration services at 2025-08-10 07:20:25",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- Assistant asked clarifying questions about database switch at 2025-08-10 07:20:31",
+            "timestamp": "2025-08-10 07:21:18"
+          }
+        ],
+        "total_pages_found": 6,
+        "total_user_knowledge_found": 20,
+        "total_assistant_knowledge_found": 20,
+        "message": "Retrieved 9 recent and 6 historical entries"
+      },
+      "timestamp": "2025-08-10T09:36:11.563300"
+    },
+    {
+      "test_num": 3,
+      "tool_name": "memory.get_user_profile",
+      "description": "Get user profile information",
+      "execution_time_ms": 165.08,
+      "success": true,
+      "analysis": "Success: memory tool returned all expected fields ['status']",
+      "result_type": "dict",
+      "result_size": 7272,
+      "raw_result": {
+        "status": "success",
+        "timestamp": "2025-08-10 07:36:12",
+        "user_id": "test_user_001",
+        "assistant_id": "memoryos_assistant",
+        "user_profile": "**Updated User Profile:**\n\n*   **Openness (High)** - User is reading a \"fascinating book about distributed systems,\" and in the new conversation, asks about diverse topics like \"AI's impact on software engineering\" and \"advice for someone starting in tech,\" and engages with complex technical problems (memory leaks, Kubernetes, database migration, GraphQL, CI/CD, API rate limits), indicating a strong willingness to embrace new and complex ideas and experiences.\n*   **Cognitive Needs (High)** - Actively engaging with a \"fascinating book about distributed systems\" for leisure, asking detailed questions about staying current in tech, soft skills, and technical challenges, asking about \"AI's impact on software engineering,\" seeking \"advice\" for those \"starting in tech,\" and consistently engaging in solving complex technical problems, demonstrates a very high desire for knowledge and understanding, particularly in technical and professional development fields.\n*   **Complexity (High)** - User engages with a complex topic like \"AI's impact on software engineering\" and previously asked detailed questions. The new conversation reinforces this through engagement with highly complex technical issues such as Go microservice memory leaks, Kubernetes pod evictions, database migration considerations, GraphQL implementation debates, CI/CD pipeline optimization, and API rate limiting, suggesting a strong preference for detailed and complex information.\n*   **Conciseness (High)** - The user's questions in the new conversation are consistently short, direct, and to the point (\"What herbs...\", \"Can you recall...\", \"I'm debugging...\"), indicating a preference for brief and clear responses.\n*   **Conscientiousness (High)** - User is actively tracking project details (migration percentage, timeline, services), making technical decisions (deployment strategy, event handling tech), and proactively debugging complex issues (memory leak, pod evictions, CI/CD, rate limits). This demonstrates a strong sense of responsibility and diligence in their work.\n*   **Education Interest (High)** - User asks for \"advice\" for \"someone starting in tech,\" and actively seeks solutions and understanding for complex technical challenges, directly demonstrating a strong interest in learning, guidance, and professional development.\n*   **Helpfulness (High)** - The user's repeated questions for recalling previously stated information (personal",
+        "user_knowledge": [
+          {
+            "knowledge": "- User went to farmers market: on 2025-08-09",
+            "timestamp": "2025-08-10 07:20:31"
+          },
+          {
+            "knowledge": "- User is reading book about distributed systems: on 2025-08-10",
+            "timestamp": "2025-08-10 07:20:31"
+          },
+          {
+            "knowledge": "- Visited farmers market: User visited farmers market on 2025-08-09.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Liked tomatoes: User found tomatoes amazing on 2025-08-09.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Reading book on distributed systems: User is reading book on distributed systems on 2025-08-10.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- Finds book fascinating: User finds book on distributed systems fascinating on 2025-08-10.",
+            "timestamp": "2025-08-10 07:20:32"
+          },
+          {
+            "knowledge": "- User hiked Angel Island: User hiked Angel Island last weekend (2025-08-10)",
+            "timestamp": "2025-08-10 07:20:48"
+          },
+          {
+            "knowledge": "- User has herb garden: User has thriving herb garden with large basil (2025-08-10)",
+            "timestamp": "2025-08-10 07:20:48"
+          },
+          {
+            "knowledge": "- User works at TechCorp: work setup with microservices, Kubernetes, Go, PostgreSQL.",
+            "timestamp": "2025-08-10 07:20:55"
+          },
+          {
+            "knowledge": "- User enjoys hiking: at Mount Tamalpais, Matt Davis Trail.",
+            "timestamp": "2025-08-10 07:20:56"
+          },
+          {
+            "knowledge": "- User does photography: with Alex, using Canon EOS R6 with 24-70mm lens for nature.",
+            "timestamp": "2025-08-10 07:20:56"
+          },
+          {
+            "knowledge": "- User is vegetarian: loves Mediterranean, Thai dishes, specialty mushroom risotto.",
+            "timestamp": "2025-08-10 07:20:56"
+          },
+          {
+            "knowledge": "- User grows basil, thyme, rosemary on apartment balcony: 2025-08-10 07:20:21",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team completed 60% of microservices migration project: 2025-08-10 07:20:22",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team has migration deadline next month: 2025-08-10 07:20:23",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team migrating payment processing, user authentication services next: 2025-08-10 07:20:25",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team planning blue-green deployments for critical services: 2025-08-10 07:20:26",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team considering Kafka for event streaming: 2025-08-10 07:20:27",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User hasn't worked with Kafka before: 2025-08-10 07:20:27",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User debugging memory leak in Go microservice: 2025-08-10 07:20:29",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's Kubernetes cluster has pod evictions: 2025-08-10 07:20:30",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team considering switching from PostgreSQL to MongoDB: 2025-08-10 07:20:31",
+            "timestamp": "2025-08-10 07:21:16"
+          },
+          {
+            "knowledge": "- User's team wants to implement GraphQL: 2025-08-10 07:20:33",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User not convinced about GraphQL: 2025-08-10 07:20:33",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User's CI/CD pipeline takes 45 minutes per build: 2025-08-10 07:20:34",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User's team hitting rate limits on external API calls: 2025-08-10 07:20:36",
+            "timestamp": "2025-08-10 07:21:17"
+          },
+          {
+            "knowledge": "- User grows basil, thyme, rosemary on balcony.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User's team 60% complete microservices migration.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User's migration deadline next month.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User's next migration: payment processing, user authentication services.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User plans blue-green deployments for critical services.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User considered Kafka for event streaming; no prior Kafka experience.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User debugging memory leak in Go microservice.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User's Kubernetes cluster has pod evictions.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User considering PostgreSQL to MongoDB switch.",
+            "timestamp": "2025-08-10 07:21:31"
+          },
+          {
+            "knowledge": "- User's team wants GraphQL; user not convinced.",
+            "timestamp": "2025-08-10 07:21:32"
+          },
+          {
+            "knowledge": "- User's CI/CD pipeline takes 45 minutes per build.",
+            "timestamp": "2025-08-10 07:21:32"
+          },
+          {
+            "knowledge": "- User hitting external API rate limits.",
+            "timestamp": "2025-08-10 07:21:32"
+          }
+        ],
+        "user_knowledge_count": 38
+      },
+      "timestamp": "2025-08-10T09:36:12.229299"
+    },
+    {
+      "test_num": 4,
+      "tool_name": "reg.categories",
+      "description": "List available tool categories",
+      "execution_time_ms": 3.03,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['categories', 'total_categories']",
+      "result_type": "dict",
+      "result_size": 910,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved 6 tool categories",
+        "data": {
+          "categories": {
+            "registry": {
+              "name": "Tool Registry",
+              "description": "Tools for discovering and managing other tools",
+              "icon": "\ud83d\udd27",
+              "tool_count": 8
+            },
+            "weather": {
+              "name": "Weather & Climate",
+              "description": "Tools for weather information and forecasts",
+              "icon": "\ud83c\udf24\ufe0f",
+              "tool_count": 3
+            },
+            "memory": {
+              "name": "Memory & Personalization",
+              "description": "Tools for persistent memory and user profiling",
+              "icon": "\ud83e\udde0",
+              "tool_count": 3
+            },
+            "search": {
+              "name": "Search & Research",
+              "description": "Tools for web search and comprehensive research",
+              "icon": "\ud83d\udd0d",
+              "tool_count": 0
+            },
+            "communication": {
+              "name": "Communication",
+              "description": "Tools for messaging and team communication",
+              "icon": "\ud83d\udcac",
+              "tool_count": 0
+            },
+            "perplexity": {
+              "name": "Perplexity",
+              "description": "Tools for perplexity operations",
+              "icon": "\ud83d\udd27",
+              "tool_count": 1
+            }
+          },
+          "total_categories": 6
+        }
+      },
+      "timestamp": "2025-08-10T09:36:12.733932"
+    },
+    {
+      "test_num": 5,
+      "tool_name": "reg.list",
+      "description": "List all available tools",
+      "execution_time_ms": 0.11,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['total_available', 'returned', 'tools']",
+      "result_type": "dict",
+      "result_size": 15536,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved 16 tools",
+        "data": {
+          "total_available": 16,
+          "returned": 16,
+          "tools": [
+            {
+              "name": "memory.get_user_profile",
+              "display_name": "Memory Get User Profile Input",
+              "description": [
+                "Obtain a user profile generated from analysis of historical dialogues in MemoryOS"
+              ],
+              "category": "memory",
+              "tags": [
+                "get_user_profile",
+                "memory"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get_User_Profile operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/get_user_profile_input.json",
+              "output_schema": "schemas/services/memory/get_user_profile_output.json"
+            },
+            {
+              "name": "memory.retrieve",
+              "display_name": "Memory Retrieve Input",
+              "description": [
+                "Retrieve related historical dialogues, user preferences, and knowledge information from the MemoryOS system based on a query"
+              ],
+              "category": "memory",
+              "tags": [
+                "retrieve",
+                "memory",
+                "search"
+              ],
+              "capabilities": [
+                "search"
+              ],
+              "use_cases": [
+                "Retrieve operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/retrieve_input.json",
+              "output_schema": "schemas/services/memory/retrieve_output.json"
+            },
+            {
+              "name": "memory.add",
+              "display_name": "Memory Add Input",
+              "description": [
+                "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history"
+              ],
+              "category": "memory",
+              "tags": [
+                "add",
+                "memory"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Add operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/add_input.json",
+              "output_schema": "schemas/services/memory/add_output.json"
+            },
+            {
+              "name": "perplexity.research",
+              "display_name": "Perplexity Research Input",
+              "description": [
+                "Conduct comprehensive, multi-step research using Perplexity's Sonar Deep Research model for exhaustive analysis and reporting. Performs automated research across multiple sources with intelligent search refinement, source evaluation, and synthesis. Generates detailed research reports with extensive citations, key findings extraction, and methodology documentation. Supports advanced filtering by domain, date ranges, and focus areas for targeted academic and professional research. Essential for academic research, market analysis, policy studies, technical investigations, and comprehensive fact-gathering that requires depth and rigor."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "ai",
+                "web",
+                "filtering"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Academic research",
+                "Comprehensive analysis",
+                "Investigation"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/research_input.json",
+              "output_schema": "schemas/services/perplexity/research_output.json"
+            },
+            {
+              "name": "perplexity.search",
+              "display_name": "Perplexity Search Input",
+              "description": [
+                "Perform quick, accurate web searches using Perplexity's Sonar models with real-time web information and automatic source citations. Access current web data, news, and information with AI-powered search that provides grounded responses with transparent sourcing. Choose from multiple Sonar models: basic Sonar for cost-effective searches, Sonar Pro for detailed responses, or reasoning models for analytical queries. Filter results by domain, recency, and context size for targeted information retrieval suited to your specific needs. Essential for fact-checking, research tasks, current events, and getting cited information with transparent source attribution."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "ai",
+                "web",
+                "filtering"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/search_input.json",
+              "output_schema": "schemas/services/perplexity/search_output.json"
+            },
+            {
+              "name": "registry.describe",
+              "display_name": "Tool Registry Describe Input",
+              "description": [
+                "Get comprehensive documentation and usage guidance for a specific tool by name.",
+                "This is your go-to operation when you've identified a tool (from search or list results) and need detailed implementation guidance before using it.",
+                "Returns exhaustive information including schemas, examples, best practices, common pitfalls, error handling patterns, and related tools.",
+                "Use this when you need to understand exactly how a tool works, what parameters it accepts, what output to expect, and how to handle edge cases.",
+                "Essential for proper tool usage - always describe a tool before using it if you're unsure about its behavior.",
+                "The format parameter lets you control detail level: 'detailed' for comprehensive guidance, 'compact' for essential info only, or 'schema_only' for just input/output validation.",
+                "Include examples and related tools to understand usage patterns and discover complementary tools."
+              ],
+              "category": "registry",
+              "tags": [
+                "describe",
+                "tools",
+                "registry",
+                "discovery"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Describe operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/describe_input.json",
+              "output_schema": "schemas/services/registry/describe_output.json"
+            },
+            {
+              "name": "registry.list",
+              "display_name": "Tool Registry List Input",
+              "description": [
+                "Browse and filter the complete catalog of available tools with powerful organization and filtering capabilities.",
+                "Use this to understand the tool landscape, explore tools by category or complexity, or get an organized view of what's available.",
+                "Perfect for discovery when you want to see everything in a category (like 'all search tools'), or when you need tools matching specific criteria (like 'simple tools that don't require authentication').",
+                "The group_by feature organizes results by category, implementation type, or complexity for easier browsing.",
+                "Filtering lets you narrow down by specific requirements - exclude deprecated tools, show only MCP server tools, or find tools with specific capabilities.",
+                "Include schemas when you need to validate compatibility across multiple tools.",
+                "Essential for understanding the scope of available functionality and planning multi-tool workflows."
+              ],
+              "category": "registry",
+              "tags": [
+                "tools",
+                "registry",
+                "discovery",
+                "list"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "List operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/list_input.json",
+              "output_schema": "schemas/services/registry/list_output.json"
+            },
+            {
+              "name": "registry.categories",
+              "display_name": "Tool Registry Categories Input",
+              "description": [
+                "Explore the organizational structure and taxonomy of the tool registry to understand how tools are categorized and what's available in each domain.",
+                "Use this to get a high-level map of tool capabilities, understand the scope of each category, and discover new areas of functionality you might not have considered.",
+                "Perfect for initial exploration when you're not sure what category your task fits into, or when planning complex workflows that might span multiple categories.",
+                "The sample_tools feature shows representative tools from each category to help you understand what each category covers.",
+                "Tool counts reveal the depth of functionality in each area.",
+                "Filter by implementation_type to see what's available through different backends (REST APIs, MCP servers, etc.).",
+                "Essential for strategic tool selection and understanding the relationship between different functional areas."
+              ],
+              "category": "registry",
+              "tags": [
+                "categories",
+                "tools",
+                "registry",
+                "discovery"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Categories operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/categories_input.json",
+              "output_schema": "schemas/services/registry/categories_output.json"
+            },
+            {
+              "name": "registry.search",
+              "display_name": "Tool Registry Search Input",
+              "description": [
+                "Search for tools in the registry using semantic queries, filters, and advanced search criteria.",
+                "This is the primary discovery mechanism when you need to find tools that match specific capabilities, solve particular problems, or work within certain constraints.",
+                "Use this when you have a task to accomplish but aren't sure which tool to use, or when you need to find alternatives to known tools.",
+                "The search supports multiple modes: semantic search through descriptions and capabilities, exact matching by tags or categories, and filtered browsing by implementation type or complexity.",
+                "Best for exploratory discovery, finding tools by capability rather than name, and understanding what tools are available for specific use cases.",
+                "Supports pagination for large result sets and can include full schemas when you need to validate tool compatibility before use."
+              ],
+              "category": "registry",
+              "tags": [
+                "search",
+                "tools",
+                "registry",
+                "discovery"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/search_input.json",
+              "output_schema": "schemas/services/registry/search_output.json"
+            },
+            {
+              "name": "weather.forecast",
+              "display_name": "OpenWeather One Call API 3.0 Input",
+              "description": [
+                "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+                "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+                "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+                "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+                "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "climate",
+                "forecast",
+                "weather"
+              ],
+              "capabilities": [
+                "forecasting",
+                "weather_data"
+              ],
+              "use_cases": [
+                "Future predictions",
+                "Planning",
+                "Trend analysis"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/forecast_input.json",
+              "output_schema": "schemas/services/weather/forecast_output.json"
+            },
+            {
+              "name": "weather.current",
+              "display_name": "OpenWeather Current Weather Input",
+              "description": [
+                "Get current weather data for any location using OpenWeather Current Weather API.",
+                "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+                "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+                "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+                "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "climate",
+                "forecast",
+                "weather",
+                "current"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get current status",
+                "Real-time data",
+                "Current conditions"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/current_input.json",
+              "output_schema": "schemas/services/weather/current_output.json"
+            },
+            {
+              "name": "weather.search",
+              "display_name": "OpenWeather Geocoding API Input",
+              "description": [
+                "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+                "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+                "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+                "Supports direct geocoding (name \u2192 coordinates) with multiple results and optional result limiting.",
+                "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+              ],
+              "category": "weather",
+              "tags": [
+                "search",
+                "api",
+                "climate",
+                "forecast",
+                "weather"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/search_input.json",
+              "output_schema": "schemas/services/weather/search_output.json"
+            },
+            {
+              "name": "reg.search",
+              "display_name": "Search Tools",
+              "description": [
+                "Search for tools in the registry using semantic queries, filters, and advanced search criteria.",
+                "Supports searching by description, capabilities, tags, use cases, and categories.",
+                "Essential for tool discovery and finding the right tool for specific tasks."
+              ],
+              "category": "registry",
+              "tags": [
+                "search",
+                "discovery",
+                "tools",
+                "registry"
+              ],
+              "capabilities": [
+                "semantic_search",
+                "filtering",
+                "categorization"
+              ],
+              "use_cases": [
+                "Find weather tools",
+                "Discover communication tools",
+                "Search by capability"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/search_input.json",
+              "output_schema": "schemas/services/registry/search_output.json"
+            },
+            {
+              "name": "reg.describe",
+              "display_name": "Describe Tool",
+              "description": [
+                "Get detailed information about a specific tool including its schema and usage examples.",
+                "Returns comprehensive tool documentation, input/output schemas, and implementation details.",
+                "Critical for understanding how to properly use discovered tools."
+              ],
+              "category": "registry",
+              "tags": [
+                "describe",
+                "documentation",
+                "schema",
+                "details"
+              ],
+              "capabilities": [
+                "tool_details",
+                "schema_retrieval",
+                "documentation"
+              ],
+              "use_cases": [
+                "Get tool parameters",
+                "Understand tool usage",
+                "View examples"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/describe_input.json",
+              "output_schema": "schemas/services/registry/describe_output.json"
+            },
+            {
+              "name": "reg.list",
+              "display_name": "List All Tools",
+              "description": [
+                "List all available tools with optional filtering and pagination.",
+                "Provides overview of the entire tool ecosystem with metadata and categories.",
+                "Useful for getting a comprehensive view of available capabilities."
+              ],
+              "category": "registry",
+              "tags": [
+                "list",
+                "overview",
+                "tools",
+                "pagination"
+              ],
+              "capabilities": [
+                "tool_listing",
+                "pagination",
+                "filtering"
+              ],
+              "use_cases": [
+                "See all tools",
+                "Browse by category",
+                "Tool inventory"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/list_input.json",
+              "output_schema": "schemas/services/registry/list_output.json"
+            },
+            {
+              "name": "reg.categories",
+              "display_name": "List Categories",
+              "description": [
+                "Get all available tool categories with their descriptions and metadata.",
+                "Provides an overview of tool organization and helps browse tools by functional area.",
+                "Essential for understanding the tool ecosystem structure and finding tools by domain."
+              ],
+              "category": "registry",
+              "tags": [
+                "categories",
+                "organization",
+                "browse",
+                "structure"
+              ],
+              "capabilities": [
+                "category_listing",
+                "tool_organization",
+                "domain_browsing"
+              ],
+              "use_cases": [
+                "Browse tool categories",
+                "Understand tool organization",
+                "Find tools by domain"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/categories_input.json",
+              "output_schema": "schemas/services/registry/categories_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-10T09:36:13.235569"
+    },
+    {
+      "test_num": 6,
+      "tool_name": "reg.search",
+      "description": "Search for weather tools",
+      "execution_time_ms": 0.3,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['query', 'total_results', 'tools']",
+      "result_type": "dict",
+      "result_size": 3199,
+      "raw_result": {
+        "success": true,
+        "message": "Found 3 tools matching query 'weather'",
+        "data": {
+          "query": "weather",
+          "total_results": 3,
+          "tools": [
+            {
+              "name": "weather.forecast",
+              "display_name": "OpenWeather One Call API 3.0 Input",
+              "description": [
+                "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+                "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+                "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+                "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+                "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "climate",
+                "forecast",
+                "weather"
+              ],
+              "capabilities": [
+                "forecasting",
+                "weather_data"
+              ],
+              "use_cases": [
+                "Future predictions",
+                "Planning",
+                "Trend analysis"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/forecast_input.json",
+              "output_schema": "schemas/services/weather/forecast_output.json"
+            },
+            {
+              "name": "weather.current",
+              "display_name": "OpenWeather Current Weather Input",
+              "description": [
+                "Get current weather data for any location using OpenWeather Current Weather API.",
+                "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+                "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+                "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+                "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "climate",
+                "forecast",
+                "weather",
+                "current"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get current status",
+                "Real-time data",
+                "Current conditions"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/current_input.json",
+              "output_schema": "schemas/services/weather/current_output.json"
+            },
+            {
+              "name": "weather.search",
+              "display_name": "OpenWeather Geocoding API Input",
+              "description": [
+                "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+                "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+                "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+                "Supports direct geocoding (name \u2192 coordinates) with multiple results and optional result limiting.",
+                "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+              ],
+              "category": "weather",
+              "tags": [
+                "search",
+                "api",
+                "climate",
+                "forecast",
+                "weather"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/search_input.json",
+              "output_schema": "schemas/services/weather/search_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-10T09:36:13.737533"
+    },
+    {
+      "test_num": 7,
+      "tool_name": "reg.describe",
+      "description": "Describe weather current tool",
+      "execution_time_ms": 0.66,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['tool', 'schemas']",
+      "result_type": "dict",
+      "result_size": 7059,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved information for tool 'weather.current'",
+        "data": {
+          "tool": {
+            "name": "weather.current",
+            "display_name": "OpenWeather Current Weather Input",
+            "description": [
+              "Get current weather data for any location using OpenWeather Current Weather API.",
+              "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+              "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+              "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+              "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+            ],
+            "category": "weather",
+            "tags": [
+              "api",
+              "climate",
+              "forecast",
+              "weather",
+              "current"
+            ],
+            "capabilities": [
+              "data_processing"
+            ],
+            "use_cases": [
+              "Get current status",
+              "Real-time data",
+              "Current conditions"
+            ],
+            "complexity": "complex",
+            "implementation_type": "rest_api",
+            "input_schema": "schemas/services/weather/current_input.json",
+            "output_schema": "schemas/services/weather/current_output.json"
+          },
+          "schemas": {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "explanation": {
+                  "$ref": "../../shared/common_inputs.json#/$defs/explanation"
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude coordinate (-90 to 90)",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lon": {
+                  "type": "number",
+                  "description": "Longitude coordinate (-180 to 180)",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "q": {
+                  "type": "string",
+                  "description": "City name, state code and country code divided by comma. Use ISO 3166 country codes.",
+                  "examples": [
+                    "London",
+                    "London,UK",
+                    "New York,NY,US"
+                  ]
+                },
+                "id": {
+                  "type": "integer",
+                  "description": "City ID. List of city IDs can be downloaded from OpenWeather."
+                },
+                "zip": {
+                  "type": "string",
+                  "description": "ZIP code with optional country code (US default)",
+                  "examples": [
+                    "94040,US",
+                    "10001"
+                  ]
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "xml",
+                    "html"
+                  ],
+                  "description": "Response format",
+                  "default": "json"
+                },
+                "units": {
+                  "type": "string",
+                  "enum": [
+                    "standard",
+                    "metric",
+                    "imperial"
+                  ],
+                  "description": "Units of measurement. Standard=Kelvin, Metric=Celsius, Imperial=Fahrenheit",
+                  "default": "standard"
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "Language code for weather condition descriptions",
+                  "examples": [
+                    "en",
+                    "fr",
+                    "es",
+                    "de",
+                    "zh_cn"
+                  ]
+                }
+              },
+              "required": [
+                "explanation"
+              ]
+            },
+            "output_schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "OpenWeather Current Weather Output",
+              "description": [
+                "Current weather data response exactly matching OpenWeather API structure.",
+                "Contains geographic coordinates, weather conditions, temperature, atmospheric data, wind, clouds, and system information.",
+                "Follows OpenWeather's exact field names, data types, and nesting structure for seamless integration.",
+                "Includes all standard OpenWeather response fields like weather condition codes, Unix timestamps, and country codes.",
+                "Perfect for applications that need direct compatibility with OpenWeather Current Weather API responses."
+              ],
+              "allOf": [
+                {
+                  "$ref": "../../shared/operation_patterns.json#/$defs/get_operation_output"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "coord": {
+                          "type": "object",
+                          "description": "Geographic coordinates of the location",
+                          "properties": {
+                            "lon": {
+                              "type": "number",
+                              "description": "Longitude of the location"
+                            },
+                            "lat": {
+                              "type": "number",
+                              "description": "Latitude of the location"
+                            }
+                          },
+                          "required": [
+                            "lon",
+                            "lat"
+                          ]
+                        },
+                        "weather": {
+                          "type": "array",
+                          "description": "Weather condition information",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "description": "Weather condition id"
+                              },
+                              "main": {
+                                "type": "string",
+                                "description": "Group of weather parameters (Rain, Snow, Clouds etc.)"
+                              },
+                              "description": {
+                                "type": "string",
+                                "description": "Weather condition within the group"
+                              },
+                              "icon": {
+                                "type": "string",
+                                "description": "Weather icon id"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "main",
+                              "description",
+                              "icon"
+                            ]
+                          }
+                        },
+                        "base": {
+                          "type": "string",
+                          "description": "Internal parameter"
+                        },
+                        "main": {
+                          "type": "object",
+                          "description": "Main weather parameters",
+                          "properties": {
+                            "temp": {
+                              "type": "number",
+                              "description": "Temperature. Unit Default: Kelvin, Metric: Celsius, Imperial: Fahrenheit"
+                            },
+                            "feels_like": {
+                              "type": "number",
+                              "description": "Temperature accounting for human perception of weather"
+                            },
+                            "temp_min": {
+                              "type": "number",
+                              "description": "Minimum temperature at the moment"
+                            },
+                            "temp_max": {
+                              "type": "number",
+                              "description": "Maximum temperature at the moment"
+                            },
+                            "pressure": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the sea level, hPa"
+                            },
+                            "humidity": {
+                              "type": "number",
+                              "description": "Humidity, %"
+                            },
+                            "sea_level": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the sea level, hPa"
+                            },
+                            "grnd_level": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the ground level, hPa"
+                            }
+                          },
+                          "required": [
+                            "temp",
+                            "feels_like",
+                            "pressure",
+                            "humidity"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "number",
+                          "description": "Visibility, meter. The maximum value is 10km"
+                        },
+                        "wind": {
+                          "type": "object",
+                          "description": "Wind information",
+                          "properties": {
+                            "speed": {
+                              "type": "number",
+                              "description": "Wind speed. Unit Default: meter/sec, Metric: meter/sec, Imperial: miles/hour"
+                            },
+                            "deg": {
+                              "type": "number",
+                              "description": "Wind direction, degrees (meteorological)"
+                            },
+                            "gust": {
+                              "type": "number",
+                              "description": "Wind gust. Unit Default: meter/sec, Metric: meter/sec, Imperial: miles/hour"
+                            }
+                          },
+                          "required": [
+                            "speed",
+                            "deg"
+                          ]
+                        },
+                        "clouds": {
+                          "type": "object",
+                          "description": "Cloudiness information",
+                          "properties": {
+                            "all": {
+                              "type": "number",
+                              "description": "Cloudiness, %"
+                            }
+                          },
+                          "required": [
+                            "all"
+                          ]
+                        },
+                        "rain": {
+                          "type": "object",
+                          "description": "Rain volume for the last 1 and 3 hours",
+                          "properties": {
+                            "1h": {
+                              "type": "number",
+                              "description": "Rain volume for the last 1 hour, mm"
+                            },
+                            "3h": {
+                              "type": "number",
+                              "description": "Rain volume for the last 3 hours, mm"
+                            }
+                          }
+                        },
+                        "snow": {
+                          "type": "object",
+                          "description": "Snow volume for the last 1 and 3 hours",
+                          "properties": {
+                            "1h": {
+                              "type": "number",
+                              "description": "Snow volume for the last 1 hour, mm"
+                            },
+                            "3h": {
+                              "type": "number",
+                              "description": "Snow volume for the last 3 hours, mm"
+                            }
+                          }
+                        },
+                        "dt": {
+                          "type": "integer",
+                          "description": "Time of data calculation, unix, UTC"
+                        },
+                        "sys": {
+                          "type": "object",
+                          "description": "System information",
+                          "properties": {
+                            "type": {
+                              "type": "integer",
+                              "description": "Internal parameter"
+                            },
+                            "id": {
+                              "type": "integer",
+                              "description": "Internal parameter"
+                            },
+                            "country": {
+                              "type": "string",
+                              "description": "Country code (GB, JP etc.)"
+                            },
+                            "sunrise": {
+                              "type": "integer",
+                              "description": "Sunrise time, unix, UTC"
+                            },
+                            "sunset": {
+                              "type": "integer",
+                              "description": "Sunset time, unix, UTC"
+                            }
+                          },
+                          "required": [
+                            "country",
+                            "sunrise",
+                            "sunset"
+                          ]
+                        },
+                        "timezone": {
+                          "type": "integer",
+                          "description": "Shift in seconds from UTC"
+                        },
+                        "id": {
+                          "type": "integer",
+                          "description": "City ID"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "City name"
+                        },
+                        "cod": {
+                          "type": "integer",
+                          "description": "Internal parameter"
+                        }
+                      },
+                      "required": [
+                        "coord",
+                        "weather",
+                        "main",
+                        "visibility",
+                        "wind",
+                        "clouds",
+                        "dt",
+                        "sys",
+                        "timezone",
+                        "id",
+                        "name",
+                        "cod"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "timestamp": "2025-08-10T09:36:14.239621"
+    },
+    {
+      "test_num": 8,
+      "tool_name": "reg.search",
+      "description": "Search for memory tools",
+      "execution_time_ms": 0.16,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['query', 'total_results', 'tools']",
+      "result_type": "dict",
+      "result_size": 1747,
+      "raw_result": {
+        "success": true,
+        "message": "Found 3 tools matching query 'memory'",
+        "data": {
+          "query": "memory",
+          "total_results": 3,
+          "tools": [
+            {
+              "name": "memory.get_user_profile",
+              "display_name": "Memory Get User Profile Input",
+              "description": [
+                "Obtain a user profile generated from analysis of historical dialogues in MemoryOS"
+              ],
+              "category": "memory",
+              "tags": [
+                "get_user_profile",
+                "memory"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get_User_Profile operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/get_user_profile_input.json",
+              "output_schema": "schemas/services/memory/get_user_profile_output.json"
+            },
+            {
+              "name": "memory.retrieve",
+              "display_name": "Memory Retrieve Input",
+              "description": [
+                "Retrieve related historical dialogues, user preferences, and knowledge information from the MemoryOS system based on a query"
+              ],
+              "category": "memory",
+              "tags": [
+                "retrieve",
+                "memory",
+                "search"
+              ],
+              "capabilities": [
+                "search"
+              ],
+              "use_cases": [
+                "Retrieve operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/retrieve_input.json",
+              "output_schema": "schemas/services/memory/retrieve_output.json"
+            },
+            {
+              "name": "memory.add",
+              "display_name": "Memory Add Input",
+              "description": [
+                "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history"
+              ],
+              "category": "memory",
+              "tags": [
+                "add",
+                "memory"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Add operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/add_input.json",
+              "output_schema": "schemas/services/memory/add_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-10T09:36:14.741158"
+    },
+    {
+      "test_num": 9,
+      "tool_name": "reg.describe",
+      "description": "Describe memory add tool",
+      "execution_time_ms": 1.62,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['tool', 'schemas']",
+      "result_type": "dict",
+      "result_size": 1939,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved information for tool 'memory.add'",
+        "data": {
+          "tool": {
+            "name": "memory.add",
+            "display_name": "Memory Add Input",
+            "description": [
+              "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history"
+            ],
+            "category": "memory",
+            "tags": [
+              "add",
+              "memory"
+            ],
+            "capabilities": [
+              "data_processing"
+            ],
+            "use_cases": [
+              "Add operations",
+              "Data processing"
+            ],
+            "complexity": "basic",
+            "implementation_type": "rest_api",
+            "input_schema": "schemas/services/memory/add_input.json",
+            "output_schema": "schemas/services/memory/add_output.json"
+          },
+          "schemas": {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "user_input": {
+                  "type": "string",
+                  "description": "The user's input to be stored in memory",
+                  "minLength": 1,
+                  "maxLength": 5000
+                },
+                "agent_response": {
+                  "type": "string",
+                  "description": "The agent's response to the user's input",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "user_input",
+                "agent_response"
+              ]
+            },
+            "output_schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "Memory Add Output",
+              "description": "Response indicating whether the conversation was successfully stored in MemoryOS",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "success",
+                    "error"
+                  ],
+                  "description": "Status of the memory addition operation"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "A message indicating the result of the operation"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "description": "When the memory was stored",
+                  "format": "date-time"
+                },
+                "details": {
+                  "type": "object",
+                  "description": "Additional details about the operation",
+                  "properties": {
+                    "user_input_length": {
+                      "type": "integer",
+                      "description": "Length of the user input"
+                    },
+                    "agent_response_length": {
+                      "type": "integer",
+                      "description": "Length of the agent response"
+                    },
+                    "has_meta_data": {
+                      "type": "boolean",
+                      "description": "Whether metadata was included"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "timestamp": "2025-08-10T09:36:15.244115"
+    }
+  ]
+}
