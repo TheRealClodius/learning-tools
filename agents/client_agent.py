@@ -588,7 +588,14 @@ class ClientAgent:
             
             for tool_call in tool_calls:
                 if streaming_callback:
-                    await streaming_callback(tool_call.name, "tool_start")
+                    # For execute_tool, show the actual tool name being executed, not "execute_tool"
+                    if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
+                        actual_tool = tool_call.input.get("tool_name", "unknown")
+                        tool_args = tool_call.input.get("tool_args", {})
+                        # Pass both name and args for execute_tool
+                        await streaming_callback({"name": f"⚡️{actual_tool}", "args": tool_args}, "tool_start")
+                    else:
+                        await streaming_callback(tool_call.name, "tool_start")
                 
                 t_tool = time.time()
                 result = await self._execute_claude_tool(tool_call, streaming_callback, user_id)
@@ -623,7 +630,12 @@ class ClientAgent:
                 # All execution is handled dynamically by tool_executor
                 
                 if streaming_callback:
-                    await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
+                    # For execute_tool, pass the actual tool name with ⚡️ prefix in the result
+                    if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
+                        actual_tool = tool_call.input.get("tool_name", "unknown")
+                        await streaming_callback(f"⚡️{actual_tool}: {str(result)[:100]}...", "tool_result")
+                    else:
+                        await streaming_callback(f"{tool_call.name}: {str(result)[:100]}...", "tool_result")
             
             # Add tool results to conversation
             messages.append({"role": "user", "content": tool_results})
@@ -687,15 +699,45 @@ class ClientAgent:
             logger.info(f"Executing Claude tool: {function_name}, Args: {args}")
             
             if streaming_callback:
-                await streaming_callback(f"Running {function_name} with args: {str(args)[:200]}...", "tool_details")
+                # Format arguments in a more readable way for all tools
+                if function_name == "execute_tool":
+                    # Special handling for execute_tool - already done in the specific section
+                    pass
+                else:
+                    # Format args for other tools
+                    args_preview = []
+                    for key, value in args.items():
+                        if isinstance(value, str) and len(value) > 100:
+                            args_preview.append(f"{key}: {value[:100]}...")
+                        elif isinstance(value, (list, dict)):
+                            args_preview.append(f"{key}: {type(value).__name__}[{len(value)}]")
+                        else:
+                            args_preview.append(f"{key}: {value}")
+                    
+                    if args_preview:
+                        formatted_args = ", ".join(args_preview)
+                        await streaming_callback(f"Parameters: {formatted_args}", "tool_details")
+                    else:
+                        await streaming_callback(f"Running {function_name}", "tool_details")
             
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
                 if streaming_callback:
-                    await streaming_callback(f"Searching registry for: {args.get('query', 'N/A')}", "operation")
+                    query = args.get('query', 'N/A')
+                    await streaming_callback(f"🔍 Searching for tools matching: '{query}'", "operation")
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
+                
+                # Parse and show discovered tools if successful
+                if streaming_callback and isinstance(result, dict) and result.get("status") == "success":
+                    tools = result.get("data", {}).get("tools", [])
+                    if tools:
+                        tool_names = [t.get("name", "unknown") for t in tools[:5]]  # Show first 5
+                        tools_text = "\n".join([f"  • {name}" for name in tool_names])
+                        if len(tools) > 5:
+                            tools_text += f"\n  ... and {len(tools) - 5} more"
+                        await streaming_callback(f"Found {len(tools)} matching tools:\n{tools_text}", "operation")
             elif function_name == "reg_describe":
                 if streaming_callback:
                     await streaming_callback(f"Getting tool details for: {args.get('tool_name', 'N/A')}", "operation")
@@ -718,7 +760,42 @@ class ClientAgent:
                 tool_args = args.get("tool_args", {})
                 
                 if streaming_callback:
-                    await streaming_callback(f"Executing discovered tool: {tool_name}", "operation")
+                    # Create a narrative description of what we're doing
+                    # Extract key information from arguments to build the purpose
+                    purpose_parts = []
+                    
+                    # Common parameter patterns to extract purpose
+                    if "query" in tool_args:
+                        purpose_parts.append(f"search for '{tool_args['query']}'")
+                    elif "location" in tool_args or "city" in tool_args:
+                        location = tool_args.get("location") or tool_args.get("city")
+                        purpose_parts.append(f"get info for {location}")
+                    elif "message" in tool_args or "text" in tool_args:
+                        msg = tool_args.get("message") or tool_args.get("text")
+                        if len(msg) > 30:
+                            purpose_parts.append(f"process message: '{msg[:30]}...'")
+                        else:
+                            purpose_parts.append(f"process: '{msg}'")
+                    elif "channel" in tool_args:
+                        purpose_parts.append(f"in channel {tool_args['channel']}")
+                    
+                    # Add other significant parameters
+                    for key, value in tool_args.items():
+                        if key not in ["query", "location", "city", "message", "text", "channel"]:
+                            if isinstance(value, bool) and value:
+                                purpose_parts.append(key.replace("_", " "))
+                            elif isinstance(value, (str, int, float)) and key in ["limit", "count", "days"]:
+                                purpose_parts.append(f"{key}: {value}")
+                    
+                    # Build the purpose string
+                    if purpose_parts:
+                        purpose = " to " + ", ".join(purpose_parts)
+                    else:
+                        purpose = ""
+                    
+                    # Store the narrative for later completion
+                    operation_text = f"⚡️Using *{tool_name}*{purpose}"
+                    await streaming_callback(operation_text, "operation")
                 
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
             elif function_name == "memory_add":

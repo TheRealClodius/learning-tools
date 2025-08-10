@@ -268,6 +268,8 @@ class SlackStreamingHandler:
         self.current_tool_block = None  # Currently active tool block
         self.all_thinking = []  # All thinking content accumulated
         self.execution_summary = []  # Store execution details for modal
+        self.summarizer = ExecutionSummarizer()  # Initialize the LLM summarizer
+        self.tool_context = {}  # Store tool args and context for summary generation
         
     async def start_streaming(self):
         """Post initial thinking message"""
@@ -297,7 +299,7 @@ class SlackStreamingHandler:
         self.all_thinking.append(thinking_line.strip())
         await self._update_display()
         
-    async def start_tool(self, tool_name: str):
+    async def start_tool(self, tool_name: str, tool_args: Dict = None):
         """Start a new tool execution block"""
         # End any current thinking block by moving it to completed blocks
         if self.all_thinking:
@@ -306,6 +308,11 @@ class SlackStreamingHandler:
             # Store thinking in execution summary too
             self.execution_summary.append(("thinking", thinking_text))
             self.all_thinking = []  # Clear current thinking
+        
+        # Store tool args for later use in summary generation
+        if tool_name.startswith("⚡️") and tool_args:
+            clean_tool_name = tool_name.replace("⚡️", "").strip()
+            self.tool_context[clean_tool_name] = tool_args
         
         # Start new tool block
         self.current_tool_block = {
@@ -325,16 +332,57 @@ class SlackStreamingHandler:
         """Complete current tool and add result summary"""
         if self.current_tool_block:
             self.current_tool_block["status"] = "completed"
-            if result_summary:
-                # Create a human-readable summary
-                summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
-                if summary:
-                    self.current_tool_block["operations"].append(summary)
+            
+            # Special handling for execute_tool - create complete narrative using LLM
+            if self.current_tool_block["name"].startswith("⚡️"):
+                # Get tool context (args) if stored
+                tool_name = self.current_tool_block["name"].replace("⚡️", "").strip()
+                tool_args = self.tool_context.get(tool_name, {})
+                
+                try:
+                    # Use LLM to create complete narrative from JSON
+                    complete_narrative = await self.summarizer.create_narrative_summary(
+                        tool_name=tool_name,
+                        tool_args=tool_args,
+                        result_data=result_summary,
+                        initial_narrative=""  # Not used anymore except for fallback
+                    )
+                    
+                    # Replace all operations with the single narrative
+                    self.current_tool_block["operations"] = [complete_narrative]
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to generate narrative summary: {e}")
+                    # Fallback to simple format
+                    existing_ops = self.current_tool_block.get("operations", [])
+                    if existing_ops and existing_ops[0].startswith("⚡️Using"):
+                        fallback_narrative = existing_ops[0].replace("⚡️Using", "⚡️Used")
+                        if result_summary:
+                            if "error" in result_summary.lower():
+                                fallback_narrative += f". {result_summary}"
+                            else:
+                                fallback_narrative += f". Completed successfully"
+                        self.current_tool_block["operations"] = [fallback_narrative]
+                    else:
+                        # Last resort fallback
+                        self.current_tool_block["operations"].append(f"Completed: {result_summary[:100]}")
+            else:
+                # Regular tool handling
+                if result_summary:
+                    summary = self._create_result_summary(self.current_tool_block["name"], result_summary)
+                    if summary:
+                        self.current_tool_block["operations"].append(summary)
             
             # Add completed tool block to content blocks and execution summary
             completed_tool = self.current_tool_block.copy()
             self.content_blocks.append(("tool", completed_tool))
             self.execution_summary.append(("tool", completed_tool))
+            
+            # Clear tool context for this tool if it was an execute_tool
+            if completed_tool["name"].startswith("⚡️"):
+                tool_name = completed_tool["name"].replace("⚡️", "").strip()
+                self.tool_context.pop(tool_name, None)
+            
             self.current_tool_block = None  # Clear current tool
             # Note: Don't clear all_thinking here - let new thinking accumulate naturally
             await self._update_display()
@@ -347,8 +395,65 @@ class SlackStreamingHandler:
         # Clean up the result data
         result_data = result_data.strip()
         
+        # Handle execute_tool results specially - extract the actual tool name from the ⚡️ prefix
+        if tool_name.startswith("⚡️"):
+            actual_tool = tool_name.replace("⚡️", "").strip()
+            
+            # Try to parse the result for better summary
+            try:
+                import json
+                if result_data.startswith("{") or result_data.startswith("["):
+                    result_obj = json.loads(result_data)
+                    
+                    # Handle different result structures
+                    if isinstance(result_obj, dict):
+                        if "status" in result_obj and result_obj["status"] == "success":
+                            if "data" in result_obj:
+                                # Summarize based on the tool type and data
+                                if "weather" in actual_tool.lower():
+                                    return f"Retrieved weather data successfully"
+                                elif "slack" in actual_tool.lower():
+                                    if "messages" in str(result_obj.get("data", "")):
+                                        count = len(result_obj.get("data", {}).get("messages", []))
+                                        return f"Found {count} Slack messages"
+                                    elif "channels" in str(result_obj.get("data", "")):
+                                        count = len(result_obj.get("data", {}).get("channels", []))
+                                        return f"Retrieved {count} Slack channels"
+                                    else:
+                                        return f"Completed Slack operation successfully"
+                                elif "search" in actual_tool.lower():
+                                    return f"Search completed with results"
+                                else:
+                                    return f"Operation completed successfully"
+                            else:
+                                return f"Completed successfully"
+                        elif "error" in result_obj:
+                            return f"⚠️ Error: {result_obj.get('error', 'Unknown error')[:100]}"
+                        else:
+                            # Try to extract meaningful info from the result
+                            if len(result_data) > 100:
+                                return f"Received detailed response"
+                            else:
+                                return f"Result: {result_data[:80]}..."
+                    elif isinstance(result_obj, list):
+                        return f"Retrieved {len(result_obj)} items"
+                    else:
+                        return f"Completed with result"
+                else:
+                    # Plain text result
+                    if len(result_data) > 100:
+                        return f"Received response: {result_data[:80]}..."
+                    else:
+                        return f"Result: {result_data}"
+            except:
+                # If parsing fails, provide generic summary
+                if len(result_data) > 100:
+                    return f"Completed with detailed output"
+                else:
+                    return f"Result: {result_data[:50]}..."
+        
         # Handle different tool types with appropriate summaries
-        if "reg_search" in tool_name or "registry" in tool_name.lower():
+        elif "reg_search" in tool_name or "registry" in tool_name.lower():
             if "found" in result_data.lower() or "tools" in result_data.lower():
                 return f"found relevant tools and capabilities"
             elif "no" in result_data.lower() and "results" in result_data.lower():
@@ -984,7 +1089,13 @@ class SlackInterface:
                 if content_type == "thinking" and content.strip():
                     await streaming_handler.update_thinking(content.strip())
                 elif content_type == "tool_start":
-                    await streaming_handler.start_tool(content)
+                    # Check if content includes tool args (for execute_tool)
+                    if isinstance(content, dict):
+                        tool_name = content.get("name", "unknown")
+                        tool_args = content.get("args", {})
+                        await streaming_handler.start_tool(tool_name, tool_args)
+                    else:
+                        await streaming_handler.start_tool(content)
                 elif content_type == "tool_details":
                     await streaming_handler.add_tool_operation(content)
                 elif content_type == "operation":
@@ -1492,6 +1603,223 @@ class SlackInterface:
             
             logger.info(f"Cache cleanup complete. {len(keys_to_delete)} entries deleted.")
             await asyncio.sleep(self.cache_ttl) # Check every TTL seconds
+
+class ExecutionSummarizer:
+    """Lightweight LLM-based summarizer for tool execution results"""
+    
+    def __init__(self):
+        self.gemini_client = None
+        self.anthropic_client = None
+        self.openai_client = None
+        self._init_clients()
+    
+    def _init_clients(self):
+        """Initialize available LLM clients"""
+        # Try Gemini first (fastest and cheapest)
+        try:
+            from google import genai
+            from google.genai import types
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if api_key:
+                # Use the new google-genai SDK (google-generativeai is deprecated)
+                self.gemini_client = genai.Client(api_key=api_key)
+                self.gemini_types = types  # Store types module for later use
+                logger.info("Initialized Gemini 2.5 Flash for result summarization")
+        except ImportError:
+            logger.warning("google-genai library not available (pip install google-genai)")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini client: {e}")
+        
+        # Fallback clients
+        try:
+            import anthropic
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if api_key:
+                self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+                logger.info("Initialized Anthropic client as fallback for result summarization")
+        except ImportError:
+            logger.warning("Anthropic library not available")
+        
+        try:
+            import openai
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = openai.OpenAI(api_key=api_key)
+                logger.info("Initialized OpenAI client as fallback for result summarization")
+        except ImportError:
+            logger.warning("OpenAI library not available")
+    
+    async def create_narrative_summary(self, tool_name: str, tool_args: Dict, result_data: str, initial_narrative: str) -> str:
+        """
+        Use a small LLM to create a complete narrative summary of a tool execution.
+        
+        Args:
+            tool_name: Name of the tool that was executed (e.g., "weather.get")
+            tool_args: Arguments that were passed to the tool
+            result_data: Raw result data (usually JSON)
+            initial_narrative: The initial narrative (used for fallback only)
+            
+        Returns:
+            Complete narrative with result summary
+        """
+        # Extract the base tool category (e.g., "weather" from "weather.get")
+        tool_category = tool_name.split('.')[0] if '.' in tool_name else tool_name
+        
+        # Try Gemini 2.5 Flash first (fastest and cheapest)
+        if self.gemini_client:
+            try:
+                from google.genai import types
+                
+                prompt = f"""Create a single-line narrative summary of this tool execution using the template format.
+
+Tool executed: {tool_name}
+Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
+Result JSON: {result_data[:800]}
+
+Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+
+Examples:
+- Tool: weather.get, Args: {{"location": "London"}}, Result: {{"temperature": 72, "conditions": "partly cloudy"}}
+  Output: ⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy
+  
+- Tool: slack_chatter.search_messages, Args: {{"query": "project updates"}}, Result: {{"messages": [...5 items...], "channels": ["#general", "#dev-team"]}}
+  Output: ⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels
+
+- Tool: weather, Args: {{"city": "London"}}, Result: {{"status": "success", "data": {{"temp": 18, "description": "cloudy"}}}}
+  Output: ⚡️Used *weather* to get info for London. Got 18°C, cloudy
+
+Write the narrative summary:"""
+                
+                # Use the new SDK format with GenerateContentConfig
+                config = types.GenerateContentConfig(
+                    temperature=0,
+                    max_output_tokens=1000,
+                )
+                
+                response = await asyncio.to_thread(
+                    self.gemini_client.models.generate_content,
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                    config=config
+                )
+                
+                narrative = response.text.strip()
+                # Ensure it starts with the emoji if not present
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
+                    
+                return narrative
+                
+            except Exception as e:
+                logger.warning(f"Gemini 2.5 Flash narrative generation failed: {e}")
+        
+        # Try Claude Haiku as first fallback
+        if self.anthropic_client:
+            try:
+                prompt = f"""Create a single-line narrative summary of this tool execution using the template format.
+
+Tool executed: {tool_name}
+Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
+Result JSON: {result_data[:800]}
+
+Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+
+Examples:
+- Tool: weather.get, Args: {{"location": "London"}}, Result: {{"temperature": 72, "conditions": "partly cloudy"}}
+  Output: ⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy
+  
+- Tool: slack_chatter.search_messages, Args: {{"query": "project updates"}}, Result: {{"messages": [...5 items...], "channels": ["#general", "#dev-team"]}}
+  Output: ⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels
+
+- Tool: weather, Args: {{"city": "London"}}, Result: {{"status": "success", "data": {{"temp": 18, "description": "cloudy"}}}}
+  Output: ⚡️Used *weather* to get info for London. Got 18°C, cloudy
+
+Write the narrative summary:"""
+                
+                response = await asyncio.to_thread(
+                    self.anthropic_client.messages.create,
+                    model="claude-3-haiku-20240307",
+                    max_tokens=1000,
+                    temperature=0,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                
+                narrative = response.content[0].text.strip()
+                # Ensure it starts with the emoji if not present
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
+                    
+                return narrative
+                
+            except Exception as e:
+                logger.warning(f"Claude Haiku narrative generation failed: {e}")
+        
+        # Try OpenAI GPT-3.5-turbo as second fallback
+        if self.openai_client:
+            try:
+                response = await asyncio.to_thread(
+                    self.openai_client.chat.completions.create,
+                    model="gpt-3.5-turbo",
+                    max_tokens=1000,
+                    temperature=0,
+                    messages=[
+                        {"role": "system", "content": "Create narrative summaries of tool executions. Format: ⚡️Used *[tool]* to/for [purpose]. [Result]"},
+                        {"role": "user", "content": f"Tool: {tool_name}\nArgs: {json.dumps(tool_args, indent=2)}\nResult: {result_data[:500]}\n\nNarrative:"}
+                    ]
+                )
+                
+                narrative = response.choices[0].message.content.strip()
+                if not narrative.startswith("⚡️"):
+                    narrative = "⚡️" + narrative
+                    
+                return narrative
+                
+            except Exception as e:
+                logger.warning(f"GPT-3.5 narrative generation failed: {e}")
+        
+        # Fallback using the initial narrative
+        return self._fallback_narrative(initial_narrative, tool_name, result_data)
+    
+    def _fallback_narrative(self, initial_narrative: str, tool_name: str, result_data: str) -> str:
+        """Fallback narrative completion when LLM is not available"""
+        try:
+            # Try to parse as JSON for better analysis
+            if result_data.startswith("{") or result_data.startswith("["):
+                data = json.loads(result_data)
+                
+                if isinstance(data, dict):
+                    # Check for common patterns
+                    if data.get("status") == "success":
+                        if "weather" in tool_name.lower():
+                            temp = data.get("data", {}).get("temperature")
+                            conditions = data.get("data", {}).get("conditions")
+                            if temp and conditions:
+                                return f"{initial_narrative}. Got {temp}°F and {conditions}"
+                            elif temp:
+                                return f"{initial_narrative}. Got temperature {temp}°F"
+                            return f"{initial_narrative}. Retrieved weather information"
+                        elif "slack" in tool_name.lower():
+                            if "messages" in str(data):
+                                count = len(data.get("data", {}).get("messages", []))
+                                return f"{initial_narrative}. Found {count} relevant messages"
+                            elif "channels" in str(data):
+                                count = len(data.get("data", {}).get("channels", []))
+                                return f"{initial_narrative}. Retrieved {count} channels"
+                        return f"{initial_narrative}. Completed successfully"
+                    elif "error" in data:
+                        return f"{initial_narrative}. Error: {str(data['error'])[:50]}"
+                    elif "results" in data:
+                        count = len(data["results"]) if isinstance(data["results"], list) else 1
+                        return f"{initial_narrative}. Found {count} results"
+                    
+                elif isinstance(data, list):
+                    return f"{initial_narrative}. Retrieved {len(data)} items"
+                    
+        except:
+            pass
+        
+        # Generic fallback
+        return f"{initial_narrative}. Completed operation"
 
 # For FastAPI integration
 def create_slack_app():
