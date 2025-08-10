@@ -32,17 +32,24 @@ The following environment variables can be used to configure the MCP client:
 ```bash
 # MCP Server Configuration (optional - defaults shown)
 SLACK_CHATTER_MCP_HOST=slack-chatter-service.andreiclodius.repl.co
-SLACK_CHATTER_MCP_PORT=443
-SLACK_CHATTER_MCP_PATH=/mcp
+SLACK_CHATTER_MCP_PORT=5000  # Default Replit port
+SLACK_CHATTER_API_KEY=<optional_api_key>  # If authentication is required
 ```
 
 ### Server Requirements
 
 The Slack Chatter Service must be running and accessible. The service is hosted at:
 - GitHub Repository: https://github.com/TheRealClodius/Slack-Chatter-Service
-- Default Replit URL: https://slack-chatter-service.andreiclodius.repl.co
+- Default Replit URL: https://slack-chatter-service.andreiclodius.repl.co:5000
 
-**Note:** The Replit instance must be running for the integration to work. If the server is not accessible, all tool calls will return error responses.
+The service provides the following endpoints:
+- `/health` - Health check endpoint
+- `/mcp/request` - Main MCP JSON-RPC endpoint
+- `/oauth/authorize` - OAuth 2.1 authorization (if using OAuth)
+- `/oauth/token` - OAuth 2.1 token exchange
+- `/docs` - API documentation
+
+**Note:** The Replit instance must be running for the integration to work. If the server is not accessible, all tool calls will return error responses with appropriate error messages.
 
 ## Usage
 

@@ -11,18 +11,16 @@ The client supports three main operations:
 
 Configuration via environment variables:
 - SLACK_CHATTER_MCP_HOST: MCP server host (default: slack-chatter-service.andreiclodius.repl.co)
-- SLACK_CHATTER_MCP_PORT: MCP server port (default: 443)
-- SLACK_CHATTER_MCP_PATH: MCP server path (default: /mcp)
+- SLACK_CHATTER_MCP_PORT: MCP server port (default: 5000 for Replit)
+- SLACK_CHATTER_API_KEY: Optional API key for authentication
 """
 
 import asyncio
 import logging
 import os
+import json
 from typing import Dict, Any, Optional, List
-from contextlib import asynccontextmanager
-
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -33,117 +31,101 @@ class SlackChatterMCPClient:
     
     def __init__(self, 
                  host: str = None, 
-                 port: int = None, 
-                 path: str = None,
+                 port: int = None,
+                 api_key: str = None,
                  timeout: int = 30):
         """
         Initialize Slack Chatter MCP client
         
         Args:
             host: MCP server hostname (defaults to env SLACK_CHATTER_MCP_HOST or Replit URL)
-            port: MCP server port (defaults to env SLACK_CHATTER_MCP_PORT or 443)
-            path: MCP server path (defaults to env SLACK_CHATTER_MCP_PATH or '/mcp')
+            port: MCP server port (defaults to env SLACK_CHATTER_MCP_PORT or 5000)
+            api_key: Optional API key for authentication
             timeout: Request timeout in seconds
         """
         # Default to the Replit deployment URL
         self.host = host or os.getenv('SLACK_CHATTER_MCP_HOST', 'slack-chatter-service.andreiclodius.repl.co')
-        self.port = port or int(os.getenv('SLACK_CHATTER_MCP_PORT', '443'))
-        self.path = path or os.getenv('SLACK_CHATTER_MCP_PATH', '/mcp')
+        self.port = port or int(os.getenv('SLACK_CHATTER_MCP_PORT', '5000'))
+        self.api_key = api_key or os.getenv('SLACK_CHATTER_API_KEY')
         self.timeout = timeout
         
         # Use HTTPS for Replit deployment
-        protocol = "https" if self.host.endswith('.repl.co') or self.port == 443 else "http"
-        if self.port == 443:
+        protocol = "https" if self.host.endswith('.repl.co') else "http"
+        if protocol == "https" and self.port == 443:
             # For HTTPS on standard port, don't include port in URL
-            self.server_url = f"{protocol}://{self.host}{self.path}"
+            self.base_url = f"{protocol}://{self.host}"
         else:
-            self.server_url = f"{protocol}://{self.host}:{self.port}{self.path}"
+            self.base_url = f"{protocol}://{self.host}:{self.port}"
         
-        # Performance optimizations
-        self._retry_attempts = 2  # Retry failed operations once
-        self._fast_timeout = 10.0  # Faster timeout for Slack search
-        logger.info(f"Slack Chatter MCP Client initialized for {self.server_url}")
-
-        # Persistent session management
-        self._connection_lock: Optional[asyncio.Lock] = asyncio.Lock()
-        self._session_use_lock: Optional[asyncio.Lock] = asyncio.Lock()
-        self._client_cm = None
-        self._session_cm = None
-        self._read = None
-        self._write = None
-        self._session: Optional[ClientSession] = None
-        self._session_ready: bool = False
+        logger.info(f"Slack Chatter MCP Client initialized for {self.base_url}")
+        
+        # Session management
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._session_id: Optional[str] = None
     
     async def _ensure_session(self) -> None:
-        """Ensure a persistent MCP session is established and initialized."""
-        if self._session_ready and self._session is not None:
-            return
-            
-        async with self._connection_lock:
-            if self._session_ready and self._session is not None:
-                return
-            # Tear down any half-open state first
-            await self._close_session(silent=True)
-            try:
-                # Headers for HTTP requests
-                headers = {
-                    "Accept": "application/json, text/event-stream",
-                    "Cache-Control": "no-cache", 
-                    "Connection": "keep-alive"
-                }
-                
-                # Create the client connection
-                self._client_cm = streamablehttp_client(
-                    url=self.server_url,
-                    headers=headers,
-                    sse_read_timeout=self._fast_timeout
-                )
-                # The streamablehttp_client returns a tuple of (read, write, _)
-                self._read, self._write, _ = await self._client_cm.__aenter__()
-                
-                # Create the session
-                self._session_cm = ClientSession(self._read, self._write)
-                self._session = await self._session_cm.__aenter__()
-                
-                # Initialize the session
-                init_result = await self._session.initialize()
-                
-                if init_result.server_info:
-                    logger.info(f"Connected to Slack Chatter MCP server: {init_result.server_info.name} v{init_result.server_info.version}")
-                else:
-                    logger.info("Connected to Slack Chatter MCP server (no server info provided)")
-                
-                self._session_ready = True
-                
-            except Exception as e:
-                logger.error(f"Failed to establish MCP session: {e}")
-                await self._close_session(silent=True)
-                raise
+        """Ensure an HTTP session is available."""
+        if self._session is None:
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
     
-    async def _close_session(self, silent: bool = False) -> None:
-        """Close the MCP session and clean up resources."""
-        self._session_ready = False
+    async def _make_mcp_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Make a JSON-RPC request to the MCP server."""
+        await self._ensure_session()
         
-        if self._session_cm:
-            try:
-                await self._session_cm.__aexit__(None, None, None)
-            except Exception as e:
-                if not silent:
-                    logger.error(f"Error closing session: {e}")
-            finally:
-                self._session_cm = None
-                self._session = None
+        # Prepare JSON-RPC request
+        request_id = 1
+        json_rpc_request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+            "id": request_id
+        }
         
-        if self._client_cm:
-            try:
-                await self._client_cm.__aexit__(None, None, None)
-            except Exception as e:
-                if not silent:
-                    logger.error(f"Error closing client: {e}")
-            finally:
-                self._client_cm = None
-                self._read = None
-                self._write = None
+        # Prepare headers
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        # Add authentication if available
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        
+        # Add session ID if available
+        if self._session_id:
+            headers["mcp-session-id"] = self._session_id
+        
+        # Make the request
+        url = f"{self.base_url}/mcp/request"
+        
+        try:
+            async with self._session.post(url, json=json_rpc_request, headers=headers) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    
+                    # Extract session ID if provided
+                    if "session_info" in result and "session_id" in result["session_info"]:
+                        self._session_id = result["session_info"]["session_id"]
+                    
+                    # Check for JSON-RPC error
+                    if "error" in result:
+                        raise Exception(f"MCP error: {result['error'].get('message', 'Unknown error')}")
+                    
+                    return result.get("result", {})
+                else:
+                    error_text = await response.text()
+                    raise Exception(f"HTTP {response.status}: {error_text}")
+                    
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error: {e}")
+            raise Exception(f"Failed to connect to MCP server: {str(e)}")
+    
+    async def _close_session(self) -> None:
+        """Close the HTTP session."""
+        if self._session:
+            await self._session.close()
+            self._session = None
+            self._session_id = None
     
     async def search_slack_messages(self, 
                                    query: str,
@@ -167,52 +149,45 @@ class SlackChatterMCPClient:
             Dictionary with search results
         """
         try:
-            async with self._session_use_lock:
-                await self._ensure_session()
-                
-                # Build arguments
-                arguments = {"query": query}
-                if top_k is not None:
-                    arguments["top_k"] = min(max(top_k, 1), 50)
-                if channel_filter:
-                    arguments["channel_filter"] = channel_filter
-                if user_filter:
-                    arguments["user_filter"] = user_filter
-                if date_from:
-                    arguments["date_from"] = date_from
-                if date_to:
-                    arguments["date_to"] = date_to
-                
-                # Call the search tool
-                result = await self._session.call_tool(
-                    "search_slack_messages",
-                    arguments=arguments
-                )
-                
-                # Process and return the result
-                if result.content:
-                    content_text = ""
-                    for content_item in result.content:
-                        if hasattr(content_item, 'text'):
-                            content_text += content_item.text + "\n"
-                    
-                    return {
-                        "success": True,
-                        "results": content_text,
-                        "raw_content": result.content
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "No results returned from search"
-                    }
-                    
-        except asyncio.TimeoutError:
-            logger.error(f"Search timeout after {self._fast_timeout}s")
-            return {
-                "success": False,
-                "message": f"Search timed out after {self._fast_timeout} seconds"
+            # Build arguments
+            arguments = {"query": query}
+            if top_k is not None:
+                arguments["top_k"] = min(max(top_k, 1), 50)
+            if channel_filter:
+                arguments["channel_filter"] = channel_filter
+            if user_filter:
+                arguments["user_filter"] = user_filter
+            if date_from:
+                arguments["date_from"] = date_from
+            if date_to:
+                arguments["date_to"] = date_to
+            
+            # Make MCP request
+            params = {
+                "name": "search_slack_messages",
+                "arguments": arguments
             }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                content_text = ""
+                for content_item in result["content"]:
+                    if isinstance(content_item, dict) and "text" in content_item:
+                        content_text += content_item["text"] + "\n"
+                
+                return {
+                    "success": True,
+                    "results": content_text,
+                    "raw_content": result["content"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No results returned from search"
+                }
+                
         except Exception as e:
             logger.error(f"Search error: {e}")
             return {
@@ -228,39 +203,32 @@ class SlackChatterMCPClient:
             Dictionary with channel list
         """
         try:
-            async with self._session_use_lock:
-                await self._ensure_session()
-                
-                # Call the get channels tool
-                result = await self._session.call_tool(
-                    "get_slack_channels",
-                    arguments={}
-                )
-                
-                # Process and return the result
-                if result.content:
-                    content_text = ""
-                    for content_item in result.content:
-                        if hasattr(content_item, 'text'):
-                            content_text += content_item.text + "\n"
-                    
-                    return {
-                        "success": True,
-                        "channels": content_text,
-                        "raw_content": result.content
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "No channels returned"
-                    }
-                    
-        except asyncio.TimeoutError:
-            logger.error(f"Get channels timeout after {self._fast_timeout}s")
-            return {
-                "success": False,
-                "message": f"Request timed out after {self._fast_timeout} seconds"
+            # Make MCP request
+            params = {
+                "name": "get_slack_channels",
+                "arguments": {}
             }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                content_text = ""
+                for content_item in result["content"]:
+                    if isinstance(content_item, dict) and "text" in content_item:
+                        content_text += content_item["text"] + "\n"
+                
+                return {
+                    "success": True,
+                    "channels": content_text,
+                    "raw_content": result["content"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No channels returned"
+                }
+                
         except Exception as e:
             logger.error(f"Get channels error: {e}")
             return {
@@ -276,39 +244,32 @@ class SlackChatterMCPClient:
             Dictionary with search statistics
         """
         try:
-            async with self._session_use_lock:
-                await self._ensure_session()
-                
-                # Call the get stats tool
-                result = await self._session.call_tool(
-                    "get_search_stats",
-                    arguments={}
-                )
-                
-                # Process and return the result
-                if result.content:
-                    content_text = ""
-                    for content_item in result.content:
-                        if hasattr(content_item, 'text'):
-                            content_text += content_item.text + "\n"
-                    
-                    return {
-                        "success": True,
-                        "stats": content_text,
-                        "raw_content": result.content
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "No stats returned"
-                    }
-                    
-        except asyncio.TimeoutError:
-            logger.error(f"Get stats timeout after {self._fast_timeout}s")
-            return {
-                "success": False,
-                "message": f"Request timed out after {self._fast_timeout} seconds"
+            # Make MCP request
+            params = {
+                "name": "get_search_stats",
+                "arguments": {}
             }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                content_text = ""
+                for content_item in result["content"]:
+                    if isinstance(content_item, dict) and "text" in content_item:
+                        content_text += content_item["text"] + "\n"
+                
+                return {
+                    "success": True,
+                    "stats": content_text,
+                    "raw_content": result["content"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No stats returned"
+                }
+                
         except Exception as e:
             logger.error(f"Get stats error: {e}")
             return {
