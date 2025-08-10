@@ -299,7 +299,7 @@ class SlackStreamingHandler:
         self.all_thinking.append(thinking_line.strip())
         
         # DEBUG: Log thinking collection
-        logger.debug(f"DEBUG: Added thinking to all_thinking, total entries: {len(self.all_thinking)}")
+        logger.info(f"DEBUG-THINKING: Added thinking to all_thinking, total entries: {len(self.all_thinking)}")
         
         await self._update_display()
     
@@ -309,6 +309,7 @@ class SlackStreamingHandler:
         if self.all_thinking:
             thinking_text = "\n".join(self.all_thinking)
             self.execution_summary.append(("thinking", thinking_text))
+            logger.info(f"DEBUG-THINKING: Tool start - stored {len(self.all_thinking)} thinking lines in execution_summary")
             self.all_thinking = []
         
         # Store any previous tool in execution summary
@@ -641,6 +642,7 @@ class SlackStreamingHandler:
         if self.all_thinking:
             thinking_text = "\n".join(self.all_thinking)
             self.execution_summary.append(("thinking", thinking_text))
+            logger.info(f"DEBUG-THINKING: Stored {len(self.all_thinking)} thinking lines in execution_summary")
         
         # Store any current tool in execution summary
         if self.current_tool_block:
