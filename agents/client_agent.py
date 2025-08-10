@@ -468,40 +468,40 @@ class ClientAgent:
                         memory_parts.append("=== PREVIOUS CONVERSATION CONTEXT ===")
                         memory_parts.append("Here are the most recent exchanges from our conversation:")
                         memory_parts.append("")
-                        for i, entry in enumerate(short_term[:5], 1):  # Increased from 3 to 5 entries
+                        for i, entry in enumerate(short_term[:5], 1):  # Show up to 5 recent entries
                             if isinstance(entry, dict):
                                 user_msg = entry.get("user_input", "")
                                 agent_msg = entry.get("agent_response", "")
                                 if user_msg or agent_msg:
                                     memory_parts.append(f"Exchange {i}:")
                                     if user_msg:
-                                        # Increased from 100 to 200 chars, show more context
-                                        display_msg = user_msg[:200] + "..." if len(user_msg) > 200 else user_msg
-                                        memory_parts.append(f"  User: {display_msg}")
+                                        # Show FULL user message (no truncation)
+                                        memory_parts.append(f"  User: {user_msg}")
                                     if agent_msg:
-                                        # Increased from 100 to 200 chars, show more context
-                                        display_msg = agent_msg[:200] + "..." if len(agent_msg) > 200 else agent_msg
-                                        memory_parts.append(f"  Assistant: {display_msg}")
+                                        # Show FULL agent response (no truncation)
+                                        memory_parts.append(f"  Assistant: {agent_msg}")
                                     memory_parts.append("")  # Add spacing between exchanges
                     
                     # Add retrieved pages if available
-                    if retrieved_pages and len(memory_parts) < 20:  # Increased limit
+                    if retrieved_pages:
                         memory_parts.append("=== RELEVANT HISTORICAL CONTEXT ===")
                         memory_parts.append("Related information from earlier conversations:")
                         memory_parts.append("")
-                        for page in retrieved_pages[:3]:  # Increased from 2 to 3 pages
+                        for page in retrieved_pages[:3]:  # Show up to 3 historical pages
                             if isinstance(page, dict):
                                 content = page.get("content", "")
                                 if content:
-                                    # Increased from 150 to 250 chars
-                                    display_content = content[:250] + "..." if len(content) > 250 else content
-                                    memory_parts.append(f"• {display_content}")
+                                    # Show FULL content (no truncation)
+                                    memory_parts.append(f"• {content}")
                         memory_parts.append("")  # Add spacing at the end
                     
                     if memory_parts:
                         memory_context = "\n".join(memory_parts)
                         memory_context += "\n=== CURRENT CONVERSATION ===\n"  # Clear separator
                         logger.info(f"AUTO-MEMORY: Retrieved {len(short_term)} short-term and {len(retrieved_pages)} historical entries")
+                        
+                        # Log the actual size of memory being added
+                        logger.info(f"AUTO-MEMORY: Total memory context size: {len(memory_context)} characters")
                 
             logger.info(f"AUTO-MEMORY: Memory retrieval completed for user {user_id}")
             
