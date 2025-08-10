@@ -591,7 +591,9 @@ class ClientAgent:
                     # For execute_tool, show the actual tool name being executed, not "execute_tool"
                     if tool_call.name == "execute_tool" and "tool_name" in tool_call.input:
                         actual_tool = tool_call.input.get("tool_name", "unknown")
-                        await streaming_callback(f"⚡️{actual_tool}", "tool_start")
+                        tool_args = tool_call.input.get("tool_args", {})
+                        # Pass both name and args for execute_tool
+                        await streaming_callback({"name": f"⚡️{actual_tool}", "args": tool_args}, "tool_start")
                     else:
                         await streaming_callback(tool_call.name, "tool_start")
                 
