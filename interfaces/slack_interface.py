@@ -372,8 +372,8 @@ class SlackStreamingHandler:
                                 fallback_narrative += f". Completed successfully"
                         self.current_tool_block["operations"] = [fallback_narrative]
                     else:
-                        # Last resort fallback
-                        self.current_tool_block["operations"].append(f"Completed: {result_summary[:100]}")
+                        # Last resort fallback - don't truncate the result
+                        self.current_tool_block["operations"].append(f"Completed: {result_summary}")
             else:
                 # Regular tool handling
                 if result_summary:
@@ -436,29 +436,36 @@ class SlackStreamingHandler:
                             else:
                                 return f"Completed successfully"
                         elif "error" in result_obj:
-                            return f"⚠️ Error: {result_obj.get('error', 'Unknown error')[:100]}"
+                            # Don't truncate error messages - they're important for debugging
+                            return f"⚠️ Error: {result_obj.get('error', 'Unknown error')}"
                         else:
                             # Try to extract meaningful info from the result
-                            if len(result_data) > 100:
-                                return f"Received detailed response"
+                            if len(result_data) > 1000:
+                                # Only summarize if result is very long
+                                return f"Received detailed response ({len(result_data)} chars)"
                             else:
-                                return f"Result: {result_data[:80]}..."
+                                # Show full result if it's reasonably sized
+                                return f"Result: {result_data}"
                     elif isinstance(result_obj, list):
                         return f"Retrieved {len(result_obj)} items"
                     else:
                         return f"Completed with result"
                 else:
                     # Plain text result
-                    if len(result_data) > 100:
-                        return f"Received response: {result_data[:80]}..."
+                    if len(result_data) > 1000:
+                        # Only summarize if result is very long
+                        return f"Received response ({len(result_data)} chars): {result_data[:500]}..."
                     else:
+                        # Show full result if it's reasonably sized
                         return f"Result: {result_data}"
             except:
                 # If parsing fails, provide generic summary
-                if len(result_data) > 100:
-                    return f"Completed with detailed output"
+                if len(result_data) > 1000:
+                    # Only summarize if result is very long
+                    return f"Completed with detailed output ({len(result_data)} chars)"
                 else:
-                    return f"Result: {result_data[:50]}..."
+                    # Show full result if it's reasonably sized
+                    return f"Result: {result_data}"
         
         # Handle different tool types with appropriate summaries
         elif "reg_search" in tool_name or "registry" in tool_name.lower():
