@@ -465,27 +465,42 @@ class ClientAgent:
                     
                     # Add short-term memory if available
                     if short_term:
-                        memory_parts.append("Recent conversation context:")
-                        for entry in short_term[:3]:  # Limit to most recent 3 entries
+                        memory_parts.append("=== PREVIOUS CONVERSATION CONTEXT ===")
+                        memory_parts.append("Here are the most recent exchanges from our conversation:")
+                        memory_parts.append("")
+                        for i, entry in enumerate(short_term[:5], 1):  # Increased from 3 to 5 entries
                             if isinstance(entry, dict):
                                 user_msg = entry.get("user_input", "")
                                 agent_msg = entry.get("agent_response", "")
-                                if user_msg:
-                                    memory_parts.append(f"User: {user_msg[:100]}...")
-                                if agent_msg:
-                                    memory_parts.append(f"Assistant: {agent_msg[:100]}...")
+                                if user_msg or agent_msg:
+                                    memory_parts.append(f"Exchange {i}:")
+                                    if user_msg:
+                                        # Increased from 100 to 200 chars, show more context
+                                        display_msg = user_msg[:200] + "..." if len(user_msg) > 200 else user_msg
+                                        memory_parts.append(f"  User: {display_msg}")
+                                    if agent_msg:
+                                        # Increased from 100 to 200 chars, show more context
+                                        display_msg = agent_msg[:200] + "..." if len(agent_msg) > 200 else agent_msg
+                                        memory_parts.append(f"  Assistant: {display_msg}")
+                                    memory_parts.append("")  # Add spacing between exchanges
                     
                     # Add retrieved pages if available
-                    if retrieved_pages and len(memory_parts) < 10:  # Limit total context
-                        memory_parts.append("\nRelevant conversation history:")
-                        for page in retrieved_pages[:2]:  # Limit to 2 most relevant pages
+                    if retrieved_pages and len(memory_parts) < 20:  # Increased limit
+                        memory_parts.append("=== RELEVANT HISTORICAL CONTEXT ===")
+                        memory_parts.append("Related information from earlier conversations:")
+                        memory_parts.append("")
+                        for page in retrieved_pages[:3]:  # Increased from 2 to 3 pages
                             if isinstance(page, dict):
                                 content = page.get("content", "")
                                 if content:
-                                    memory_parts.append(f"- {content[:150]}...")
+                                    # Increased from 150 to 250 chars
+                                    display_content = content[:250] + "..." if len(content) > 250 else content
+                                    memory_parts.append(f"• {display_content}")
+                        memory_parts.append("")  # Add spacing at the end
                     
                     if memory_parts:
                         memory_context = "\n".join(memory_parts)
+                        memory_context += "\n=== CURRENT CONVERSATION ===\n"  # Clear separator
                         logger.info(f"AUTO-MEMORY: Retrieved {len(short_term)} short-term and {len(retrieved_pages)} historical entries")
                 
             logger.info(f"AUTO-MEMORY: Memory retrieval completed for user {user_id}")
