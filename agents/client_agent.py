@@ -843,7 +843,16 @@ class ClientAgent:
             if function_name == "reg_search":
                 if streaming_callback:
                     query = args.get('query', 'N/A')
-                    await streaming_callback(f"🔍 Searching for tools matching: '{query}'", "operation")
+                    explanation = args.get('explanation', 'search for tools')
+                    # Build purpose from explanation and query - normalize the verb
+                    explanation_normalized = explanation.lower()
+                    if explanation_normalized.startswith('looking for'):
+                        explanation_normalized = explanation_normalized.replace('looking for', 'look for', 1)
+                    purpose = f" to {explanation_normalized}"
+                    if query != 'N/A':
+                        purpose += f" with \"{query}\""
+                    
+                    await streaming_callback(f"⚡️Used *registry* *search*{purpose}", "operation")
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
@@ -852,24 +861,34 @@ class ClientAgent:
                 if streaming_callback and isinstance(result, dict) and result.get("status") == "success":
                     tools = result.get("data", {}).get("tools", [])
                     if tools:
-                        tool_names = [t.get("name", "unknown") for t in tools[:5]]  # Show first 5
-                        tools_text = "\n".join([f"  • {name}" for name in tool_names])
-                        if len(tools) > 5:
-                            tools_text += f"\n  ... and {len(tools) - 5} more"
-                        await streaming_callback(f"Found {len(tools)} matching tools:\n{tools_text}", "operation")
+                        await streaming_callback(f" and found {len(tools)} tools.", "operation")
             elif function_name == "reg_describe":
                 if streaming_callback:
-                    await streaming_callback(f"Getting tool details for: {args.get('tool_name', 'N/A')}", "operation")
+                    tool_name = args.get('tool_name', 'N/A')
+                    explanation = args.get('explanation', 'get tool details')
+                    # Parse tool name for better display
+                    if "." in tool_name:
+                        service, action = tool_name.split(".", 1)
+                        formatted_tool_name = f"*{service}* *{action}*"
+                    else:
+                        formatted_tool_name = f"*{tool_name}*"
+                    
+                    purpose = f" because I {explanation.lower()}"
+                    await streaming_callback(f"⚡️Used *registry* *describe*{purpose} for the {formatted_tool_name} tool and got results back.", "operation")
                 args.setdefault("include_schema", True)
                 result = await self.tool_executor.execute_command("reg.describe", args, user_id=user_id)
             elif function_name == "reg_list":
                 if streaming_callback:
-                    await streaming_callback("Listing all available tools", "operation")
+                    explanation = args.get('explanation', 'list all available tools')
+                    purpose = f" to {explanation.lower()}"
+                    await streaming_callback(f"⚡️Used *registry* *list*{purpose}", "operation")
                 args.setdefault("limit", 50)
                 result = await self.tool_executor.execute_command("reg.list", args, user_id=user_id)
             elif function_name == "reg_categories":
                 if streaming_callback:
-                    await streaming_callback("Getting tool categories", "operation")
+                    explanation = args.get('explanation', 'get tool categories')
+                    purpose = f" to {explanation.lower()}"
+                    await streaming_callback(f"⚡️Used *registry* *categories*{purpose}", "operation")
                 result = await self.tool_executor.execute_command("reg.categories", args, user_id=user_id)
 
 
@@ -927,7 +946,7 @@ class ClientAgent:
             elif function_name == "memory_add":
                 # Direct memory add tool call
                 if streaming_callback:
-                    await streaming_callback("Adding conversation to memory", "operation")
+                    await streaming_callback("⚡️Used *memory* *add* to store conversation in memory", "operation")
                 
                 # Add user_id to args for memory operations
                 memory_args = dict(args)
@@ -937,7 +956,8 @@ class ClientAgent:
             elif function_name == "memory_retrieve":
                 # Direct memory retrieve tool call
                 if streaming_callback:
-                    await streaming_callback("Retrieving memory context", "operation")
+                    query = args.get('query', 'recent context')
+                    await streaming_callback(f"⚡️Used *memory* *retrieve* to search for \"{query}\"", "operation")
                 
                 # Add user_id to args for memory operations
                 memory_args = dict(args)
