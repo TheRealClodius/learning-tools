@@ -297,22 +297,29 @@ class SlackStreamingHandler:
             return
             
         self.all_thinking.append(thinking_line.strip())
-        await self._update_display()
         
+        # DEBUG: Log thinking collection
+        logger.debug(f"DEBUG: Added thinking to all_thinking, total entries: {len(self.all_thinking)}")
+        
+        await self._update_display()
+    
     async def start_tool(self, tool_name: str, tool_args: Dict = None):
         """Start a new tool execution block"""
         # End any current thinking block by moving it to completed blocks
         if self.all_thinking:
             thinking_text = "\n".join(self.all_thinking)
-            self.content_blocks.append(("thinking", thinking_text))
-            # Store thinking in execution summary too
             self.execution_summary.append(("thinking", thinking_text))
-            self.all_thinking = []  # Clear current thinking
+            self.all_thinking = []
         
-        # Store tool args for later use in summary generation
-        if tool_name.startswith("⚡️") and tool_args:
-            clean_tool_name = tool_name.replace("⚡️", "").strip()
-            self.tool_context[clean_tool_name] = tool_args
+        # Store any previous tool in execution summary
+        if self.current_tool_block:
+            self.execution_summary.append(("tool", self.current_tool_block.copy()))
+        
+        # DEBUG: Log tool start
+        logger.debug(f"DEBUG: Starting tool {tool_name}, execution_summary now has {len(self.execution_summary)} items")
+        
+        # Store tool args for summary generation
+        self.tool_context[tool_name] = tool_args or {}
         
         # Start new tool block
         self.current_tool_block = {
@@ -627,6 +634,11 @@ class SlackStreamingHandler:
         if self.current_tool_block:
             self.execution_summary.append(("tool", self.current_tool_block.copy()))
         
+        # DEBUG: Log execution summary state
+        logger.info(f"DEBUG: finish_with_response - execution_summary has {len(self.execution_summary)} items")
+        if self.execution_summary:
+            logger.info(f"DEBUG: execution_summary types: {[item[0] for item in self.execution_summary[:5]]}")
+        
         # IMPROVED: Store execution details in the interface cache for button access
         if slack_interface and self.execution_summary:
             # Add timestamp to cache entry with performance logging
@@ -634,23 +646,24 @@ class SlackStreamingHandler:
             slack_interface.execution_details_cache[self.message_ts] = (cache_time, self.execution_summary.copy())
             logger.info(f"CACHE-STORED: Execution details cached for message_ts={self.message_ts}, "
                        f"details_count={len(self.execution_summary)}, cache_size={len(slack_interface.execution_details_cache)}")
+        else:
+            logger.warning(f"DEBUG: Not caching - slack_interface={slack_interface is not None}, execution_summary={len(self.execution_summary) if self.execution_summary else 0}")
         
         # Parse the response as markdown and convert to Slack blocks
         try:
             response_blocks = MarkdownToSlackParser.parse_to_blocks(final_response)
-            
-            # If no blocks were generated, fall back to simple text
             if not response_blocks:
                 response_blocks = [{
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": final_response or "No response generated"
+                        "text": final_response
                     }
                 }]
             
             # Add discrete execution details link if we have execution data
             if self.execution_summary:
+                logger.info(f"DEBUG: Adding view flow button for message_ts={self.message_ts}")
                 # Use small gray button (no "primary" style = default gray)
                 execution_button_block = {
                     "type": "actions",
@@ -667,6 +680,8 @@ class SlackStreamingHandler:
                     ]
                 }
                 response_blocks.append(execution_button_block)
+            else:
+                logger.info("DEBUG: No execution_summary, not adding view flow button")
             
             await self.app_client.chat_update(
                 channel=self.channel_id,
@@ -744,6 +759,10 @@ class SlackInterface:
         
         @self.app.action("view_execution_details")
         async def handle_execution_details_button(ack, body, client):
+            # DEBUG: Log button click
+            logger.info("DEBUG: view_execution_details button clicked!")
+            logger.info(f"DEBUG: Button body keys: {list(body.keys())}")
+            
             # Ensure cleanup task is started
             await self._ensure_cleanup_task_started()
             
@@ -756,6 +775,9 @@ class SlackInterface:
                 # If ack fails, we should not proceed as the trigger_id might be invalid
                 return
             
+            # DEBUG: Log after ack
+            logger.info("DEBUG: Successfully acknowledged button click, proceeding to show modal...")
+            
             # OPTIMIZATION: Remove artificial delay - every millisecond counts with trigger_id timeout
             # Original: await asyncio.sleep(0.1)  # REMOVED - wasting precious time
             
@@ -765,6 +787,7 @@ class SlackInterface:
             
             for attempt in range(max_retries):
                 try:
+                    logger.info(f"DEBUG: Attempt {attempt + 1} to show modal...")
                     await self._show_execution_details_modal(body, client)
                     logger.info(f"Successfully opened execution details modal on attempt {attempt + 1}")
                     break
@@ -775,6 +798,7 @@ class SlackInterface:
                         retry_delay = min(retry_delay * 1.5, 0.3)  # Gentler backoff, capped at 300ms
                     else:
                         # Final attempt failed, notify user
+                        logger.error("DEBUG: All attempts to open modal failed!")
                         try:
                             channel_id = body.get("channel", {}).get("id") or body.get("container", {}).get("channel_id")
                             user_id = body.get("user", {}).get("id")
@@ -817,16 +841,24 @@ class SlackInterface:
     async def _show_execution_details_modal(self, body, client):
         """Show execution details in a modal - optimized for trigger_id timeout"""
         try:
+            # DEBUG: Log the entire body to understand what we're receiving
+            logger.info(f"DEBUG: Received body for modal: {json.dumps(body, default=str)[:500]}")
+            
             # FAST VALIDATION: Check critical fields immediately
             trigger_id = body.get("trigger_id")
             if not trigger_id:
                 logger.error("No trigger_id found in body - cannot open modal")
+                logger.error(f"DEBUG: Body keys available: {list(body.keys())}")
                 raise ValueError("Missing trigger_id")
             
             user_id = body.get("user", {}).get("id")
             message_ts = body["actions"][0]["value"]
             
             logger.info(f"Fast modal open for user {user_id}, message_ts: {message_ts}, trigger_id: {trigger_id[:8]}...")
+            
+            # DEBUG: Log cache state
+            logger.info(f"DEBUG: Cache has {len(self.execution_details_cache)} entries")
+            logger.info(f"DEBUG: Cache keys: {list(self.execution_details_cache.keys())[:5]}")  # Show first 5 keys
             
             # FAST CACHE LOOKUP: Get execution details from cache immediately
             cached_entry = self.execution_details_cache.get(message_ts)
@@ -858,7 +890,16 @@ class SlackInterface:
             page_index = 0
             logger.info(f"Built {total_pages} pages for modal")
             
+            # DEBUG: Log first page content
+            if pages:
+                logger.info(f"DEBUG: First page has {len(pages[0])} blocks")
+                logger.info(f"DEBUG: First block type: {pages[0][0].get('type') if pages[0] else 'empty'}")
+            
             modal_view = self._build_modal_view(pages[page_index] if pages else [], page_index, total_pages, message_ts)
+            
+            # DEBUG: Log modal structure
+            logger.info(f"DEBUG: Modal view keys: {list(modal_view.keys())}")
+            logger.info(f"DEBUG: Modal has {len(modal_view.get('blocks', []))} blocks")
             
             # CRITICAL SIZE CHECK: Validate modal size before sending to avoid silent failures
             modal_json = json.dumps(modal_view)
@@ -874,10 +915,16 @@ class SlackInterface:
             # OPTIMIZED MODAL OPENING: Open the modal with minimal overhead
             logger.info(f"Opening modal with trigger_id: {trigger_id[:8]}... (size: {modal_size} bytes)")
             
+            # DEBUG: Log before API call
+            logger.info("DEBUG: About to call client.views_open...")
+            
             response = await client.views_open(
                 trigger_id=trigger_id,
                 view=modal_view
             )
+            
+            # DEBUG: Log full response
+            logger.info(f"DEBUG: views_open response: {json.dumps(response, default=str)[:500]}")
             
             # IMPROVED ERROR HANDLING: Log both success and failure details
             if response.get("ok"):
@@ -995,6 +1042,9 @@ class SlackInterface:
 
     def _build_modal_view(self, page_blocks: list, page_index: int, total_pages: int, message_ts: str) -> dict:
         """Construct a modal view with navigation for the given page of blocks."""
+        # DEBUG: Log input parameters
+        logger.info(f"DEBUG: _build_modal_view called with {len(page_blocks)} blocks, page {page_index+1}/{total_pages}")
+        
         nav_elements = []
         if total_pages > 1:
             nav_elements = [
@@ -1016,14 +1066,29 @@ class SlackInterface:
                 }
             ]
 
-        blocks = list(page_blocks)
+        blocks = list(page_blocks) if page_blocks else []
+        
+        # SAFEGUARD: Ensure we always have at least one block
+        if not blocks:
+            logger.warning("DEBUG: No blocks provided to modal, adding default message")
+            blocks = [{
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "_No execution details available for this interaction._"
+                }
+            }]
+        
         if nav_elements:
             blocks.append({
                 "type": "actions",
                 "elements": nav_elements
             })
+        
+        # DEBUG: Log final block count
+        logger.info(f"DEBUG: Modal will have {len(blocks)} blocks total")
 
-        return {
+        modal = {
             "type": "modal",
             "title": {"type": "plain_text", "text": "Execution Details"},
             "blocks": blocks,
@@ -1034,6 +1099,11 @@ class SlackInterface:
                 "total_pages": total_pages
             })
         }
+        
+        # DEBUG: Validate modal structure
+        logger.info(f"DEBUG: Modal structure validated - has type: {modal.get('type')}, title: {modal.get('title') is not None}, blocks: {len(modal.get('blocks', []))}")
+        
+        return modal
 
     async def _update_execution_modal_page(self, client, body, message_ts: str, page_index: int) -> None:
         """Update the modal view to a different page using views.update."""
