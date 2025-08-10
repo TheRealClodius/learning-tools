@@ -96,7 +96,7 @@ class SlackChatterMCPClient:
             headers["mcp-session-id"] = self._session_id
         
         # Make the request
-        url = f"{self.base_url}/mcp/request"
+        url = f"{self.base_url}/mcp"
         
         try:
             async with self._session.post(url, json=json_rpc_request, headers=headers) as response:
