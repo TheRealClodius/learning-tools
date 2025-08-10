@@ -420,12 +420,12 @@ class execute_weather_forecast_output(BaseModel):
 
 
 # =============================================================================
-# SLACK CHATTER MCP MODELS
+# SLACK MCP MODELS
 # =============================================================================
 
-# Slack Chatter Search Messages Models
-class execute_slack_chatter_search_slack_messages_input(BaseModel):
-    """Input model for searching Slack messages using semantic search"""
+# Slack Vector Search Models
+class execute_slack_vector_search_input(BaseModel):
+    """Input model for vector searching Slack messages using semantic search"""
     query: str = Field(..., min_length=1, max_length=1000, description="Search query for finding relevant messages")
     top_k: int = Field(default=10, ge=1, le=50, description="Number of results to return (1-50)")
     channel_filter: Optional[str] = Field(default=None, description="Filter results by channel name")
@@ -433,31 +433,31 @@ class execute_slack_chatter_search_slack_messages_input(BaseModel):
     date_from: Optional[str] = Field(default=None, pattern="^\\d{4}-\\d{2}-\\d{2}$", description="Filter messages from this date (YYYY-MM-DD)")
     date_to: Optional[str] = Field(default=None, pattern="^\\d{4}-\\d{2}-\\d{2}$", description="Filter messages to this date (YYYY-MM-DD)")
 
-class execute_slack_chatter_search_slack_messages_output(BaseModel):
-    """Output model for Slack message search results"""
+class execute_slack_vector_search_output(BaseModel):
+    """Output model for Slack vector search results"""
     success: bool = Field(..., description="Whether the search was successful")
     results: Optional[str] = Field(default=None, description="Formatted search results with messages, channels, users, and relevance scores")
     raw_content: Optional[List[Dict[str, Any]]] = Field(default=None, description="Raw content items from the MCP response")
     message: Optional[str] = Field(default=None, description="Error message if the search failed")
 
-# Slack Chatter Get Channels Models
-class execute_slack_chatter_get_slack_channels_input(BaseModel):
+# Slack Get Channels Models
+class execute_slack_get_channels_input(BaseModel):
     """Input model for getting list of available Slack channels"""
     pass  # No input parameters required
 
-class execute_slack_chatter_get_slack_channels_output(BaseModel):
+class execute_slack_get_channels_output(BaseModel):
     """Output model for Slack channels list"""
     success: bool = Field(..., description="Whether the request was successful")
     channels: Optional[str] = Field(default=None, description="List of available Slack channels")
     raw_content: Optional[List[Dict[str, Any]]] = Field(default=None, description="Raw content items from the MCP response")
     message: Optional[str] = Field(default=None, description="Error message if the request failed")
 
-# Slack Chatter Get Search Stats Models
-class execute_slack_chatter_get_slack_search_stats_input(BaseModel):
+# Slack Get Search Stats Models
+class execute_slack_get_search_stats_input(BaseModel):
     """Input model for getting Slack search statistics"""
     pass  # No input parameters required
 
-class execute_slack_chatter_get_slack_search_stats_output(BaseModel):
+class execute_slack_get_search_stats_output(BaseModel):
     """Output model for Slack search statistics"""
     success: bool = Field(..., description="Whether the request was successful")
     stats: Optional[str] = Field(default=None, description="Formatted statistics including total messages, channels indexed, last refresh, and status")
