@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SearchSlackMessagesOutput",
-  "description": "Output schema for Slack message search results",
+  "title": "Slack Vector Search Output",
+  "description": "Output schema for Slack vector search results",
   "type": "object",
   "properties": {
     "success": {

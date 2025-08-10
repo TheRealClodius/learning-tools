@@ -1,25 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "GetSlackChannelsInput",
-  "description": "Input schema for getting list of available Slack channels",
+  "title": "Get Slack Channels",
+  "description": [
+    "Get list of available Slack channels",
+    "Retrieve all indexed channels for browsing and filtering",
+    "Useful for understanding available search scope"
+  ],
   "type": "object",
   "properties": {},
-  "additionalProperties": false,
-  "_meta": {
-    "tool_name": "slack_chatter.get_slack_channels",
-    "category": "communication",
-    "tags": ["slack", "channels", "list", "mcp"],
-    "capabilities": [
-      "List all indexed Slack channels",
-      "View available channels for search"
-    ],
-    "use_cases": [
-      "Discovering available Slack channels",
-      "Checking which channels are indexed",
-      "Exploring channel structure"
-    ],
-    "rate_limits": {
-      "requests_per_minute": 60
-    }
-  }
+  "required": [],
+  "additionalProperties": false
 }

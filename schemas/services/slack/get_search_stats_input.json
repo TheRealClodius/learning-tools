@@ -1,26 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "GetSlackSearchStatsInput",
-  "description": "Input schema for getting Slack search statistics",
+  "title": "Get Slack Search Statistics",
+  "description": [
+    "Get statistics about indexed Slack messages",
+    "View total messages, channels, and index health status",
+    "Monitor search index performance and coverage"
+  ],
   "type": "object",
   "properties": {},
-  "additionalProperties": false,
-  "_meta": {
-    "tool_name": "slack_chatter.get_slack_search_stats",
-    "category": "communication",
-    "tags": ["slack", "statistics", "index", "mcp"],
-    "capabilities": [
-      "View index statistics",
-      "Check total indexed messages",
-      "Monitor index health and status"
-    ],
-    "use_cases": [
-      "Monitoring index health",
-      "Checking indexing status",
-      "Viewing message statistics"
-    ],
-    "rate_limits": {
-      "requests_per_minute": 60
-    }
-  }
+  "required": [],
+  "additionalProperties": false
 }

@@ -160,6 +160,14 @@ class ToolRegistry:
                     capabilities.append("real_time_data")
                 if "forecast" in prop_desc.lower() or "prediction" in prop_desc.lower():
                     capabilities.append("forecasting")
+                if "message" in prop_desc.lower():
+                    capabilities.append("messaging")
+                if "channel" in prop_desc.lower():
+                    capabilities.append("channel_management")
+                if "user" in prop_desc.lower():
+                    capabilities.append("user_filtering")
+                if "date" in prop_desc.lower():
+                    capabilities.append("date_filtering")
         
         # Remove duplicates
         capabilities = list(set(capabilities))
@@ -177,6 +185,12 @@ class ToolRegistry:
         action = tool_name.split(".")[-1]
         if action == "search":
             use_cases = ["Find information", "Lookup data", "Search queries"]
+        elif action == "vector_search":
+            use_cases = ["Find Slack messages", "Search conversations", "Semantic message search"]
+        elif action == "get_channels":
+            use_cases = ["List Slack channels", "Browse available channels", "View channel inventory"]
+        elif action == "get_search_stats":
+            use_cases = ["View search statistics", "Monitor index health", "Check message counts"]
         elif action == "current":
             use_cases = ["Get current status", "Real-time data", "Current conditions"]
         elif action == "forecast":
@@ -233,6 +247,10 @@ class ToolRegistry:
             tags.extend(["ai", "research", "web"])
         elif service == "registry":
             tags.extend(["discovery", "tools", "registry"])
+        elif service == "slack":
+            tags.extend(["slack", "messaging", "communication", "mcp"])
+        elif service == "memory":
+            tags.extend(["memory", "personalization", "profile", "mcp"])
         
         return list(set(tags))  # Remove duplicates
     
