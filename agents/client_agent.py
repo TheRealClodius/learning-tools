@@ -616,21 +616,12 @@ class ClientAgent:
                     thinking_matches = re.findall(r'<thinking>(.*?)</thinking>', text, re.DOTALL)
                     for thinking in thinking_matches:
                         all_thinking_content.append(thinking.strip())
+                    if thinking_matches:
+                        logger.info(f"DEBUG-THINKING: Found {len(thinking_matches)} thinking blocks in text response")
                     
                     # Extract and stream thinking content
                     if streaming_callback:
                         await self._extract_and_stream_thinking(text, streaming_callback)
-                
-                elif content_block.type == "thinking":
-                    # Stream Anthropic native thinking blocks if present
-                    thinking_text = getattr(content_block, "text", None) or getattr(content_block, "thinking", None) or str(content_block)
-                    if thinking_text:
-                        all_thinking_content.append(thinking_text.strip())
-                        if streaming_callback:
-                            for line in thinking_text.strip().split('\n'):
-                                line = line.strip()
-                                if line:
-                                    await streaming_callback(line, "thinking")
                 
                 elif content_block.type == "tool_use":
                     assistant_content.append({
@@ -799,6 +790,9 @@ class ClientAgent:
         """Extract thinking content and stream it"""
         thinking_pattern = r'<thinking>(.*?)</thinking>'
         thinking_matches = re.findall(thinking_pattern, text, re.DOTALL)
+        
+        if thinking_matches:
+            logger.info(f"DEBUG-THINKING: Streaming {len(thinking_matches)} thinking blocks")
         
         for thinking_content in thinking_matches:
             # Split thinking into lines and stream each
