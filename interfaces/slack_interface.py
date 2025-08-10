@@ -1692,7 +1692,7 @@ Write the narrative summary:"""
                 # Use the new generation config format
                 generation_config = genai.GenerationConfig(
                     temperature=0,
-                    max_output_tokens=100,
+                    max_output_tokens=1000,
                 )
                 
                 response = await asyncio.to_thread(
@@ -1737,7 +1737,7 @@ Write the narrative summary:"""
                 response = await asyncio.to_thread(
                     self.anthropic_client.messages.create,
                     model="claude-3-haiku-20240307",
-                    max_tokens=100,
+                    max_tokens=1000,
                     temperature=0,
                     messages=[{"role": "user", "content": prompt}]
                 )
@@ -1758,7 +1758,7 @@ Write the narrative summary:"""
                 response = await asyncio.to_thread(
                     self.openai_client.chat.completions.create,
                     model="gpt-3.5-turbo",
-                    max_tokens=100,
+                    max_tokens=1000,
                     temperature=0,
                     messages=[
                         {"role": "system", "content": "Create narrative summaries of tool executions. Format: ⚡️Used *[tool]* to/for [purpose]. [Result]"},
