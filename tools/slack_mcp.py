@@ -1,18 +1,18 @@
 """
-Slack Chatter MCP Client
+Slack MCP Client
 
 This module provides an MCP (Model Context Protocol) client for connecting to 
-the Slack Chatter Service to enable semantic search of Slack messages.
+the Slack Service to enable semantic search of Slack messages.
 
 The client supports three main operations:
-- search_slack_messages: Search through Slack messages using semantic search
-- get_slack_channels: Get list of available Slack channels
+- vector_search: Search through Slack messages using semantic search
+- get_channels: Get list of available Slack channels
 - get_search_stats: Get statistics about the indexed Slack messages
 
 Configuration via environment variables:
-- SLACK_CHATTER_MCP_HOST: MCP server host (default: slack-chatter-service.andreiclodius.repl.co)
-- SLACK_CHATTER_MCP_PORT: MCP server port (default: 5000 for Replit)
-- SLACK_CHATTER_API_KEY: Optional API key for authentication
+- SLACK_MCP_HOST: MCP server host (default: slack-chronicler-andreiclodius.replit.app)
+- SLACK_MCP_PORT: MCP server port (default: 443 for Replit)
+- SLACK_API_KEY: Optional API key for authentication
 """
 
 import asyncio
@@ -24,9 +24,9 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-class SlackChatterMCPClient:
+class SlackMCPClient:
     """
-    MCP client for Slack Chatter Service operations
+    MCP client for Slack Service operations
     """
     
     def __init__(self, 
@@ -35,19 +35,19 @@ class SlackChatterMCPClient:
                  api_key: str = None,
                  timeout: int = 30):
         """
-        Initialize Slack Chatter MCP client
+        Initialize Slack MCP client
         
         Args:
-            host: MCP server hostname (defaults to env SLACK_CHATTER_MCP_HOST or Replit URL)
-            port: MCP server port (defaults to env SLACK_CHATTER_MCP_PORT or 5000)
+            host: MCP server hostname (defaults to env SLACK_MCP_HOST or Replit URL)
+            port: MCP server port (defaults to env SLACK_MCP_PORT or 443)
             api_key: Optional API key for authentication
             timeout: Request timeout in seconds
         """
         # Default to the correct Slack Chronicler URL
-        self.host = host or os.getenv('SLACK_CHATTER_MCP_HOST', 'slack-chronicler-andreiclodius.replit.app')
-        self.port = port or int(os.getenv('SLACK_CHATTER_MCP_PORT', '443'))
+        self.host = host or os.getenv('SLACK_MCP_HOST', 'slack-chronicler-andreiclodius.replit.app')
+        self.port = port or int(os.getenv('SLACK_MCP_PORT', '443'))
         # Use the discovered API key as default if not provided
-        self.api_key = api_key or os.getenv('SLACK_CHATTER_API_KEY', 'mcp_key_035e8af1ff630a5dac461a150e27c4ad0ab07bc4fb1a7bbd')
+        self.api_key = api_key or os.getenv('SLACK_API_KEY', 'mcp_key_035e8af1ff630a5dac461a150e27c4ad0ab07bc4fb1a7bbd')
         self.timeout = timeout
         
         # Use HTTPS for Replit deployment
@@ -58,7 +58,7 @@ class SlackChatterMCPClient:
         else:
             self.base_url = f"{protocol}://{self.host}:{self.port}"
         
-        logger.info(f"Slack Chatter MCP Client initialized for {self.base_url}")
+        logger.info(f"Slack MCP Client initialized for {self.base_url}")
         
         # Session management
         self._session: Optional[aiohttp.ClientSession] = None
@@ -151,15 +151,15 @@ class SlackChatterMCPClient:
             self._session = None
             self._session_id = None
     
-    async def search_slack_messages(self, 
-                                   query: str,
-                                   top_k: int = 10,
-                                   channel_filter: Optional[str] = None,
-                                   user_filter: Optional[str] = None,
-                                   date_from: Optional[str] = None,
-                                   date_to: Optional[str] = None) -> Dict[str, Any]:
+    async def vector_search(self, 
+                           query: str,
+                           top_k: int = 10,
+                           channel_filter: Optional[str] = None,
+                           user_filter: Optional[str] = None,
+                           date_from: Optional[str] = None,
+                           date_to: Optional[str] = None) -> Dict[str, Any]:
         """
-        Search through Slack messages using semantic search
+        Search through Slack messages using semantic/vector search
         
         Args:
             query: Search query for finding relevant messages
@@ -219,7 +219,7 @@ class SlackChatterMCPClient:
                 "message": f"Search failed: {str(e)}"
             }
     
-    async def get_slack_channels(self) -> Dict[str, Any]:
+    async def get_channels(self) -> Dict[str, Any]:
         """
         Get list of available Slack channels
         
@@ -307,30 +307,30 @@ class SlackChatterMCPClient:
 
 
 # Global client instance
-_slack_chatter_client: Optional[SlackChatterMCPClient] = None
+_slack_client: Optional[SlackMCPClient] = None
 
-def get_slack_chatter_client() -> SlackChatterMCPClient:
-    """Get or create the global Slack Chatter MCP client instance"""
-    global _slack_chatter_client
-    if _slack_chatter_client is None:
-        _slack_chatter_client = SlackChatterMCPClient()
-    return _slack_chatter_client
+def get_slack_client() -> SlackMCPClient:
+    """Get or create the global Slack MCP client instance"""
+    global _slack_client
+    if _slack_client is None:
+        _slack_client = SlackMCPClient()
+    return _slack_client
 
-async def close_slack_chatter_client():
-    """Close and cleanup the global Slack Chatter MCP client"""
-    global _slack_chatter_client
-    if _slack_chatter_client:
-        await _slack_chatter_client.close()
-        _slack_chatter_client = None
+async def close_slack_client():
+    """Close and cleanup the global Slack MCP client"""
+    global _slack_client
+    if _slack_client:
+        await _slack_client.close()
+        _slack_client = None
 
 
 # Tool function wrappers for integration with the execute system
-async def search_slack_messages(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def vector_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Tool function for searching Slack messages via MCP
+    Tool function for vector searching Slack messages via MCP
     """
     try:
-        client = get_slack_chatter_client()
+        client = get_slack_client()
         
         query = input_data.get("query", "")
         if not query:
@@ -345,7 +345,7 @@ async def search_slack_messages(input_data: Dict[str, Any]) -> Dict[str, Any]:
         date_from = input_data.get("date_from")
         date_to = input_data.get("date_to")
         
-        return await client.search_slack_messages(
+        return await client.vector_search(
             query=query,
             top_k=top_k,
             channel_filter=channel_filter,
@@ -355,19 +355,19 @@ async def search_slack_messages(input_data: Dict[str, Any]) -> Dict[str, Any]:
         )
         
     except Exception as e:
-        logger.error(f"Search Slack messages error: {e}")
+        logger.error(f"Vector search Slack messages error: {e}")
         return {
             "success": False,
             "message": f"Search failed: {str(e)}"
         }
 
-async def get_slack_channels(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_channels(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Tool function for getting Slack channels via MCP
     """
     try:
-        client = get_slack_chatter_client()
-        return await client.get_slack_channels()
+        client = get_slack_client()
+        return await client.get_channels()
         
     except Exception as e:
         logger.error(f"Get Slack channels error: {e}")
@@ -376,12 +376,12 @@ async def get_slack_channels(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "message": f"Failed to get channels: {str(e)}"
         }
 
-async def get_slack_search_stats(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_search_stats(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Tool function for getting Slack search statistics via MCP
     """
     try:
-        client = get_slack_chatter_client()
+        client = get_slack_client()
         return await client.get_search_stats()
         
     except Exception as e:

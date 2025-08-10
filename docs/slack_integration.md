@@ -1,24 +1,24 @@
-# Slack Chatter MCP Integration
+# Slack MCP Integration
 
 ## Overview
 
-The Slack Chatter MCP client provides integration with the Slack Chatter Service, enabling semantic search of Slack messages through the Model Context Protocol (MCP). This integration allows the client agent to search through indexed Slack messages, retrieve channel information, and get search statistics.
+The Slack MCP client provides integration with the Slack Service, enabling semantic/vector search of Slack messages through the Model Context Protocol (MCP). This integration allows the client agent to search through indexed Slack messages, retrieve channel information, and get search statistics.
 
 ## Features
 
 ### Available Tools
 
-1. **slack_chatter.search_slack_messages**
-   - Semantic search through Slack messages
+1. **slack.vector_search**
+   - Vector/semantic search through Slack messages
    - Filter by channel, user, and date range
    - AI-enhanced query processing
    - Returns relevance-scored results
 
-2. **slack_chatter.get_slack_channels**
+2. **slack.get_channels**
    - List all indexed Slack channels
    - View available channels for search
 
-3. **slack_chatter.get_slack_search_stats**
+3. **slack.get_search_stats**
    - View index statistics
    - Check total indexed messages
    - Monitor index health and status
@@ -31,16 +31,16 @@ The following environment variables can be used to configure the MCP client:
 
 ```bash
 # MCP Server Configuration (optional - defaults shown)
-SLACK_CHATTER_MCP_HOST=slack-chatter-service.andreiclodius.repl.co
-SLACK_CHATTER_MCP_PORT=5000  # Default Replit port
-SLACK_CHATTER_API_KEY=<optional_api_key>  # If authentication is required
+SLACK_MCP_HOST=slack-chronicler-andreiclodius.replit.app
+SLACK_MCP_PORT=443  # Default HTTPS port
+SLACK_API_KEY=<optional_api_key>  # If authentication is required
 ```
 
 ### Server Requirements
 
-The Slack Chatter Service must be running and accessible. The service is hosted at:
-- GitHub Repository: https://github.com/TheRealClodius/Slack-Chatter-Service
-- Default Replit URL: https://slack-chatter-service.andreiclodius.repl.co:5000
+The Slack Service must be running and accessible. The service is hosted at:
+- GitHub Repository: https://github.com/TheRealClodius/Slack-Chronicler
+- Default Replit URL: https://slack-chronicler-andreiclodius.replit.app
 
 The service provides the following endpoints:
 - `/health` - Health check endpoint
@@ -63,9 +63,9 @@ reg.search query="slack messages"
 
 ### Direct Tool Usage
 
-#### Search Slack Messages
+#### Vector Search Slack Messages
 ```python
-result = await execute_tool("slack_chatter.search_slack_messages", {
+result = await execute_tool("slack.vector_search", {
     "query": "deployment issues",
     "top_k": 10,
     "channel_filter": "engineering",
@@ -75,24 +75,24 @@ result = await execute_tool("slack_chatter.search_slack_messages", {
 
 #### Get Slack Channels
 ```python
-result = await execute_tool("slack_chatter.get_slack_channels", {})
+result = await execute_tool("slack.get_channels", {})
 ```
 
 #### Get Search Statistics
 ```python
-result = await execute_tool("slack_chatter.get_slack_search_stats", {})
+result = await execute_tool("slack.get_search_stats", {})
 ```
 
 ## Architecture
 
 ### Components
 
-1. **MCP Client** (`tools/slack_chatter_mcp.py`)
+1. **MCP Client** (`tools/slack_mcp.py`)
    - Handles connection to the remote MCP server
    - Manages session lifecycle
    - Provides async methods for each tool
 
-2. **Schema Files** (`schemas/services/slack_chatter/`)
+2. **Schema Files** (`schemas/services/slack/`)
    - Input/output schemas for each tool
    - Metadata for registry discovery
    - Validation rules
@@ -107,7 +107,7 @@ result = await execute_tool("slack_chatter.get_slack_search_stats", {})
 ```mermaid
 graph LR
     A[Client Agent] --> B[Tool Executor]
-    B --> C[Slack Chatter MCP Client]
+    B --> C[Slack MCP Client]
     C --> D[Remote MCP Server]
     D --> E[Slack Data]
 ```
@@ -117,7 +117,7 @@ graph LR
 Run the test script to verify the integration:
 
 ```bash
-python3 test_slack_chatter.py
+python3 test_slack.py
 ```
 
 The test script will:
@@ -173,6 +173,6 @@ logging.basicConfig(level=logging.DEBUG)
 ## Support
 
 For issues or questions:
-- Check the [Slack Chatter Service repository](https://github.com/TheRealClodius/Slack-Chatter-Service)
+- Check the [Slack Chronicler repository](https://github.com/TheRealClodius/Slack-Chronicler)
 - Review the MCP specification at [modelcontextprotocol.io](https://modelcontextprotocol.io)
 - Check the test script output for diagnostic information
