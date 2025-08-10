@@ -566,7 +566,12 @@ class SlackStreamingHandler:
         # Add current tool block if we have one running
         if self.current_tool_block:
             tool_info = self.current_tool_block
-            tool_lines = [f"*{tool_info['name']}*"]
+            tool_lines = []
+            
+            # Only add tool name as header if it doesn't start with ⚡️
+            # (because execute_tool operations already include the formatted tool name)
+            if not tool_info['name'].startswith('⚡️'):
+                tool_lines.append(f"*{tool_info['name']}*")
             
             for operation in tool_info['operations']:
                 tool_lines.append(operation.strip())
@@ -964,11 +969,14 @@ class SlackInterface:
                     })
             elif block_type == "tool":
                 tool_info = content
-                header = f"*{tool_info['name']}*"
-                add_block({
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"_{header}_"}
-                })
+                # Only add tool name as header if it doesn't start with ⚡️
+                # (because execute_tool operations already include the formatted tool name)
+                if not tool_info['name'].startswith('⚡️'):
+                    header = f"*{tool_info['name']}*"
+                    add_block({
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"_{header}_"}
+                    })
                 operations_text = '\n'.join([op.strip() for op in tool_info.get('operations', []) if op])
                 if tool_info.get('operations') and tool_info.get('status') != 'completed':
                     operations_text += "\n..."
