@@ -9,6 +9,149 @@ This document details how prompts are assembled in the Signal AI agent system. T
 User Message → Context Enrichment → Memory Retrieval → Insights Assembly → Final Prompt → Claude API
 ```
 
+## 🔍 SLACK USER DETAILS FLOW
+
+### Where Slack User Details Come From
+
+1. **Slack Interface Extraction** (`/workspace/interfaces/slack_interface.py` lines 1120-1144)
+```python
+# When a Slack message arrives, the interface fetches user info:
+user_info = await self._get_user_info(user_id)  # Fetches from Slack API
+
+# Extracts these details:
+context = {
+    "platform": "slack",
+    "user_id": user_id,                           # Slack user ID
+    "channel_id": channel_id,
+    "thread_ts": thread_ts,
+    "timestamp": timestamp,                       # Current time in user's timezone
+    "user_timezone": user_info.get('timezone'),   # e.g., "America/Los_Angeles"
+    "user_name": user_info.get('real_name'),      # e.g., "John Doe"
+    "user_display_name": user_info.get('display_name'),
+    "user_title": user_info.get('title')          # e.g., "Senior Engineer"
+}
+```
+
+2. **Context Passed to Agent** 
+The context dictionary is passed to `agent.process_request(message, context=context)`
+
+### Where User Details Get Appended to the Prompt
+
+**Location:** `/workspace/agents/client_agent.py` lines 287-310
+
+```python
+def process_request(self, message: str, context: Dict[str, Any] = None):
+    full_message = message  # Start with user's original message
+    
+    if context:
+        # Extract all the Slack details
+        platform = context.get('platform', 'unknown')
+        timestamp = context.get('timestamp', 'unknown')
+        user_timezone = context.get('user_timezone', '')
+        user_name = context.get('user_name', '')
+        user_title = context.get('user_title', '')
+        
+        # Build context string
+        context_parts = [f"Platform={platform}"]
+        
+        if user_name:
+            context_parts.append(f"User={user_name}")
+        if user_title:
+            context_parts.append(f"Role={user_title}")
+        
+        if user_timezone and user_timezone != 'UTC':
+            context_parts.append(f"Current time for user: {timestamp} ({user_timezone})")
+        else:
+            context_parts.append(f"Current time: {timestamp}")
+        
+        # APPEND TO THE END OF THE USER MESSAGE
+        full_message += f"\n\n[Context: {', '.join(context_parts)}]"
+```
+
+### Example of Final Message with Slack Context
+
+If a Slack user "John Doe" (Senior Engineer) sends "What's the weather?", the message becomes:
+
+```
+What's the weather?
+
+[Context: Platform=slack, User=John Doe, Role=Senior Engineer, Current time for user: 2024-01-15 10:30:00 PST (America/Los_Angeles)]
+```
+
+### Complete Flow Visualization
+
+```
+SLACK EVENT
+     │
+     ▼
+┌─────────────────────────────────┐
+│   Slack Interface               │
+│   (slack_interface.py)          │
+├─────────────────────────────────┤
+│ 1. Receives Slack event         │
+│ 2. Extracts user_id             │
+│ 3. Calls _get_user_info()       │
+│    → Fetches from Slack API     │
+│    → Gets: name, title, timezone│
+│ 4. Creates context dict         │
+└──────────┬──────────────────────┘
+           │
+           │ context = {
+           │   "user_name": "John Doe",
+           │   "user_title": "Senior Engineer",
+           │   "user_timezone": "America/Los_Angeles",
+           │   ...
+           │ }
+           ▼
+┌─────────────────────────────────┐
+│   Client Agent                  │
+│   (client_agent.py)             │
+├─────────────────────────────────┤
+│ process_request(message, context)│
+│                                 │
+│ 1. Receives original message    │
+│ 2. Extracts context fields      │
+│ 3. Builds context_parts[]       │
+│ 4. APPENDS to message:          │
+│    full_message += "\n\n[Context: ...]"│
+└──────────┬──────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────┐
+│   run_agent_loop()              │
+├─────────────────────────────────┤
+│ This full_message (with context)│
+│ goes through:                   │
+│ • Memory retrieval              │
+│ • Buffer assembly (PINS/RECS)   │
+│ • Final prompt assembly         │
+└─────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────┐
+│   Claude API                    │
+├─────────────────────────────────┤
+│ Sees the message as:            │
+│                                 │
+│ "What's the weather?            │
+│                                 │
+│ [Context: Platform=slack,       │
+│  User=John Doe,                 │
+│  Role=Senior Engineer,          │
+│  Current time for user:         │
+│  2024-01-15 10:30:00 PST        │
+│  (America/Los_Angeles)]"        │
+└─────────────────────────────────┘
+```
+
+### Key Points About User Details
+
+1. **Appended to User Message**: The Slack user details are appended directly to the end of the user's message, NOT to the system prompt
+2. **Format**: Always in `[Context: key=value, key=value]` format
+3. **Conditional Fields**: Only non-empty fields are included
+4. **User Isolation**: The `user_id` is used separately for buffer isolation and memory retrieval
+5. **Timezone Handling**: User's local time is calculated and included if timezone is available
+
 ## Components
 
 ### 1. System Prompt (Base Layer)
