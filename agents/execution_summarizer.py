@@ -9,6 +9,10 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any, Optional, Union
+from dotenv import load_dotenv
+
+# Load environment variables from .env.local
+load_dotenv('.env.local', override=True)
 
 logger = logging.getLogger(__name__)
 
