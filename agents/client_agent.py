@@ -232,6 +232,10 @@ class ClientAgent:
         # COMMENTED OUT: Initialize conversation insights agent
         # self.insights_agent = ConvoInsightsAgent()
         
+        # Initialize routing agents
+        self.routing_agent = ModelRoutingAgent()
+        self.gemini_simple_agent = GeminiSimpleAgent()
+        
         # Enhanced user buffers for prompt assembly
         self.user_buffers: Dict[str, Dict[str, Any]] = {}
         self.buffer_expiry_minutes = 30  # Buffer expires after 30 minutes
@@ -239,7 +243,7 @@ class ClientAgent:
         # Load system prompt from YAML configuration
         self.system_prompt = self.config.get('system_prompt', '')
         
-        logger.info("ClientAgent initialized with Claude (ConvoInsightsAgent commented out)")
+        logger.info("ClientAgent initialized with Claude + Gemini routing system")
     
     def _init_summarization_client(self):
         """Initialize summarization client based on configuration"""
@@ -423,7 +427,7 @@ class ClientAgent:
     
     async def process_request(self, message: str, context: Dict[str, Any] = None, streaming_callback=None) -> Dict[str, Any]:
         """
-        Process user request using Claude API with agent loop for tool discovery
+        Process user request with intelligent model routing
         
         Args:
             message: User's message/request
@@ -442,7 +446,11 @@ class ClientAgent:
             logger.info(f"CLIENT-AGENT-USER-ID: Received user_id='{user_id}' from context")
             logger.info(f"CLIENT-AGENT-CONTEXT: Full context={context}")
             
+            # Build context information
             full_message = message
+            context_info = ""
+            current_time = ""
+            
             if context:
                 platform = context.get('platform', 'unknown')
                 timestamp = context.get('timestamp', 'unknown')
@@ -462,24 +470,75 @@ class ClientAgent:
                 # Add timestamp with timezone
                 if user_timezone and user_timezone != 'UTC':
                     context_parts.append(f"Current time for user: {timestamp} ({user_timezone})")
+                    current_time = f"{timestamp} ({user_timezone})"
                 else:
                     context_parts.append(f"Current time: {timestamp}")
+                    current_time = timestamp
                 
                 full_message += f"\n\n[Context: {', '.join(context_parts)}]"
+                context_info = "\n".join(context_parts)
             
-            # Run the agent loop with iterative tool calling and user isolation
-            logger.info(f"CLIENT-AGENT-BUFFER: Calling run_agent_loop with user_id='{user_id}'")
-            t_loop = time.time()
-            response = await self.run_agent_loop(full_message, streaming_callback, user_id)
-            logger.info(f"AGENT-TIMING: run_agent_loop took {int((time.time()-t_loop)*1000)} ms user={user_id}")
+            # =============================================================================
+            # MODEL ROUTING DECISION - Route to appropriate agent
+            # =============================================================================
             
-            return {
-                "success": True,
-                "response": response,
-                "message": "Request processed successfully",
-                "agent": "client_agent",
-                "model": "claude-3-5-sonnet"
-            }
+            if streaming_callback:
+                await streaming_callback("🤖 Determining optimal model for your request...", "operation")
+            
+            # Get routing decision
+            t_routing = time.time()
+            route_decision = await self.routing_agent.route_query(message)
+            routing_time_ms = int((time.time() - t_routing) * 1000)
+            
+            logger.info(f"MODEL-ROUTING: Routed to {route_decision.value} in {routing_time_ms}ms")
+            
+            if route_decision == RouteDecision.SIMPLE:
+                # Route to Gemini Flash for simple queries
+                if streaming_callback:
+                    await streaming_callback("⚡ Processing with fast conversational agent...", "operation")
+                
+                # Get conversation history for context
+                conversation_history = await self._get_formatted_conversation_history(user_id, streaming_callback)
+                
+                # Process with Gemini Simple Agent
+                t_gemini = time.time()
+                result = await self.gemini_simple_agent.process_simple_request(
+                    message, conversation_history, context_info, current_time
+                )
+                gemini_time_ms = int((time.time() - t_gemini) * 1000)
+                
+                # Add timing information
+                result["routing_time_ms"] = routing_time_ms
+                result["processing_time_ms"] = gemini_time_ms
+                result["total_time_ms"] = int((time.time() - t_overall) * 1000)
+                
+                # Store in memory if successful
+                if result.get("success") and user_id:
+                    await self._store_conversation_in_memory(message, result["response"], user_id)
+                
+                return result
+                
+            else:
+                # Route to Claude for complex queries
+                if streaming_callback:
+                    await streaming_callback("🧠 Processing with advanced reasoning agent...", "operation")
+                
+                # Run the Claude agent loop with iterative tool calling
+                logger.info(f"CLAUDE-ROUTING: Calling run_agent_loop with user_id='{user_id}'")
+                t_loop = time.time()
+                response = await self.run_agent_loop(full_message, streaming_callback, user_id)
+                claude_time_ms = int((time.time() - t_loop) * 1000)
+                
+                return {
+                    "success": True,
+                    "response": response,
+                    "message": "Request processed successfully",
+                    "agent": "claude_complex",
+                    "model": "claude-3-5-sonnet",
+                    "routing_time_ms": routing_time_ms,
+                    "processing_time_ms": claude_time_ms,
+                    "total_time_ms": int((time.time() - t_overall) * 1000)
+                }
             
         except Exception as e:
             logger.error(f"Error processing request: {e}")
@@ -1266,6 +1325,36 @@ class ClientAgent:
                 return user_message[:context_start].strip()
         return user_message.strip()
     
+    async def _store_conversation_in_memory(self, user_message: str, agent_response: str, user_id: str):
+        """
+        Store conversation in memory for both Gemini and Claude responses
+        """
+        try:
+            logger.info(f"MEMORY-STORAGE: Adding conversation to memory for user {user_id}")
+            
+            memory_add_args = {
+                "user_input": user_message,
+                "agent_response": agent_response,
+                "user_id": user_id
+            }
+            
+            # Run memory addition in background to not block response
+            async def add_memory_background():
+                try:
+                    result = await self.tool_executor.execute_command("memory.add", memory_add_args, user_id=user_id)
+                    if isinstance(result, dict) and result.get("status") != "error":
+                        logger.info(f"MEMORY-STORAGE: Successfully added conversation to memory for user {user_id}")
+                    else:
+                        logger.warning(f"MEMORY-STORAGE: Failed to add memory - result: {result}")
+                except Exception as e:
+                    logger.warning(f"MEMORY-STORAGE: Failed to add conversation to memory: {e}")
+            
+            # Create background task for memory addition
+            memory_task = asyncio.create_task(add_memory_background())
+            self._track_background_task(memory_task)
+            
+        except Exception as e:
+            logger.warning(f"MEMORY-STORAGE: Failed to initiate memory addition: {e}")
 
 
     # =============================================================================
