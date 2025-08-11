@@ -42,8 +42,7 @@ class ToolExecutor:
             },
             "perplexity": {
                 "perplexity.search": "tools.perplexity:perplexity_search",
-                "perplexity.research": "tools.perplexity:perplexity_research",
-                "perplexity.research_stream": "tools.perplexity:perplexity_research_stream"
+                "perplexity.research": "tools.perplexity:perplexity_research"
             },
             "memory": {
                 "memory.add": "tools.memory_mcp:add_memory",
@@ -51,8 +50,6 @@ class ToolExecutor:
                 "memory.get_user_profile": "tools.memory_mcp:get_user_profile"
             },
             "slack": {
-                "slack.send_message": "tools.slack:slack_send_message",
-                "slack.search_channels": "tools.slack:slack_search_channels",
                 "slack.vector_search": "tools.slack_mcp:vector_search",
                 "slack.get_channels": "tools.slack_mcp:get_channels",
                 "slack.get_search_stats": "tools.slack_mcp:get_search_stats"
@@ -62,7 +59,6 @@ class ToolExecutor:
         # Load essential tools at startup
         self._load_registry_tools()
         self._load_memory_tools()
-        self._load_slack_tools()
     
     def _load_registry_tools(self):
         """Load registry tools that are always available"""
@@ -103,27 +99,6 @@ class ToolExecutor:
             
         except ImportError as e:
             logger.warning(f"Could not load memory tools: {e}")
-    
-    def _load_slack_tools(self):
-        """Load Slack MCP tools that are always available"""
-        try:
-            from tools.slack_mcp import (
-                vector_search,
-                get_channels,
-                get_search_stats
-            )
-            
-            self.available_tools.update({
-                "slack.vector_search": vector_search,
-                "slack.get_channels": get_channels,
-                "slack.get_search_stats": get_search_stats
-            })
-            
-            self.loaded_services.add("slack")
-            logger.info("Slack MCP tools loaded successfully")
-            
-        except ImportError as e:
-            logger.warning(f"Could not load Slack MCP tools: {e}")
     
 
     
