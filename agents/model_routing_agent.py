@@ -11,7 +11,8 @@ Uses Gemini 2.5 Flash for extremely fast routing decisions.
 import logging
 import os
 import time
-from typing import Dict, Any, Literal
+import yaml
+from typing import Dict, Any, Literal, List
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -26,38 +27,67 @@ class ModelRoutingAgent:
     Fast model routing agent using Gemini 2.5 Flash
     """
     
-    def __init__(self):
+    def __init__(self, config_path: str = "agents/system prompts/model_routing_agent.yaml"):
         """Initialize the routing agent"""
-        self.model = "gemini-2.5-flash"
-        self.max_tokens = 50  # Very short responses
-        self.temperature = 0.0  # Deterministic routing
-        self.timeout = 3  # Super fast timeout
+        self.config = self._load_config(config_path)
         
-        # Routing system prompt
-        self.routing_prompt = """You are a routing agent that decides which AI model should handle a user query.
-
-RESPOND WITH EXACTLY ONE WORD:
-
-"simple" - Use Gemini Flash for:
-- Greetings, pleasantries, basic chitchat
-- Simple questions with direct answers
-- Thank you messages, acknowledgments
-- Basic factual questions (what is X, who is Y)
-- Casual conversation, small talk
-- Single-step requests
-
-"complex" - Use Claude Sonnet for:
-- Multi-step problem solving
-- Requests requiring tool usage (weather, search, etc.)
-- Analysis, comparisons, explanations
-- Planning, strategy, troubleshooting
-- Code review, debugging, optimization
-- Research requiring external information
-- Questions needing reasoning or synthesis
-
-Analyze this user query and respond with ONLY "simple" or "complex":"""
+        # Extract configuration
+        self.model_config = self.config.get('model_config', {})
+        self.fallback_config = self.config.get('fallback_config', {})
         
-        logger.info("ModelRoutingAgent initialized with Gemini 2.5 Flash")
+        # Configure model settings
+        self.model = self.model_config.get('model', 'gemini-2.5-flash')
+        self.max_tokens = self.model_config.get('max_tokens', 50)
+        self.temperature = self.model_config.get('temperature', 0.0)
+        self.timeout = self.model_config.get('timeout', 3)
+        
+        # Load routing prompt
+        self.routing_prompt = self.config.get('routing_prompt', '')
+        
+        # Load fallback routing patterns
+        self.simple_patterns = self.fallback_config.get('simple_patterns', [])
+        self.complex_indicators = self.fallback_config.get('complex_indicators', [])
+        self.simple_question_starters = self.fallback_config.get('simple_question_starters', [])
+        self.max_simple_question_words = self.fallback_config.get('max_simple_question_words', 8)
+        self.max_simple_message_words = self.fallback_config.get('max_simple_message_words', 5)
+        
+        logger.info(f"ModelRoutingAgent initialized with {self.model}")
+    
+    def _load_config(self, config_path: str) -> Dict[str, Any]:
+        """Load agent configuration from YAML file"""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as file:
+                config = yaml.safe_load(file)
+                logger.info(f"ROUTING-AGENT: Loaded configuration from {config_path}")
+                return config
+        except FileNotFoundError:
+            logger.error(f"ROUTING-AGENT: Configuration file {config_path} not found. Using defaults.")
+            return self._get_default_config()
+        except yaml.YAMLError as e:
+            logger.error(f"ROUTING-AGENT: Error parsing YAML configuration: {e}. Using defaults.")
+            return self._get_default_config()
+        except Exception as e:
+            logger.error(f"ROUTING-AGENT: Unexpected error loading configuration: {e}. Using defaults.")
+            return self._get_default_config()
+    
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Get default configuration if YAML loading fails"""
+        return {
+            'routing_prompt': 'You are a routing agent. Respond with "simple" or "complex".',
+            'model_config': {
+                'model': 'gemini-2.5-flash',
+                'max_tokens': 50,
+                'temperature': 0.0,
+                'timeout': 3
+            },
+            'fallback_config': {
+                'simple_patterns': ['hello', 'hi', 'thanks', 'yes', 'no'],
+                'complex_indicators': ['how to', 'why', 'explain', 'weather', 'search'],
+                'simple_question_starters': ['what is', 'who is'],
+                'max_simple_question_words': 8,
+                'max_simple_message_words': 5
+            }
+        }
     
     async def route_query(self, user_message: str) -> RouteDecision:
         """
@@ -124,44 +154,29 @@ Analyze this user query and respond with ONLY "simple" or "complex":"""
     
     def _fallback_routing(self, user_message: str) -> RouteDecision:
         """
-        Fallback routing logic using pattern matching (similar to current _needs_reasoning)
+        Fallback routing logic using configured patterns
         """
         normalized = user_message.lower().strip()
         
-        # Simple patterns that should go to Gemini Flash
-        simple_patterns = [
-            'hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon',
-            'thanks', 'thank you', 'ok', 'okay', 'yes', 'no', 'sure',
-            'who are you', 'what are you', 'your name', 'what can you do',
-            'goodbye', 'bye', 'see you'
-        ]
-        
         # Check for simple patterns
-        if normalized in simple_patterns:
+        if normalized in self.simple_patterns:
             return RouteDecision.SIMPLE
         
-        # Short messages (≤5 words) that start with simple patterns
-        if len(normalized.split()) <= 5:
-            for pattern in simple_patterns:
+        # Short messages that start with simple patterns
+        if len(normalized.split()) <= self.max_simple_message_words:
+            for pattern in self.simple_patterns:
                 if normalized.startswith(pattern):
                     return RouteDecision.SIMPLE
         
-        # Complex indicators that need Claude
-        complex_indicators = [
-            'how to', 'why', 'explain', 'analyze', 'compare', 'calculate',
-            'plan', 'strategy', 'solve', 'debug', 'fix', 'troubleshoot',
-            'weather', 'search', 'find', 'research', 'lookup',
-            'tools', 'execute', 'run', 'install', 'configure'
-        ]
-        
         # Check for complex indicators
-        for indicator in complex_indicators:
+        for indicator in self.complex_indicators:
             if indicator in normalized:
                 return RouteDecision.COMPLEX
         
         # Simple factual questions
-        if normalized.startswith(('what is', 'who is', 'where is')) and len(normalized.split()) <= 8:
-            return RouteDecision.SIMPLE
+        for starter in self.simple_question_starters:
+            if normalized.startswith(starter) and len(normalized.split()) <= self.max_simple_question_words:
+                return RouteDecision.SIMPLE
         
         # Default to complex for ambiguous cases
         return RouteDecision.COMPLEX

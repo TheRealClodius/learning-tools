@@ -8,6 +8,7 @@ Handles greetings, basic questions, and casual conversation without tool access.
 import logging
 import os
 import time
+import yaml
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -17,36 +18,61 @@ class GeminiSimpleAgent:
     Simple conversational agent using Gemini 2.5 Flash
     """
     
-    def __init__(self):
+    def __init__(self, config_path: str = "agents/system prompts/gemini_simple_agent.yaml"):
         """Initialize the Gemini simple agent"""
-        self.model = "gemini-2.5-flash"
-        self.max_tokens = 1000
-        self.temperature = 0.7  # More conversational
-        self.timeout = 10
+        self.config = self._load_config(config_path)
         
-        # Simplified system prompt for conversational interactions
-        self.system_prompt = """You are Signal, a friendly and helpful AI assistant.
-
-You handle simple, conversational interactions with users. You are warm, personable, and direct in your responses.
-
-GUIDELINES:
-- Be conversational and natural
-- Give direct, helpful answers
-- Don't overthink simple questions
-- Be warm and personable
-- Keep responses concise but friendly
-- You don't have access to external tools or live data
-- For weather, current events, or tool-requiring requests, let users know they need to ask for more complex assistance
-
-RESPONSE STYLE:
-- Natural and conversational
-- No thinking tags or complex reasoning
-- Direct and to the point
-- Friendly and helpful tone
-
-Remember: You're handling simple conversations and basic questions. Keep it natural and friendly!"""
+        # Extract configuration
+        self.model_config = self.config.get('model_config', {})
+        self.agent_config = self.config.get('agent_config', {})
         
-        logger.info("GeminiSimpleAgent initialized with Gemini 2.5 Flash")
+        # Configure model settings
+        self.model = self.model_config.get('model', 'gemini-2.5-flash')
+        self.max_tokens = self.model_config.get('max_tokens', 1000)
+        self.temperature = self.model_config.get('temperature', 0.7)
+        self.timeout = self.model_config.get('timeout', 10)
+        
+        # Load system prompt and agent responses
+        self.system_prompt = self.config.get('system_prompt', '')
+        self.response_acknowledgment = self.agent_config.get('response_acknowledgment', 
+            "I understand. I'll be conversational, natural, and helpful for simple interactions.")
+        self.fallback_message = self.agent_config.get('fallback_message',
+            "I'm sorry, I'm not available right now. Please try asking for more complex assistance.")
+        
+        logger.info(f"GeminiSimpleAgent initialized with {self.model}")
+    
+    def _load_config(self, config_path: str) -> Dict[str, Any]:
+        """Load agent configuration from YAML file"""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as file:
+                config = yaml.safe_load(file)
+                logger.info(f"GEMINI-SIMPLE: Loaded configuration from {config_path}")
+                return config
+        except FileNotFoundError:
+            logger.error(f"GEMINI-SIMPLE: Configuration file {config_path} not found. Using defaults.")
+            return self._get_default_config()
+        except yaml.YAMLError as e:
+            logger.error(f"GEMINI-SIMPLE: Error parsing YAML configuration: {e}. Using defaults.")
+            return self._get_default_config()
+        except Exception as e:
+            logger.error(f"GEMINI-SIMPLE: Unexpected error loading configuration: {e}. Using defaults.")
+            return self._get_default_config()
+    
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Get default configuration if YAML loading fails"""
+        return {
+            'system_prompt': 'You are Signal, a friendly and helpful AI assistant for simple conversations.',
+            'model_config': {
+                'model': 'gemini-2.5-flash',
+                'max_tokens': 1000,
+                'temperature': 0.7,
+                'timeout': 10
+            },
+            'agent_config': {
+                'response_acknowledgment': "I understand. I'll be conversational, natural, and helpful for simple interactions.",
+                'fallback_message': "I'm sorry, I'm not available right now. Please try asking for more complex assistance."
+            }
+        }
     
     async def process_simple_request(self, 
                                    user_message: str, 
@@ -73,7 +99,7 @@ Remember: You're handling simple conversations and basic questions. Keep it natu
             if not api_key:
                 return {
                     "success": False,
-                    "response": "I'm sorry, I'm not available right now. Please try asking for more complex assistance.",
+                    "response": self.fallback_message,
                     "message": "Gemini API not configured",
                     "agent": "gemini_simple_fallback"
                 }
@@ -118,7 +144,7 @@ Remember: You're handling simple conversations and basic questions. Keep it natu
                 response = model.generate_content(
                     [
                         {"role": "user", "parts": [{"text": self.system_prompt}]},
-                        {"role": "model", "parts": [{"text": "I understand. I'll be conversational, natural, and helpful for simple interactions."}]},
+                        {"role": "model", "parts": [{"text": self.response_acknowledgment}]},
                         {"role": "user", "parts": [{"text": full_prompt}]}
                     ],
                     generation_config=genai.types.GenerationConfig(

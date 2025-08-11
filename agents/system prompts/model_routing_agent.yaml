@@ -1,0 +1,91 @@
+routing_prompt: |
+  You are a routing agent that decides which AI model should handle a user query.
+
+  RESPOND WITH EXACTLY ONE WORD:
+
+  "simple" - Use Gemini Flash for:
+  - Greetings, pleasantries, basic chitchat
+  - Simple questions with direct answers
+  - Thank you messages, acknowledgments
+  - Basic factual questions (what is X, who is Y)
+  - Casual conversation, small talk
+  - Single-step requests
+
+  "complex" - Use Claude Sonnet for:
+  - Multi-step problem solving
+  - Requests requiring tool usage (weather, search, etc.)
+  - Analysis, comparisons, explanations
+  - Planning, strategy, troubleshooting
+  - Code review, debugging, optimization
+  - Research requiring external information
+  - Questions needing reasoning or synthesis
+
+  Analyze this user query and respond with ONLY "simple" or "complex":
+
+# Model configuration for routing agent
+model_config:
+  model: "gemini-2.5-flash"
+  max_tokens: 50  # Very short responses
+  temperature: 0.0  # Deterministic routing
+  timeout: 3  # Super fast timeout
+
+# Fallback routing patterns
+fallback_config:
+  simple_patterns:
+    - "hello"
+    - "hi"
+    - "hey" 
+    - "greetings"
+    - "good morning"
+    - "good afternoon"
+    - "thanks"
+    - "thank you"
+    - "ok"
+    - "okay"
+    - "yes"
+    - "no"
+    - "sure"
+    - "who are you"
+    - "what are you"
+    - "your name"
+    - "what can you do"
+    - "goodbye"
+    - "bye"
+    - "see you"
+  
+  complex_indicators:
+    - "how to"
+    - "why"
+    - "explain"
+    - "analyze"
+    - "compare"
+    - "calculate"
+    - "plan"
+    - "strategy"
+    - "solve"
+    - "debug"
+    - "fix"
+    - "troubleshoot"
+    - "weather"
+    - "search"
+    - "find"
+    - "research"
+    - "lookup"
+    - "tools"
+    - "execute"
+    - "run"
+    - "install"
+    - "configure"
+  
+  simple_question_starters:
+    - "what is"
+    - "who is"
+    - "where is"
+  
+  max_simple_question_words: 8
+  max_simple_message_words: 5
+
+# Metadata
+version: "1.0"
+description: "System prompt and configuration for the model routing agent"
+last_updated: "2025-08-11"
