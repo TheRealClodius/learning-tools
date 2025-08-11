@@ -29,7 +29,7 @@ system_prompt: |
 model_config:
   model: "gemini-2.5-flash"
   temperature: 0.1  # Low temperature for consistent, factual summaries
-  max_tokens: 150   # Short, concise summaries
+  max_tokens: 500   # Short, concise summaries
   timeout: 5        # Fast timeout for tool summaries
 
 # Fallback configuration when LLM is unavailable
