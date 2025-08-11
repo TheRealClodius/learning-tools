@@ -9,6 +9,7 @@ import anthropic
 import logging
 import os
 import time
+import json
 from typing import Dict, Any, Optional
 import asyncio
 from dotenv import load_dotenv
@@ -16,11 +17,12 @@ import re
 import yaml
 
 from runtime.tool_executor import ToolExecutor
-from agents.convo_insights_agent import ConvoInsightsAgent
+# COMMENTED OUT: from agents.convo_insights_agent import ConvoInsightsAgent
 from runtime.rate_limit_handler import (
     RateLimitHandler, RateLimitConfig, with_rate_limit
 )
 from tools.memory_mcp import close_mcp_client  # Import cleanup function
+from agents.execution_summarizer import ExecutionSummarizer
 
 # Load environment variables from .env.local file
 load_dotenv('.env.local', override=True)
@@ -63,6 +65,19 @@ class ClientAgent:
         self.max_tokens = self.config.get('model_config', {}).get('max_tokens', 4096)
         self.temperature = self.config.get('model_config', {}).get('temperature', 0.7)
         self.max_iterations = self.config.get('model_config', {}).get('max_iterations', 50)
+        
+        # Tool summarization configuration
+        self.summarization_config = self.config.get('summarization_config', {})
+        self.summarization_enabled = self.summarization_config.get('enabled', True)
+        
+        # Initialize summarization client based on config
+        self.summarizer = None
+        if self.summarization_enabled:
+            self._init_summarization_client()
+            # Initialize ExecutionSummarizer utility class
+            self.execution_summarizer = ExecutionSummarizer(self.summarization_config)
+        else:
+            self.execution_summarizer = None
 
         
         # Define function schemas for Claude - use underscore format per Anthropic API constraints
@@ -212,8 +227,8 @@ class ClientAgent:
         # Initialize tool executor for dynamic tool discovery
         self.tool_executor = ToolExecutor()
         
-        # Initialize conversation insights agent
-        self.insights_agent = ConvoInsightsAgent()
+        # COMMENTED OUT: Initialize conversation insights agent
+        # self.insights_agent = ConvoInsightsAgent()
         
         # Enhanced user buffers for prompt assembly
         self.user_buffers: Dict[str, Dict[str, Any]] = {}
@@ -222,7 +237,148 @@ class ClientAgent:
         # Load system prompt from YAML configuration
         self.system_prompt = self.config.get('system_prompt', '')
         
-        logger.info("ClientAgent initialized with Claude and ConvoInsightsAgent")
+        logger.info("ClientAgent initialized with Claude (ConvoInsightsAgent commented out)")
+    
+    def _init_summarization_client(self):
+        """Initialize summarization client based on configuration"""
+        model_name = self.summarization_config.get('model', 'gemini-2.5-flash')
+        
+        try:
+            if model_name.startswith('gemini'):
+                # Initialize Gemini client
+                from google import genai
+                from google.genai import types
+                api_key = os.environ.get("GEMINI_API_KEY")
+                if api_key:
+                    self.gemini_client = genai.Client(api_key=api_key)
+                    self.gemini_types = types
+                    self.summarizer_model = model_name
+                    logger.info(f"Initialized {model_name} for tool summarization")
+                else:
+                    logger.warning("GEMINI_API_KEY not found - tool summarization disabled")
+                    self.summarization_enabled = False
+            elif model_name.startswith('claude'):
+                # Future: Initialize Claude client for summarization
+                # For now, use existing self.client
+                self.summarizer_model = model_name
+                logger.info(f"Configured {model_name} for tool summarization (using existing Claude client)")
+            else:
+                logger.warning(f"Unknown summarization model: {model_name} - tool summarization disabled")
+                self.summarization_enabled = False
+                
+        except ImportError as e:
+            logger.warning(f"Failed to import summarization dependencies: {e} - tool summarization disabled")
+            self.summarization_enabled = False
+        except Exception as e:
+            logger.warning(f"Failed to initialize summarization client: {e} - tool summarization disabled")
+            self.summarization_enabled = False
+    
+    def _generate_tool_start_message(self, tool_name: str, tool_args: Dict) -> str:
+        """Generate a 'working' message from tool name and arguments"""
+        
+        if tool_name.startswith("reg_"):
+            # Registry tools
+            if "search" in tool_name:
+                query = tool_args.get("query", "tools")
+                return f"🔄 Searching registry for '{query}'..."
+            elif "describe" in tool_name:
+                tool = tool_args.get("tool_name", "tool")
+                return f"🔄 Getting details for {tool}..."
+            elif "list" in tool_name:
+                return f"🔄 Listing available tools..."
+            elif "categories" in tool_name:
+                return f"🔄 Getting tool categories..."
+            else:
+                return f"🔄 Using registry tool..."
+                
+        elif tool_name.startswith("memory"):
+            # Memory tools
+            if "retrieve" in tool_name:
+                query = tool_args.get("query", "information")
+                return f"🔄 Searching memory for '{query}'..."
+            elif "add" in tool_name:
+                return f"🔄 Saving conversation to memory..."
+            else:
+                return f"🔄 Using memory tool..."
+                
+        else:
+            # Execute tools - extract from tool_args
+            if "location" in tool_args or "city" in tool_args:
+                location = tool_args.get("location") or tool_args.get("city")
+                service = tool_name.split(".")[0] if "." in tool_name else tool_name
+                return f"🔄 Getting {service} info for {location}..."
+            elif "query" in tool_args:
+                query = tool_args["query"]
+                service = tool_name.split(".")[0] if "." in tool_name else tool_name
+                query_preview = query[:30] + "..." if len(query) > 30 else query
+                return f"🔄 Searching {service} for '{query_preview}'..."
+            elif "message" in tool_args or "text" in tool_args:
+                service = tool_name.split(".")[0] if "." in tool_name else tool_name
+                return f"🔄 Processing {service} request..."
+            else:
+                service = tool_name.split(".")[0] if "." in tool_name else tool_name
+                return f"🔄 Running {service}..."
+
+    async def _generate_tool_summary_streaming(self, tool_name: str, tool_args: Dict, result: Any, streaming_callback) -> str:
+        """Generate tool summary with real-time streaming to UI"""
+        if not self.summarization_enabled or not self.execution_summarizer:
+            fallback = f"⚡️Used *{tool_name}* - summarization disabled"
+            await streaming_callback(fallback, "tool_result")
+            return fallback
+        
+        # Convert result to string for summarization
+        if isinstance(result, dict):
+            result_data = json.dumps(result, indent=2)
+        else:
+            result_data = str(result) if result is not None else "No result returned"
+        
+        try:
+            # Use ExecutionSummarizer with streaming callback
+            summary = await self.execution_summarizer.create_narrative_summary(
+                tool_name=tool_name,
+                tool_args=tool_args,
+                result_data=result_data,
+                initial_narrative="",
+                gemini_client=getattr(self, 'gemini_client', None),
+                gemini_types=getattr(self, 'gemini_types', None),
+                claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
+                streaming_callback=streaming_callback  # Pass streaming callback to Gemini
+            )
+            return summary
+        except Exception as e:
+            logger.warning(f"Tool summarization failed: {e}")
+            # Fallback to simple summary
+            fallback = f"⚡️Used *{tool_name}* - completed successfully"
+            await streaming_callback(fallback, "tool_result")
+            return fallback
+
+    async def _generate_tool_summary(self, tool_name: str, tool_args: Dict, result: Any) -> str:
+        """Generate tool summary using configured LLM client"""
+        if not self.summarization_enabled or not self.execution_summarizer:
+            return f"⚡️Used *{tool_name}* - summarization disabled"
+        
+        # Convert result to string for summarization
+        if isinstance(result, dict):
+            result_data = json.dumps(result, indent=2)
+        else:
+            result_data = str(result) if result is not None else "No result returned"
+        
+        try:
+            # Use ExecutionSummarizer with our initialized clients
+            summary = await self.execution_summarizer.create_narrative_summary(
+                tool_name=tool_name,
+                tool_args=tool_args,
+                result_data=result_data,
+                initial_narrative="",
+                gemini_client=getattr(self, 'gemini_client', None),
+                gemini_types=getattr(self, 'gemini_types', None),
+                claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None
+            )
+            return summary
+        except Exception as e:
+            logger.warning(f"Tool summarization failed: {e}")
+            # Fallback to simple summary
+            return f"⚡️Used *{tool_name}* - completed successfully"
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -419,115 +575,35 @@ class ClientAgent:
         return False  # False = doesn't need reasoning
     
     async def run_agent_loop(self, user_message: str, streaming_callback=None, user_id: Optional[str] = None) -> str:
-        """Run the agent loop with iterative tool calling"""
-        # Enhanced prompt assembly from local buffer
+        """Run the agent loop with improved prompt assembly structure"""
         if not user_id:
             raise ValueError("user_id is required for agent processing - cannot proceed without user identification")
         
-        # Determine if this message needs explicit reasoning
+        # =============================================================================
+        # NEW PROMPT ASSEMBLY STRUCTURE - Following improved schema
+        # =============================================================================
+        
+        # 1. COMPLEXITY ROUTING - Determine reasoning strategy upfront
         needs_reasoning = self._needs_reasoning(user_message)
         
         if not needs_reasoning:
-            logger.info(f"NO-REASONING: Message doesn't need thinking tags: '{user_message[:50]}...'")
+            logger.info(f"COMPLEXITY-ROUTING: Simple message - no thinking tags: '{user_message[:50]}...'")
         else:
-            logger.info(f"NEEDS-REASONING: Message requires thinking process: '{user_message[:50]}...'")
+            logger.info(f"COMPLEXITY-ROUTING: Complex message - full reasoning: '{user_message[:50]}...'")
         
-        # DEBUG: Log buffer system usage
-        logger.info(f"BUFFER-SYSTEM: Using user_id='{user_id}' for prompt assembly")
-        logger.info(f"BUFFER-SYSTEM: Current buffer users={list(self.user_buffers.keys())}")
+        # 2. RETRIEVE CONVERSATION HISTORY
+        conversation_history = await self._get_formatted_conversation_history(user_id, streaming_callback)
         
-        # =============================================================================
-        # AUTOMATIC MEMORY RETRIEVAL - Retrieve conversation history at the start
-        # =============================================================================
-        memory_context = ""
-        try:
-            if streaming_callback:
-                await streaming_callback("Retrieving conversation history...", "operation")
-            
-            # Automatically retrieve recent conversation history
-            memory_args = {
-                "query": "recent history",  # Fixed query for automatic retrieval
-                "user_id": user_id,
-                "max_results": 10  # Fixed max results as per requirements
-            }
-            
-            logger.info(f"AUTO-MEMORY: Retrieving recent history for user {user_id}")
-            memory_result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
-            
-            # Parse memory result and add to context if successful
-            if isinstance(memory_result, dict) and memory_result.get("status") != "error":
-                # Extract relevant memory information
-                short_term = memory_result.get("short_term_memory", [])
-                retrieved_pages = memory_result.get("retrieved_pages", [])
-                
-                if short_term or retrieved_pages:
-                    memory_parts = []
-                    
-                    # Add short-term memory if available
-                    if short_term:
-                        memory_parts.append("=== PREVIOUS CONVERSATION CONTEXT ===")
-                        memory_parts.append("Here are the most recent exchanges from our conversation:")
-                        memory_parts.append("")
-                        for i, entry in enumerate(short_term, 1):  # Show ALL entries, no limit
-                            if isinstance(entry, dict):
-                                user_msg = entry.get("user_input", "")
-                                agent_msg = entry.get("agent_response", "")
-                                if user_msg or agent_msg:
-                                    memory_parts.append(f"Exchange {i}:")
-                                    if user_msg:
-                                        # Show FULL user message - no truncation
-                                        memory_parts.append(f"  User: {user_msg}")
-                                    if agent_msg:
-                                        # Show FULL agent response - no truncation
-                                        memory_parts.append(f"  Assistant: {agent_msg}")
-                                    memory_parts.append("")  # Add spacing between exchanges
-                    
-                    # Add retrieved pages if available
-                    if retrieved_pages:
-                        memory_parts.append("=== RELEVANT HISTORICAL CONTEXT ===")
-                        memory_parts.append("Related information from earlier conversations:")
-                        memory_parts.append("")
-                        for page in retrieved_pages:  # Show ALL pages, no limit
-                            if isinstance(page, dict):
-                                content = page.get("content", "")
-                                if content:
-                                    # Show FULL content - no truncation
-                                    memory_parts.append(f"• {content}")
-                        memory_parts.append("")  # Add spacing at the end
-                    
-                    if memory_parts:
-                        memory_context = "\n".join(memory_parts)
-                        memory_context += "\n=== CURRENT CONVERSATION ===\n"  # Clear separator
-                        logger.info(f"AUTO-MEMORY: Retrieved {len(short_term)} short-term and {len(retrieved_pages)} historical entries")
-                        
-                        # Log the actual size of memory being added
-                        total_size = len(memory_context)
-                        logger.info(f"AUTO-MEMORY: Total memory context size: {total_size} characters")
-                        if total_size > 10000:
-                            logger.warning(f"AUTO-MEMORY: Large memory context ({total_size} chars) may impact token usage")
-                
-            logger.info(f"AUTO-MEMORY: Memory retrieval completed for user {user_id}")
-            
-        except Exception as e:
-            logger.warning(f"AUTO-MEMORY: Failed to retrieve memory: {e}")
-            # Continue without memory context if retrieval fails
+        # 3. ASSEMBLE STRUCTURED PROMPT
+        enriched_message = await self._assemble_structured_prompt(
+            user_message, user_id, conversation_history, streaming_callback
+        )
         
-        if streaming_callback:
-            await streaming_callback("Assembling context from conversation history...", "operation")
+        # DEBUG: Log enriched message structure
+        logger.info(f"STRUCTURED-PROMPT: Assembled prompt for user {user_id}")
+        logger.info(f"PROMPT-LENGTH: {len(enriched_message)} characters")
         
-        enriched_message = await self.assemble_from_local_buffer(user_message, user_id)
-        
-        # Add memory context to the enriched message if available
-        if memory_context:
-            enriched_message = f"{memory_context}\n\n{enriched_message}"
-            logger.info(f"AUTO-MEMORY: Added memory context to prompt")
-        
-        # DEBUG: Log enriched message to detect thinking-only issues
-        if enriched_message != user_message:
-            logger.info(f"ENRICHED-PROMPT-DEBUG: User {user_id} prompt was enriched")
-            logger.info(f"ENRICHED-CONTENT: {enriched_message}")
-        
-        # Mark the initial user message as cacheable to benefit across agent loop iterations
+        # Mark the message as cacheable for agent loop iterations
         messages = [{
             "role": "user",
             "content": [
@@ -565,12 +641,12 @@ class ClientAgent:
                 self.system_prompt + message_text
             )
             
-            # Adjust system prompt based on reasoning needs
+            # Adjust system prompt based on complexity routing decision
             if not needs_reasoning:
-                # Add instruction to skip thinking tags for this message
-                adjusted_prompt = self.system_prompt + "\n\nIMPORTANT: For this specific message, respond directly WITHOUT using <thinking> tags. Still use memory and other tools as needed, but skip the reasoning process."
+                # Add instruction to skip thinking tags for simple messages
+                adjusted_prompt = self.system_prompt + "\n\nCOMPLEXITY ROUTING: This is a simple message. Respond directly WITHOUT using <thinking> tags. Be conversational and natural."
             else:
-                adjusted_prompt = self.system_prompt
+                adjusted_prompt = self.system_prompt + "\n\nCOMPLEXITY ROUTING: This is a complex message requiring full reasoning. Use <thinking> tags to show your reasoning process."
             
             # Make API call with rate limit handling
             async def make_api_call():
@@ -773,11 +849,11 @@ class ClientAgent:
             logger.warning(f"AUTO-MEMORY: Failed to initiate memory addition: {e}")
             # Continue without storing memory if addition fails
         
-        # Update insights asynchronously using Conversation Insights Agent (non-blocking)
-        insights_task = asyncio.create_task(self.insights_agent.analyze_interaction(
-            user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
-        ))
-        self._track_background_task(insights_task)
+        # COMMENTED OUT: Update insights asynchronously using Conversation Insights Agent (non-blocking)
+        # insights_task = asyncio.create_task(self.insights_agent.analyze_interaction(
+        #     user_message, final_response, tool_usage_log, all_thinking_content, user_id, self.user_buffers
+        # ))
+        # self._track_background_task(insights_task)
         
         return final_response
     
@@ -789,7 +865,7 @@ class ClientAgent:
     # All tool execution is handled by tool_executor with dynamic loading
     
     async def _extract_and_stream_thinking(self, text: str, streaming_callback):
-        """Extract thinking content and stream it"""
+        """Extract thinking content and stream it efficiently"""
         thinking_pattern = r'<thinking>(.*?)</thinking>'
         thinking_matches = re.findall(thinking_pattern, text, re.DOTALL)
         
@@ -797,13 +873,13 @@ class ClientAgent:
             logger.info(f"DEBUG-THINKING: Streaming {len(thinking_matches)} thinking blocks")
         
         for thinking_content in thinking_matches:
-            # Split thinking into lines and stream each
-            lines = thinking_content.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                if line:
-                    await streaming_callback(line, "thinking")
-                    await asyncio.sleep(0.3)  # Brief pause between thoughts
+            # Stream the entire thinking block at once (more efficient)
+            clean_thinking = thinking_content.strip()
+            if clean_thinking:
+                await streaming_callback(clean_thinking, "thinking")
+                # Small delay between thinking blocks (not lines) to avoid rate limits
+                if len(thinking_matches) > 1:
+                    await asyncio.sleep(0.1)
     
     async def _execute_claude_tool(self, tool_use_block, streaming_callback=None, user_id: str = None) -> str:
         """Execute a Claude tool call and return the result"""
@@ -838,61 +914,78 @@ class ClientAgent:
             
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
+                # Phase 1: Send working message immediately
                 if streaming_callback:
-                    query = args.get('query', 'N/A')
-                    explanation = args.get('explanation', 'search for tools')
-                    # Build purpose from explanation and query - normalize the verb
-                    explanation_normalized = explanation.lower()
-                    if explanation_normalized.startswith('looking for'):
-                        explanation_normalized = explanation_normalized.replace('looking for', 'look for', 1)
-                    purpose = f" to {explanation_normalized}"
-                    if query != 'N/A':
-                        purpose += f" with \"{query}\""
-                    
-                    # Keep only the concise summary with ⚡
-                    tools_count = ""
-                    
+                    start_message = self._generate_tool_start_message("reg_search", args)
+                    await streaming_callback(start_message, "operation")
+                
+                # Execute tool
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
                 
-                # Parse and show discovered tools if successful
-                if streaming_callback and isinstance(result, dict) and result.get("status") == "success":
-                    tools = result.get("data", {}).get("tools", [])
-                    if tools:
-                        # Update the message to include count
-                        tools_count = f" and found {len(tools)} results"
-                        await streaming_callback(f"⚡️Used *registry* *search*{purpose}{tools_count}", "operation")
-                    else:
-                        await streaming_callback(f"⚡️Used *registry* *search*{purpose}", "operation")
+                # Phase 2: Generate and stream comprehensive Gemini summary
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("reg.search", args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for reg.search: {e}")
+                        # Fallback summary
+                        if isinstance(result, dict) and result.get("status") == "success":
+                            tools = result.get("data", {}).get("tools", [])
+                            count = len(tools) if tools else 0
+                            query = args.get('query', 'tools')
+                            await streaming_callback(f"⚡️Used *registry* *search* for '{query}' and found {count} results", "tool_result")
+                        else:
+                            await streaming_callback(f"⚡️Used *registry* *search* - completed", "tool_result")
             elif function_name == "reg_describe":
+                # Phase 1: Send working message immediately
                 if streaming_callback:
-                    tool_name = args.get('tool_name', 'N/A')
-                    explanation = args.get('explanation', 'get tool details')
-                    # Parse tool name for better display
-                    if "." in tool_name:
-                        service, action = tool_name.split(".", 1)
-                        formatted_tool_name = f"*{service}* *{action}*"
-                    else:
-                        formatted_tool_name = f"*{tool_name}*"
-                    
-                    purpose = f" because I {explanation.lower()}"
-                    await streaming_callback(f"⚡️Used *registry* *describe*{purpose} for the {formatted_tool_name} tool and got results back.", "operation")
+                    start_message = self._generate_tool_start_message("reg_describe", args)
+                    await streaming_callback(start_message, "operation")
+                
+                # Execute tool
                 args.setdefault("include_schema", True)
                 result = await self.tool_executor.execute_command("reg.describe", args, user_id=user_id)
+                
+                # Phase 2: Generate and stream comprehensive Gemini summary
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("reg.describe", args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for reg.describe: {e}")
+                        # Fallback summary
+                        tool_name = args.get('tool_name', 'tool')
+                        await streaming_callback(f"⚡️Used *registry* *describe* to get details for {tool_name}", "tool_result")
             elif function_name == "reg_list":
-                if streaming_callback:
-                    explanation = args.get('explanation', 'list all available tools')
-                    purpose = f" to {explanation.lower()}"
-                    await streaming_callback(f"⚡️Used *registry* *list*{purpose}", "operation")
                 args.setdefault("limit", 50)
                 result = await self.tool_executor.execute_command("reg.list", args, user_id=user_id)
+                
+                # Generate and stream Gemini summary for registry list
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("reg.list", args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for reg.list: {e}")
+                        # Fallback with basic info
+                        explanation = args.get('explanation', 'list all available tools')
+                        await streaming_callback(f"⚡️Used *registry* *list* to {explanation.lower()}", "tool_result")
             elif function_name == "reg_categories":
-                if streaming_callback:
-                    explanation = args.get('explanation', 'get tool categories')
-                    purpose = f" to {explanation.lower()}"
-                    await streaming_callback(f"⚡️Used *registry* *categories*{purpose}", "operation")
                 result = await self.tool_executor.execute_command("reg.categories", args, user_id=user_id)
+                
+                # Generate and stream Gemini summary for registry categories
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("reg.categories", args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for reg.categories: {e}")
+                        # Fallback with basic info
+                        explanation = args.get('explanation', 'get tool categories')
+                        await streaming_callback(f"⚡️Used *registry* *categories* to {explanation.lower()}", "tool_result")
 
 
             elif function_name == "execute_tool":
@@ -900,74 +993,67 @@ class ClientAgent:
                 tool_name = args["tool_name"]
                 tool_args = args.get("tool_args", {})
                 
+                # Phase 1: Send working message immediately
                 if streaming_callback:
-                    # Create a narrative description of what we're doing
-                    # Extract key information from arguments to build the purpose
-                    purpose_parts = []
-                    
-                    # Common parameter patterns to extract purpose
-                    if "query" in tool_args:
-                        purpose_parts.append(f"search for '{tool_args['query']}'")
-                    elif "location" in tool_args or "city" in tool_args:
-                        location = tool_args.get("location") or tool_args.get("city")
-                        purpose_parts.append(f"get info for {location}")
-                    elif "message" in tool_args or "text" in tool_args:
-                        msg = tool_args.get("message") or tool_args.get("text")
-                        if len(msg) > 30:
-                            purpose_parts.append(f"process message: '{msg[:30]}...'")
-                        else:
-                            purpose_parts.append(f"process: '{msg}'")
-                    elif "channel" in tool_args:
-                        purpose_parts.append(f"in channel {tool_args['channel']}")
-                    
-                    # Add other significant parameters
-                    for key, value in tool_args.items():
-                        if key not in ["query", "location", "city", "message", "text", "channel"]:
-                            if isinstance(value, bool) and value:
-                                purpose_parts.append(key.replace("_", " "))
-                            elif isinstance(value, (str, int, float)) and key in ["limit", "count", "days"]:
-                                purpose_parts.append(f"{key}: {value}")
-                    
-                    # Build the purpose string
-                    if purpose_parts:
-                        purpose = " to " + ", ".join(purpose_parts)
-                    else:
-                        purpose = ""
-                    
-                    # Parse tool name into service and action for better formatting
-                    if "." in tool_name:
-                        service, action = tool_name.split(".", 1)
-                        formatted_tool = f"*{service}* *{action}*"
-                    else:
-                        formatted_tool = f"*{tool_name}*"
-                    
-                    # Store the narrative for later completion
-                    operation_text = f"⚡️Used {formatted_tool}{purpose}"
-                    await streaming_callback(operation_text, "operation")
+                    start_message = self._generate_tool_start_message(tool_name, tool_args)
+                    await streaming_callback(start_message, "operation")
                 
+                # Execute tool
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
-            elif function_name == "memory_add":
-                # Direct memory add tool call
-                if streaming_callback:
-                    await streaming_callback("⚡️Used *memory* *add* to store conversation in memory", "operation")
                 
+                # Phase 2: Generate and stream tool summary with real-time chunks
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        # Use streaming version that sends chunks as they arrive
+                        await self._generate_tool_summary_streaming(tool_name, tool_args, result, streaming_callback)
+                    except Exception as e:
+                        logger.warning(f"Failed to generate streaming tool summary for {tool_name}: {e}")
+                        # Fall back to simple completion message
+                        await streaming_callback(f"⚡️Used *{tool_name}* - completed", "tool_result")
+                
+            elif function_name == "memory_add":
                 # Add user_id to args for memory operations
                 memory_args = dict(args)
                 memory_args["user_id"] = user_id
                 
                 result = await self.tool_executor.execute_command("memory.add", memory_args, user_id=user_id)
-            elif function_name == "memory_retrieve":
-                # Direct memory retrieve tool call
-                if streaming_callback:
-                    query = args.get('query', 'recent context')
-                    await streaming_callback(f"⚡️Used *memory* *retrieve* to search for \"{query}\"", "operation")
                 
+                # Generate and stream Gemini summary for memory add
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("memory.add", memory_args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for memory.add: {e}")
+                        # Fallback with basic info
+                        await streaming_callback("⚡️Used *memory* *add* to store conversation in memory", "tool_result")
+            elif function_name == "memory_retrieve":
                 # Add user_id to args for memory operations
                 memory_args = dict(args)
                 memory_args["user_id"] = user_id
                 
                 result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
+                
+                # Generate and stream Gemini summary for memory retrieve
+                if streaming_callback and self.summarization_enabled:
+                    try:
+                        summary = await self._generate_tool_summary("memory.retrieve", memory_args, result)
+                        await streaming_callback(summary, "tool_result")
+                    except Exception as e:
+                        logger.warning(f"Failed to generate tool summary for memory.retrieve: {e}")
+                        # Fallback with basic info
+                        query = args.get('query', 'recent context')
+                        await streaming_callback(f"⚡️Used *memory* *retrieve* to search for \"{query}\"", "tool_result")
             else:
+                # SECURITY CHECK: Prevent direct execution of discovered tools
+                # Claude should only use execute_tool for weather, perplexity, etc.
+                if "." in function_name and function_name not in ["memory_add", "memory_retrieve"]:
+                    error_msg = f"Direct execution of '{function_name}' is not allowed. Use execute_tool with tool_name='{function_name}' instead."
+                    logger.warning(f"SECURITY: Blocked direct execution of discovered tool: {function_name}")
+                    if streaming_callback:
+                        await streaming_callback(error_msg, "error")
+                    return error_msg
+                
                 error_msg = f"Unknown function: {function_name}. Available tools: reg_search, reg_describe, reg_list, reg_categories, execute_tool, memory_add, memory_retrieve"
                 if streaming_callback:
                     await streaming_callback(error_msg, "error")
@@ -1024,9 +1110,167 @@ class ClientAgent:
     
 
     # =============================================================================
-    # ENHANCED BUFFER SYSTEM FOR PROMPT ASSEMBLY
+    # STRUCTURED PROMPT ASSEMBLY - Following improved schema
     # =============================================================================
     
+    async def _get_formatted_conversation_history(self, user_id: str, streaming_callback=None) -> str:
+        """
+        Retrieve and format conversation history in proper chronological order
+        Following schema: newest conversations first, clear structure
+        """
+        try:
+            if streaming_callback:
+                await streaming_callback("Retrieving conversation history...", "operation")
+            
+            # Automatically retrieve recent conversation history
+            memory_args = {
+                "query": "recent history",
+                "user_id": user_id,
+                "max_results": 10
+            }
+            
+            logger.info(f"CONVERSATION-HISTORY: Retrieving for user {user_id}")
+            memory_result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
+            
+            if not isinstance(memory_result, dict) or memory_result.get("status") == "error":
+                logger.info(f"CONVERSATION-HISTORY: No memory retrieved for user {user_id}")
+                return ""
+            
+            short_term = memory_result.get("short_term_memory", [])
+            retrieved_pages = memory_result.get("retrieved_pages", [])
+            
+            if not short_term and not retrieved_pages:
+                return ""
+            
+            history_parts = ["CONVERSATION HISTORY"]
+            
+            # Format short-term memory (reverse order to show most recent first)
+            if short_term:
+                # Reverse the FIFO order to show newest first
+                for i, entry in enumerate(reversed(short_term), 1):
+                    if isinstance(entry, dict):
+                        user_msg = entry.get("user_input", "")
+                        agent_msg = entry.get("agent_response", "")
+                        timestamp = entry.get("timestamp", "")
+                        
+                        if user_msg or agent_msg:
+                            # Clear labels: most recent exchange first
+                            if i == 1:
+                                history_parts.append(f"\nPREVIOUS MESSAGE ({i}) - Most Recent:")
+                            else:
+                                history_parts.append(f"\nMESSAGE {i}:")
+                            
+                            if user_msg:
+                                history_parts.append(f"{user_msg}")
+                            
+                            if agent_msg:
+                                history_parts.append(f"\nRESPONSE {i}:")
+                                history_parts.append(f"{agent_msg}")
+            
+            # Add historical context if available
+            if retrieved_pages:
+                history_parts.append(f"\nHIGHLIGHTS (Historical Context):")
+                for page in retrieved_pages[:3]:  # Limit to 3 most relevant
+                    if isinstance(page, dict):
+                        content = page.get("content", "")
+                        if content:
+                            # Truncate long historical entries
+                            truncated_content = content[:200] + "..." if len(content) > 200 else content
+                            history_parts.append(f"• {truncated_content}")
+            
+            conversation_history = "\n".join(history_parts)
+            
+            logger.info(f"CONVERSATION-HISTORY: Formatted {len(short_term)} recent + {len(retrieved_pages)} historical entries")
+            return conversation_history
+            
+        except Exception as e:
+            logger.warning(f"CONVERSATION-HISTORY: Failed to retrieve: {e}")
+            return ""
+    
+    async def _assemble_structured_prompt(self, user_message: str, user_id: str, 
+                                        conversation_history: str, streaming_callback=None) -> str:
+        """
+        Assemble the complete prompt following the improved schema structure:
+        1. Conversation History (if any)
+        2. General User Context (platform, user, role)  
+        3. Current Time
+        4. Current User Message (prominently highlighted)
+        """
+        if streaming_callback:
+            await streaming_callback("Assembling structured prompt...", "operation")
+        
+        prompt_parts = []
+        
+        # 1. CONVERSATION HISTORY (if available)
+        if conversation_history:
+            prompt_parts.append(conversation_history)
+            prompt_parts.append("")  # Add spacing
+        
+        # 2. Get current context from process_request (we'll need to pass this)
+        # For now, we'll extract from user_message if it has context
+        context_info = self._extract_context_from_message(user_message)
+        clean_user_message = self._clean_user_message(user_message)
+        
+        # 3. GENERAL USER CONTEXT (if available)
+        if context_info:
+            prompt_parts.append("GENERAL USER CONTEXT")
+            prompt_parts.append(context_info)
+            prompt_parts.append("")
+        
+        # 4. HIGHLIGHTS (pins/recommendations - currently disabled)
+        highlights = await self._get_highlights(user_id)
+        if highlights:
+            prompt_parts.append("HIGHLIGHTS")
+            prompt_parts.append(highlights)
+            prompt_parts.append("")
+        
+        # 5. CURRENT TIME
+        import datetime
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        prompt_parts.append("CURRENT TIME")
+        prompt_parts.append(current_time)
+        prompt_parts.append("")
+        
+        # 6. CURRENT USER MESSAGE (prominently highlighted at bottom)
+        prompt_parts.append("=" * 50)
+        prompt_parts.append("🎯 CURRENT USER REQUEST")
+        prompt_parts.append("Based on the above context, respond to the following prompt:")
+        prompt_parts.append("")
+        prompt_parts.append(clean_user_message)
+        prompt_parts.append("=" * 50)
+        
+        structured_prompt = "\n".join(prompt_parts)
+        
+        logger.info(f"STRUCTURED-PROMPT: Assembled {len(prompt_parts)} sections for user {user_id}")
+        return structured_prompt
+    
+    def _extract_context_from_message(self, user_message: str) -> str:
+        """Extract context information appended to user message"""
+        if "[Context:" in user_message:
+            context_start = user_message.find("[Context:")
+            context_end = user_message.find("]", context_start)
+            if context_end != -1:
+                context_part = user_message[context_start+9:context_end]  # Skip "[Context:"
+                # Format context nicely
+                context_items = [item.strip() for item in context_part.split(",")]
+                return "\n".join(context_items)
+        return ""
+    
+    def _clean_user_message(self, user_message: str) -> str:
+        """Remove context information from user message to get clean query"""
+        if "[Context:" in user_message:
+            context_start = user_message.find("\n\n[Context:")
+            if context_start != -1:
+                return user_message[:context_start].strip()
+        return user_message.strip()
+    
+
+
+    # =============================================================================
+    # LEGACY BUFFER SYSTEM - REMOVED (pins/recommendations taken out)
+    # =============================================================================
+    
+    # This method is no longer used since we removed the pins/recommendations system
     async def assemble_from_local_buffer(self, user_message: str, user_id: str) -> str:
         """
         ENHANCED: Assemble enriched prompt with two-section insights from Conversation Insights Agent
