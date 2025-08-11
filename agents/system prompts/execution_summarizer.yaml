@@ -1,0 +1,58 @@
+# ExecutionSummarizer Configuration
+# Generates intelligent narrative summaries of tool execution results
+
+# System prompt for tool execution summarization
+system_prompt: |
+  Create a single-line narrative summary of this tool execution using the template format.
+
+  Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+
+  Examples:
+  - Tool: weather.get, Args: {"location": "London"}, Result: {"temperature": 72, "conditions": "partly cloudy"}
+    Output: ⚡️Used *weather.get* to get info for London. Got current temperature 72°F, partly cloudy
+    
+  - Tool: slack_chatter.search_messages, Args: {"query": "project updates"}, Result: {"messages": [...5 items...], "channels": ["#general", "#dev-team"]}
+    Output: ⚡️Used *slack_chatter.search_messages* to search for 'project updates'. Found 5 messages from #general and #dev-team channels
+
+  - Tool: weather, Args: {"city": "London"}, Result: {"status": "success", "data": {"temp": 18, "description": "cloudy"}}
+    Output: ⚡️Used *weather* to get info for London. Got 18°C, cloudy
+
+  - Tool: memory.retrieve, Args: {"query": "user preferences"}, Result: {"success": true, "short_term_memory": [...3 items...]}
+    Output: ⚡️Used *memory.retrieve* to search for 'user preferences'. Found 3 recent conversations
+
+  - Tool: perplexity.search, Args: {"query": "latest AI news"}, Result: {"success": true, "data": {"articles": [...4 items...]}}
+    Output: ⚡️Used *perplexity.search* to research 'latest AI news'. Found 4 relevant articles
+
+  Write the narrative summary:
+
+# Model configuration for summarization
+model_config:
+  model: "gemini-2.5-flash"
+  temperature: 0.1  # Low temperature for consistent, factual summaries
+  max_tokens: 150   # Short, concise summaries
+  timeout: 5        # Fast timeout for tool summaries
+
+# Fallback configuration when LLM is unavailable
+fallback_config:
+  ensure_emoji_prefix: true
+  max_result_preview: 800  # Truncate long results for performance
+  weather_units_preference: "metric"  # Default to Celsius for weather tools
+  
+# Tool-specific formatting preferences
+tool_formatting:
+  weather:
+    temperature_unit: "°C"
+    include_conditions: true
+    include_location: true
+  
+  memory:
+    show_count: true
+    mention_type: true  # short_term vs retrieved_pages
+  
+  slack:
+    show_count: true
+    include_channels: true
+  
+  search:
+    show_count: true
+    truncate_long_queries: 50
