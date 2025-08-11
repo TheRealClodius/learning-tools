@@ -50,6 +50,9 @@ class ExecutionSummarizer:
         # Extract other configurations
         self.fallback_config = self.config.get('fallback_config', {})
         self.tool_formatting = self.config.get('tool_formatting', {})
+        
+        # Token limit for result data
+        self.max_result_tokens = self.fallback_config.get('max_result_tokens', 2000)
     
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load ExecutionSummarizer configuration from YAML file"""
@@ -79,10 +82,32 @@ class ExecutionSummarizer:
             },
             'fallback_config': {
                 'ensure_emoji_prefix': True,
-                'max_result_preview': 800
+                'max_result_tokens': 2000
             },
             'tool_formatting': {}
         }
+    
+    def _truncate_to_tokens(self, text: str, max_tokens: int) -> str:
+        """Truncate text to approximately max_tokens using rough estimation"""
+        # Rough token estimation: ~4 characters per token for English text
+        # This is a conservative estimate that works reasonably well for JSON data
+        chars_per_token = 4
+        max_chars = max_tokens * chars_per_token
+        
+        if len(text) <= max_chars:
+            return text
+        
+        # Truncate at character boundary, try to end at a reasonable JSON boundary
+        truncated = text[:max_chars]
+        
+        # Try to end at a complete JSON object/array boundary for cleaner truncation
+        for boundary in ['},', ']', '}', '",']:
+            last_boundary = truncated.rfind(boundary)
+            if last_boundary > max_chars * 0.8:  # Don't go too far back
+                return truncated[:last_boundary + len(boundary)]
+        
+        # If no good boundary found, just truncate at character limit
+        return truncated + "..."
     
     async def create_narrative_summary(
         self, 
@@ -113,9 +138,9 @@ class ExecutionSummarizer:
         # Try the configured model with provided clients
         if self.model_name.startswith('gemini') and gemini_client and gemini_types:
             try:
-                # Truncate result data for performance
-                max_preview = self.fallback_config.get('max_result_preview', 800)
-                truncated_result = result_data[:max_preview]
+                # Truncate result data based on token estimate for Gemini processing
+                max_tokens = self.max_result_tokens
+                truncated_result = self._truncate_to_tokens(result_data, max_tokens)
                 
                 # Build prompt using YAML-configured system prompt
                 prompt = f"""{self.system_prompt}
