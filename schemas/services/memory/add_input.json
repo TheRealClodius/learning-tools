@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Memory Add Input",
-    "description": "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history",
+    "description": "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history. Use each time an exchange occurs between the user and the agent.",
     "type": "object",
     "properties": {
         "user_input": {

@@ -1,0 +1,3515 @@
+{
+  "test_metadata": {
+    "test_type": "comprehensive_tool_test",
+    "user_id": "tool_test_1754901010053_24349_b51eebc1",
+    "total_tests": 14,
+    "successful_tests": 14,
+    "test_duration_ms": 11841.12,
+    "timestamp": "2025-08-11T10:30:29.316804"
+  },
+  "summary": {
+    "success_rate": 1.0,
+    "avg_execution_time_ms": 845.7942857142858
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "tool_name": "memory.add",
+      "description": "Add conversation memory",
+      "execution_time_ms": 1082.29,
+      "success": true,
+      "analysis": "Partial success: found ['status'], missing ['success']",
+      "result_type": "dict",
+      "result_size": 262,
+      "raw_result": {
+        "status": "success",
+        "message": "Memory has been successfully added to MemoryOS",
+        "timestamp": "2025-08-11 08:30:11",
+        "user_id": "tool_test_1754901010053_24349_b51eebc1",
+        "details": {
+          "user_input_length": 78,
+          "agent_response_length": 92,
+          "has_meta_data": false
+        }
+      },
+      "timestamp": "2025-08-11T10:30:11.535425"
+    },
+    {
+      "test_num": 2,
+      "tool_name": "memory.retrieve",
+      "description": "Retrieve conversation history",
+      "execution_time_ms": 270.63,
+      "success": true,
+      "analysis": "Success: memory tool returned all expected fields ['short_term_memory', 'status']",
+      "result_type": "dict",
+      "result_size": 2041,
+      "raw_result": {
+        "status": "success",
+        "query": "recent conversation history",
+        "timestamp": "2025-08-11 08:30:12",
+        "user_id": "tool_test_1754901010053_24349_b51eebc1",
+        "user_profile": "No detailed user profile",
+        "short_term_memory": [
+          {
+            "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work with Kubernetes and Go.",
+            "agent_response": "Hello Sarah! Nice to meet you. I'd love to hear more about your work with Kubernetes and Go.",
+            "timestamp": "2025-08-11 08:30:11"
+          }
+        ],
+        "short_term_count": 1,
+        "retrieved_pages": [],
+        "retrieved_user_knowledge": [],
+        "retrieved_assistant_knowledge": [
+          {
+            "knowledge": "- Assistant stated no prior conversation context available at 2025-08-10 10:44:23",
+            "timestamp": "2025-08-10 14:51:12"
+          },
+          {
+            "knowledge": "- Assistant stated no prior conversation context available at 2025-08-10 10:44:23.",
+            "timestamp": "2025-08-10 14:51:18"
+          },
+          {
+            "knowledge": "- Assistant provided recommendations for finding information: (2025-08-10 16:01:43)",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant performed search: at 2025-08-10 14:55:31",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant performed search for user's work context: (2025-08-10 14:55:31)",
+            "timestamp": "2025-08-10 17:16:42"
+          },
+          {
+            "knowledge": "- Assistant identified user's name, job, and location from context at 2025-08-10 10:44:51",
+            "timestamp": "2025-08-10 14:51:12"
+          },
+          {
+            "knowledge": "- Assistant provided search results: at 2025-08-10 14:55:31",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant asked for clarification about Brussels at 2025-08-10 10:44:23",
+            "timestamp": "2025-08-10 14:51:12"
+          },
+          {
+            "knowledge": "- Assistant offered alternative search/refinement: at 2025-08-10 16:01:43",
+            "timestamp": "2025-08-10 17:16:44"
+          },
+          {
+            "knowledge": "- Assistant retrieved user's name, profession, and city from context at 2025-08-10 10:44:51.",
+            "timestamp": "2025-08-10 14:51:18"
+          }
+        ],
+        "total_pages_found": 0,
+        "total_user_knowledge_found": 0,
+        "total_assistant_knowledge_found": 17,
+        "message": "Retrieved 1 recent and 0 historical entries"
+      },
+      "timestamp": "2025-08-11T10:30:12.307420"
+    },
+    {
+      "test_num": 3,
+      "tool_name": "memory.get_user_profile",
+      "description": "Get user profile information",
+      "execution_time_ms": 208.38,
+      "success": true,
+      "analysis": "Success: memory tool returned all expected fields ['status']",
+      "result_type": "dict",
+      "result_size": 241,
+      "raw_result": {
+        "status": "success",
+        "timestamp": "2025-08-11 08:30:13",
+        "user_id": "tool_test_1754901010053_24349_b51eebc1",
+        "assistant_id": "memoryos_assistant",
+        "user_profile": "No detailed user profile",
+        "user_knowledge": [],
+        "user_knowledge_count": 0
+      },
+      "timestamp": "2025-08-11T10:30:13.017099"
+    },
+    {
+      "test_num": 4,
+      "tool_name": "memory.retrieve",
+      "description": "Execute memory.retrieve with streaming",
+      "execution_time_ms": 156.79,
+      "success": true,
+      "analysis": "Success: memory tool returned all expected fields ['status', 'short_term_memory']",
+      "result_type": "dict",
+      "result_size": 2010,
+      "raw_result": {
+        "status": "success",
+        "query": "What are the latest developments in AI?",
+        "timestamp": "2025-08-11 08:30:13",
+        "user_id": "tool_test_1754901010053_24349_b51eebc1",
+        "user_profile": "No detailed user profile",
+        "short_term_memory": [
+          {
+            "user_input": "Hi! I'm Sarah, a software engineer at TechCorp. I work with Kubernetes and Go.",
+            "agent_response": "Hello Sarah! Nice to meet you. I'd love to hear more about your work with Kubernetes and Go.",
+            "timestamp": "2025-08-11 08:30:11"
+          }
+        ],
+        "short_term_count": 1,
+        "retrieved_pages": [],
+        "retrieved_user_knowledge": [],
+        "retrieved_assistant_knowledge": [
+          {
+            "knowledge": "- Assistant offered alternative search approaches: (2025-08-10 16:01:43)",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant provided recommendations: at 2025-08-10 16:01:43",
+            "timestamp": "2025-08-10 17:16:44"
+          },
+          {
+            "knowledge": "- Assistant provided recommendations for finding information: (2025-08-10 16:01:43)",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant offered alternative search/refinement: at 2025-08-10 16:01:43",
+            "timestamp": "2025-08-10 17:16:44"
+          },
+          {
+            "knowledge": "- Assistant provided search results: at 2025-08-10 14:55:31",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant performed search: at 2025-08-10 14:55:31",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant stated no direct access to Autopilot One updates: at 2025-08-10 16:01:43",
+            "timestamp": "2025-08-10 17:16:44"
+          },
+          {
+            "knowledge": "- Assistant stated lack of access to update details: (2025-08-10 16:01:43)",
+            "timestamp": "2025-08-10 17:16:43"
+          },
+          {
+            "knowledge": "- Assistant indicated ability to see Slack channel existence: at 2025-08-10 16:01:43",
+            "timestamp": "2025-08-10 17:16:44"
+          },
+          {
+            "knowledge": "- Assistant performed search for user's work context: (2025-08-10 14:55:31)",
+            "timestamp": "2025-08-10 17:16:42"
+          }
+        ],
+        "total_pages_found": 0,
+        "total_user_knowledge_found": 0,
+        "total_assistant_knowledge_found": 17,
+        "message": "Retrieved 1 recent and 0 historical entries"
+      },
+      "timestamp": "2025-08-11T10:30:13.675391"
+    },
+    {
+      "test_num": 5,
+      "tool_name": "reg.categories",
+      "description": "List available tool categories",
+      "execution_time_ms": 4.4,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['categories', 'total_categories']",
+      "result_type": "dict",
+      "result_size": 1013,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved 7 tool categories",
+        "data": {
+          "categories": {
+            "registry": {
+              "name": "Tool Registry",
+              "description": "Tools for discovering and managing other tools",
+              "icon": "\ud83d\udd27",
+              "tool_count": 8
+            },
+            "weather": {
+              "name": "Weather & Climate",
+              "description": "Tools for weather information and forecasts",
+              "icon": "\ud83c\udf24\ufe0f",
+              "tool_count": 3
+            },
+            "memory": {
+              "name": "Memory & Personalization",
+              "description": "Tools for persistent memory and user profiling",
+              "icon": "\ud83e\udde0",
+              "tool_count": 3
+            },
+            "search": {
+              "name": "Search & Research",
+              "description": "Tools for web search and comprehensive research",
+              "icon": "\ud83d\udd0d",
+              "tool_count": 0
+            },
+            "communication": {
+              "name": "Communication",
+              "description": "Tools for messaging and team communication",
+              "icon": "\ud83d\udcac",
+              "tool_count": 0
+            },
+            "perplexity": {
+              "name": "Perplexity",
+              "description": "Tools for perplexity operations",
+              "icon": "\ud83d\udd27",
+              "tool_count": 1
+            },
+            "slack": {
+              "name": "Slack",
+              "description": "Tools for slack operations",
+              "icon": "\ud83d\udd27",
+              "tool_count": 1
+            }
+          },
+          "total_categories": 7
+        }
+      },
+      "timestamp": "2025-08-11T10:30:14.182051"
+    },
+    {
+      "test_num": 6,
+      "tool_name": "reg.list",
+      "description": "List all available tools",
+      "execution_time_ms": 0.09,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['total_available', 'returned', 'tools']",
+      "result_type": "dict",
+      "result_size": 17164,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved 19 tools",
+        "data": {
+          "total_available": 19,
+          "returned": 19,
+          "tools": [
+            {
+              "name": "memory.get_user_profile",
+              "display_name": "Memory Get User Profile Input",
+              "description": [
+                "Obtain a user profile generated from analysis of historical dialogues in MemoryOS"
+              ],
+              "category": "memory",
+              "tags": [
+                "get_user_profile",
+                "memory"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get_User_Profile operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/get_user_profile_input.json",
+              "output_schema": "schemas/services/memory/get_user_profile_output.json"
+            },
+            {
+              "name": "memory.retrieve",
+              "display_name": "Memory Retrieve Input",
+              "description": [
+                "Retrieve related historical dialogues, user preferences, and knowledge information from the MemoryOS system based on a query"
+              ],
+              "category": "memory",
+              "tags": [
+                "search",
+                "memory",
+                "retrieve"
+              ],
+              "capabilities": [
+                "search"
+              ],
+              "use_cases": [
+                "Retrieve operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/retrieve_input.json",
+              "output_schema": "schemas/services/memory/retrieve_output.json"
+            },
+            {
+              "name": "memory.add",
+              "display_name": "Memory Add Input",
+              "description": [
+                "Save conversation content between user and AI assistant into the memory system for building persistent dialogue history. Use each time an exchange occurs between the user and the agent."
+              ],
+              "category": "memory",
+              "tags": [
+                "memory",
+                "add"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Add operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/memory/add_input.json",
+              "output_schema": "schemas/services/memory/add_output.json"
+            },
+            {
+              "name": "perplexity.research",
+              "display_name": "Perplexity Research Input",
+              "description": [
+                "Conduct comprehensive, multi-step research using Perplexity's Sonar Deep Research model for exhaustive analysis and reporting. Performs automated research across multiple sources with intelligent search refinement, source evaluation, and synthesis. Generates detailed research reports with extensive citations, key findings extraction, and methodology documentation. Supports advanced filtering by domain, date ranges, and focus areas for targeted academic and professional research. Essential for academic research, market analysis, policy studies, technical investigations, and comprehensive fact-gathering that requires depth and rigor."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "web",
+                "filtering",
+                "ai"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Academic research",
+                "Comprehensive analysis",
+                "Investigation"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/research_input.json",
+              "output_schema": "schemas/services/perplexity/research_output.json"
+            },
+            {
+              "name": "perplexity.search",
+              "display_name": "Perplexity Search Input",
+              "description": [
+                "Perform quick, accurate web searches using Perplexity's Sonar models with real-time web information and automatic source citations. Access current web data, news, and information with AI-powered search that provides grounded responses with transparent sourcing. Choose from multiple Sonar models: basic Sonar for cost-effective searches, Sonar Pro for detailed responses, or reasoning models for analytical queries. Filter results by domain, recency, and context size for targeted information retrieval suited to your specific needs. Essential for fact-checking, research tasks, current events, and getting cited information with transparent source attribution."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "web",
+                "filtering",
+                "ai"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/search_input.json",
+              "output_schema": "schemas/services/perplexity/search_output.json"
+            },
+            {
+              "name": "registry.describe",
+              "display_name": "Tool Registry Describe Input",
+              "description": [
+                "Get comprehensive documentation and usage guidance for a specific tool by name.",
+                "This is your go-to operation when you've identified a tool (from search or list results) and need detailed implementation guidance before using it.",
+                "Returns exhaustive information including schemas, examples, best practices, common pitfalls, error handling patterns, and related tools.",
+                "Use this when you need to understand exactly how a tool works, what parameters it accepts, what output to expect, and how to handle edge cases.",
+                "Essential for proper tool usage - always describe a tool before using it if you're unsure about its behavior.",
+                "The format parameter lets you control detail level: 'detailed' for comprehensive guidance, 'compact' for essential info only, or 'schema_only' for just input/output validation.",
+                "Include examples and related tools to understand usage patterns and discover complementary tools."
+              ],
+              "category": "registry",
+              "tags": [
+                "tools",
+                "registry",
+                "describe",
+                "discovery"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Describe operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/describe_input.json",
+              "output_schema": "schemas/services/registry/describe_output.json"
+            },
+            {
+              "name": "registry.list",
+              "display_name": "Tool Registry List Input",
+              "description": [
+                "Browse and filter the complete catalog of available tools with powerful organization and filtering capabilities.",
+                "Use this to understand the tool landscape, explore tools by category or complexity, or get an organized view of what's available.",
+                "Perfect for discovery when you want to see everything in a category (like 'all search tools'), or when you need tools matching specific criteria (like 'simple tools that don't require authentication').",
+                "The group_by feature organizes results by category, implementation type, or complexity for easier browsing.",
+                "Filtering lets you narrow down by specific requirements - exclude deprecated tools, show only MCP server tools, or find tools with specific capabilities.",
+                "Include schemas when you need to validate compatibility across multiple tools.",
+                "Essential for understanding the scope of available functionality and planning multi-tool workflows."
+              ],
+              "category": "registry",
+              "tags": [
+                "list",
+                "tools",
+                "registry",
+                "discovery"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "List operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/list_input.json",
+              "output_schema": "schemas/services/registry/list_output.json"
+            },
+            {
+              "name": "registry.categories",
+              "display_name": "Tool Registry Categories Input",
+              "description": [
+                "Explore the organizational structure and taxonomy of the tool registry to understand how tools are categorized and what's available in each domain.",
+                "Use this to get a high-level map of tool capabilities, understand the scope of each category, and discover new areas of functionality you might not have considered.",
+                "Perfect for initial exploration when you're not sure what category your task fits into, or when planning complex workflows that might span multiple categories.",
+                "The sample_tools feature shows representative tools from each category to help you understand what each category covers.",
+                "Tool counts reveal the depth of functionality in each area.",
+                "Filter by implementation_type to see what's available through different backends (REST APIs, MCP servers, etc.).",
+                "Essential for strategic tool selection and understanding the relationship between different functional areas."
+              ],
+              "category": "registry",
+              "tags": [
+                "tools",
+                "registry",
+                "discovery",
+                "categories"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Categories operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/categories_input.json",
+              "output_schema": "schemas/services/registry/categories_output.json"
+            },
+            {
+              "name": "registry.search",
+              "display_name": "Tool Registry Search Input",
+              "description": [
+                "Search for tools in the registry using semantic queries, filters, and advanced search criteria.",
+                "This is the primary discovery mechanism when you need to find tools that match specific capabilities, solve particular problems, or work within certain constraints.",
+                "Use this when you have a task to accomplish but aren't sure which tool to use, or when you need to find alternatives to known tools.",
+                "The search supports multiple modes: semantic search through descriptions and capabilities, exact matching by tags or categories, and filtered browsing by implementation type or complexity.",
+                "Best for exploratory discovery, finding tools by capability rather than name, and understanding what tools are available for specific use cases.",
+                "Supports pagination for large result sets and can include full schemas when you need to validate tool compatibility before use."
+              ],
+              "category": "registry",
+              "tags": [
+                "search",
+                "tools",
+                "registry",
+                "discovery"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/search_input.json",
+              "output_schema": "schemas/services/registry/search_output.json"
+            },
+            {
+              "name": "slack.vector_search",
+              "display_name": "SearchSlackMessagesInput",
+              "description": [
+                "Input schema for searching Slack messages using semantic search"
+              ],
+              "category": "slack",
+              "tags": [
+                "vector_search",
+                "filtering",
+                "search",
+                "slack"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Vector_Search operations",
+                "Data processing"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/slack/vector_search_input.json",
+              "output_schema": "schemas/services/slack/vector_search_output.json"
+            },
+            {
+              "name": "slack.get_channels",
+              "display_name": "GetSlackChannelsInput",
+              "description": [
+                "Input schema for getting list of available Slack channels"
+              ],
+              "category": "slack",
+              "tags": [
+                "get_channels",
+                "slack"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get_Channels operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/slack/get_channels_input.json",
+              "output_schema": "schemas/services/slack/get_channels_output.json"
+            },
+            {
+              "name": "slack.get_search_stats",
+              "display_name": "GetSlackSearchStatsInput",
+              "description": [
+                "Input schema for getting Slack search statistics"
+              ],
+              "category": "slack",
+              "tags": [
+                "get_search_stats",
+                "slack"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Get_Search_Stats operations",
+                "Data processing"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/slack/get_search_stats_input.json",
+              "output_schema": "schemas/services/slack/get_search_stats_output.json"
+            },
+            {
+              "name": "weather.forecast",
+              "display_name": "OpenWeather One Call API 3.0 Input",
+              "description": [
+                "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+                "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+                "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+                "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+                "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "weather",
+                "forecast",
+                "climate"
+              ],
+              "capabilities": [
+                "forecasting",
+                "weather_data"
+              ],
+              "use_cases": [
+                "Future predictions",
+                "Planning",
+                "Trend analysis"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/forecast_input.json",
+              "output_schema": "schemas/services/weather/forecast_output.json"
+            },
+            {
+              "name": "weather.current",
+              "display_name": "OpenWeather Current Weather Input",
+              "description": [
+                "Get current weather data for any location using OpenWeather Current Weather API.",
+                "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+                "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+                "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+                "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "forecast",
+                "weather",
+                "api",
+                "current"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get current status",
+                "Real-time data",
+                "Current conditions"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/current_input.json",
+              "output_schema": "schemas/services/weather/current_output.json"
+            },
+            {
+              "name": "weather.search",
+              "display_name": "OpenWeather Geocoding API Input",
+              "description": [
+                "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+                "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+                "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+                "Supports direct geocoding (name \u2192 coordinates) with multiple results and optional result limiting.",
+                "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "search",
+                "forecast",
+                "weather",
+                "api"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/search_input.json",
+              "output_schema": "schemas/services/weather/search_output.json"
+            },
+            {
+              "name": "reg.search",
+              "display_name": "Search Tools",
+              "description": [
+                "Search for tools in the registry using semantic queries, filters, and advanced search criteria.",
+                "Supports searching by description, capabilities, tags, use cases, and categories.",
+                "Essential for tool discovery and finding the right tool for specific tasks."
+              ],
+              "category": "registry",
+              "tags": [
+                "search",
+                "discovery",
+                "tools",
+                "registry"
+              ],
+              "capabilities": [
+                "semantic_search",
+                "filtering",
+                "categorization"
+              ],
+              "use_cases": [
+                "Find weather tools",
+                "Discover communication tools",
+                "Search by capability"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/search_input.json",
+              "output_schema": "schemas/services/registry/search_output.json"
+            },
+            {
+              "name": "reg.describe",
+              "display_name": "Describe Tool",
+              "description": [
+                "Get detailed information about a specific tool including its schema and usage examples.",
+                "Returns comprehensive tool documentation, input/output schemas, and implementation details.",
+                "Critical for understanding how to properly use discovered tools."
+              ],
+              "category": "registry",
+              "tags": [
+                "describe",
+                "documentation",
+                "schema",
+                "details"
+              ],
+              "capabilities": [
+                "tool_details",
+                "schema_retrieval",
+                "documentation"
+              ],
+              "use_cases": [
+                "Get tool parameters",
+                "Understand tool usage",
+                "View examples"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/describe_input.json",
+              "output_schema": "schemas/services/registry/describe_output.json"
+            },
+            {
+              "name": "reg.list",
+              "display_name": "List All Tools",
+              "description": [
+                "List all available tools with optional filtering and pagination.",
+                "Provides overview of the entire tool ecosystem with metadata and categories.",
+                "Useful for getting a comprehensive view of available capabilities."
+              ],
+              "category": "registry",
+              "tags": [
+                "list",
+                "overview",
+                "tools",
+                "pagination"
+              ],
+              "capabilities": [
+                "tool_listing",
+                "pagination",
+                "filtering"
+              ],
+              "use_cases": [
+                "See all tools",
+                "Browse by category",
+                "Tool inventory"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/list_input.json",
+              "output_schema": "schemas/services/registry/list_output.json"
+            },
+            {
+              "name": "reg.categories",
+              "display_name": "List Categories",
+              "description": [
+                "Get all available tool categories with their descriptions and metadata.",
+                "Provides an overview of tool organization and helps browse tools by functional area.",
+                "Essential for understanding the tool ecosystem structure and finding tools by domain."
+              ],
+              "category": "registry",
+              "tags": [
+                "categories",
+                "organization",
+                "browse",
+                "structure"
+              ],
+              "capabilities": [
+                "category_listing",
+                "tool_organization",
+                "domain_browsing"
+              ],
+              "use_cases": [
+                "Browse tool categories",
+                "Understand tool organization",
+                "Find tools by domain"
+              ],
+              "complexity": "basic",
+              "implementation_type": "internal",
+              "input_schema": "schemas/services/registry/categories_input.json",
+              "output_schema": "schemas/services/registry/categories_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-11T10:30:14.683629"
+    },
+    {
+      "test_num": 7,
+      "tool_name": "reg.search",
+      "description": "Search for weather tools",
+      "execution_time_ms": 0.22,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['query', 'total_results', 'tools']",
+      "result_type": "dict",
+      "result_size": 3199,
+      "raw_result": {
+        "success": true,
+        "message": "Found 3 tools matching query 'weather'",
+        "data": {
+          "query": "weather",
+          "total_results": 3,
+          "tools": [
+            {
+              "name": "weather.forecast",
+              "display_name": "OpenWeather One Call API 3.0 Input",
+              "description": [
+                "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+                "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+                "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+                "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+                "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "weather",
+                "forecast",
+                "climate"
+              ],
+              "capabilities": [
+                "forecasting",
+                "weather_data"
+              ],
+              "use_cases": [
+                "Future predictions",
+                "Planning",
+                "Trend analysis"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/forecast_input.json",
+              "output_schema": "schemas/services/weather/forecast_output.json"
+            },
+            {
+              "name": "weather.current",
+              "display_name": "OpenWeather Current Weather Input",
+              "description": [
+                "Get current weather data for any location using OpenWeather Current Weather API.",
+                "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+                "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+                "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+                "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "forecast",
+                "weather",
+                "api",
+                "current"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get current status",
+                "Real-time data",
+                "Current conditions"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/current_input.json",
+              "output_schema": "schemas/services/weather/current_output.json"
+            },
+            {
+              "name": "weather.search",
+              "display_name": "OpenWeather Geocoding API Input",
+              "description": [
+                "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+                "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+                "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+                "Supports direct geocoding (name \u2192 coordinates) with multiple results and optional result limiting.",
+                "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "search",
+                "forecast",
+                "weather",
+                "api"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/search_input.json",
+              "output_schema": "schemas/services/weather/search_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-11T10:30:15.185344"
+    },
+    {
+      "test_num": 8,
+      "tool_name": "reg.describe",
+      "description": "Describe weather current tool",
+      "execution_time_ms": 0.77,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['tool', 'schemas']",
+      "result_type": "dict",
+      "result_size": 7059,
+      "raw_result": {
+        "success": true,
+        "message": "Retrieved information for tool 'weather.current'",
+        "data": {
+          "tool": {
+            "name": "weather.current",
+            "display_name": "OpenWeather Current Weather Input",
+            "description": [
+              "Get current weather data for any location using OpenWeather Current Weather API.",
+              "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+              "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+              "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+              "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+            ],
+            "category": "weather",
+            "tags": [
+              "climate",
+              "forecast",
+              "weather",
+              "api",
+              "current"
+            ],
+            "capabilities": [
+              "data_processing"
+            ],
+            "use_cases": [
+              "Get current status",
+              "Real-time data",
+              "Current conditions"
+            ],
+            "complexity": "complex",
+            "implementation_type": "rest_api",
+            "input_schema": "schemas/services/weather/current_input.json",
+            "output_schema": "schemas/services/weather/current_output.json"
+          },
+          "schemas": {
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "explanation": {
+                  "$ref": "../../shared/common_inputs.json#/$defs/explanation"
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude coordinate (-90 to 90)",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "lon": {
+                  "type": "number",
+                  "description": "Longitude coordinate (-180 to 180)",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "q": {
+                  "type": "string",
+                  "description": "City name, state code and country code divided by comma. Use ISO 3166 country codes.",
+                  "examples": [
+                    "London",
+                    "London,UK",
+                    "New York,NY,US"
+                  ]
+                },
+                "id": {
+                  "type": "integer",
+                  "description": "City ID. List of city IDs can be downloaded from OpenWeather."
+                },
+                "zip": {
+                  "type": "string",
+                  "description": "ZIP code with optional country code (US default)",
+                  "examples": [
+                    "94040,US",
+                    "10001"
+                  ]
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "xml",
+                    "html"
+                  ],
+                  "description": "Response format",
+                  "default": "json"
+                },
+                "units": {
+                  "type": "string",
+                  "enum": [
+                    "standard",
+                    "metric",
+                    "imperial"
+                  ],
+                  "description": "Units of measurement. Standard=Kelvin, Metric=Celsius, Imperial=Fahrenheit",
+                  "default": "standard"
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "Language code for weather condition descriptions",
+                  "examples": [
+                    "en",
+                    "fr",
+                    "es",
+                    "de",
+                    "zh_cn"
+                  ]
+                }
+              },
+              "required": [
+                "explanation"
+              ]
+            },
+            "output_schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "OpenWeather Current Weather Output",
+              "description": [
+                "Current weather data response exactly matching OpenWeather API structure.",
+                "Contains geographic coordinates, weather conditions, temperature, atmospheric data, wind, clouds, and system information.",
+                "Follows OpenWeather's exact field names, data types, and nesting structure for seamless integration.",
+                "Includes all standard OpenWeather response fields like weather condition codes, Unix timestamps, and country codes.",
+                "Perfect for applications that need direct compatibility with OpenWeather Current Weather API responses."
+              ],
+              "allOf": [
+                {
+                  "$ref": "../../shared/operation_patterns.json#/$defs/get_operation_output"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "coord": {
+                          "type": "object",
+                          "description": "Geographic coordinates of the location",
+                          "properties": {
+                            "lon": {
+                              "type": "number",
+                              "description": "Longitude of the location"
+                            },
+                            "lat": {
+                              "type": "number",
+                              "description": "Latitude of the location"
+                            }
+                          },
+                          "required": [
+                            "lon",
+                            "lat"
+                          ]
+                        },
+                        "weather": {
+                          "type": "array",
+                          "description": "Weather condition information",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "description": "Weather condition id"
+                              },
+                              "main": {
+                                "type": "string",
+                                "description": "Group of weather parameters (Rain, Snow, Clouds etc.)"
+                              },
+                              "description": {
+                                "type": "string",
+                                "description": "Weather condition within the group"
+                              },
+                              "icon": {
+                                "type": "string",
+                                "description": "Weather icon id"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "main",
+                              "description",
+                              "icon"
+                            ]
+                          }
+                        },
+                        "base": {
+                          "type": "string",
+                          "description": "Internal parameter"
+                        },
+                        "main": {
+                          "type": "object",
+                          "description": "Main weather parameters",
+                          "properties": {
+                            "temp": {
+                              "type": "number",
+                              "description": "Temperature. Unit Default: Kelvin, Metric: Celsius, Imperial: Fahrenheit"
+                            },
+                            "feels_like": {
+                              "type": "number",
+                              "description": "Temperature accounting for human perception of weather"
+                            },
+                            "temp_min": {
+                              "type": "number",
+                              "description": "Minimum temperature at the moment"
+                            },
+                            "temp_max": {
+                              "type": "number",
+                              "description": "Maximum temperature at the moment"
+                            },
+                            "pressure": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the sea level, hPa"
+                            },
+                            "humidity": {
+                              "type": "number",
+                              "description": "Humidity, %"
+                            },
+                            "sea_level": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the sea level, hPa"
+                            },
+                            "grnd_level": {
+                              "type": "number",
+                              "description": "Atmospheric pressure on the ground level, hPa"
+                            }
+                          },
+                          "required": [
+                            "temp",
+                            "feels_like",
+                            "pressure",
+                            "humidity"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "number",
+                          "description": "Visibility, meter. The maximum value is 10km"
+                        },
+                        "wind": {
+                          "type": "object",
+                          "description": "Wind information",
+                          "properties": {
+                            "speed": {
+                              "type": "number",
+                              "description": "Wind speed. Unit Default: meter/sec, Metric: meter/sec, Imperial: miles/hour"
+                            },
+                            "deg": {
+                              "type": "number",
+                              "description": "Wind direction, degrees (meteorological)"
+                            },
+                            "gust": {
+                              "type": "number",
+                              "description": "Wind gust. Unit Default: meter/sec, Metric: meter/sec, Imperial: miles/hour"
+                            }
+                          },
+                          "required": [
+                            "speed",
+                            "deg"
+                          ]
+                        },
+                        "clouds": {
+                          "type": "object",
+                          "description": "Cloudiness information",
+                          "properties": {
+                            "all": {
+                              "type": "number",
+                              "description": "Cloudiness, %"
+                            }
+                          },
+                          "required": [
+                            "all"
+                          ]
+                        },
+                        "rain": {
+                          "type": "object",
+                          "description": "Rain volume for the last 1 and 3 hours",
+                          "properties": {
+                            "1h": {
+                              "type": "number",
+                              "description": "Rain volume for the last 1 hour, mm"
+                            },
+                            "3h": {
+                              "type": "number",
+                              "description": "Rain volume for the last 3 hours, mm"
+                            }
+                          }
+                        },
+                        "snow": {
+                          "type": "object",
+                          "description": "Snow volume for the last 1 and 3 hours",
+                          "properties": {
+                            "1h": {
+                              "type": "number",
+                              "description": "Snow volume for the last 1 hour, mm"
+                            },
+                            "3h": {
+                              "type": "number",
+                              "description": "Snow volume for the last 3 hours, mm"
+                            }
+                          }
+                        },
+                        "dt": {
+                          "type": "integer",
+                          "description": "Time of data calculation, unix, UTC"
+                        },
+                        "sys": {
+                          "type": "object",
+                          "description": "System information",
+                          "properties": {
+                            "type": {
+                              "type": "integer",
+                              "description": "Internal parameter"
+                            },
+                            "id": {
+                              "type": "integer",
+                              "description": "Internal parameter"
+                            },
+                            "country": {
+                              "type": "string",
+                              "description": "Country code (GB, JP etc.)"
+                            },
+                            "sunrise": {
+                              "type": "integer",
+                              "description": "Sunrise time, unix, UTC"
+                            },
+                            "sunset": {
+                              "type": "integer",
+                              "description": "Sunset time, unix, UTC"
+                            }
+                          },
+                          "required": [
+                            "country",
+                            "sunrise",
+                            "sunset"
+                          ]
+                        },
+                        "timezone": {
+                          "type": "integer",
+                          "description": "Shift in seconds from UTC"
+                        },
+                        "id": {
+                          "type": "integer",
+                          "description": "City ID"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "City name"
+                        },
+                        "cod": {
+                          "type": "integer",
+                          "description": "Internal parameter"
+                        }
+                      },
+                      "required": [
+                        "coord",
+                        "weather",
+                        "main",
+                        "visibility",
+                        "wind",
+                        "clouds",
+                        "dt",
+                        "sys",
+                        "timezone",
+                        "id",
+                        "name",
+                        "cod"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "timestamp": "2025-08-11T10:30:15.687688"
+    },
+    {
+      "test_num": 9,
+      "tool_name": "reg.search",
+      "description": "Search for weather tools",
+      "execution_time_ms": 0.8,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['query', 'total_results', 'tools']",
+      "result_type": "dict",
+      "result_size": 3199,
+      "raw_result": {
+        "success": true,
+        "message": "Found 3 tools matching query 'weather'",
+        "data": {
+          "query": "weather",
+          "total_results": 3,
+          "tools": [
+            {
+              "name": "weather.forecast",
+              "display_name": "OpenWeather One Call API 3.0 Input",
+              "description": [
+                "Get current weather and forecasts using OpenWeather One Call API 3.0.",
+                "Provides minute forecast for 1 hour, hourly forecast for 48 hours, daily forecast for 8 days, and government weather alerts.",
+                "Use coordinates (lat/lon) for precise location targeting and get comprehensive weather data in a single API call.",
+                "Essential for applications requiring current conditions plus short-term and long-term forecasts with optional data exclusions.",
+                "Perfect for weather dashboards, mobile apps, and any application needing complete weather information."
+              ],
+              "category": "weather",
+              "tags": [
+                "api",
+                "weather",
+                "forecast",
+                "climate"
+              ],
+              "capabilities": [
+                "forecasting",
+                "weather_data"
+              ],
+              "use_cases": [
+                "Future predictions",
+                "Planning",
+                "Trend analysis"
+              ],
+              "complexity": "intermediate",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/forecast_input.json",
+              "output_schema": "schemas/services/weather/forecast_output.json"
+            },
+            {
+              "name": "weather.current",
+              "display_name": "OpenWeather Current Weather Input",
+              "description": [
+                "Get current weather data for any location using OpenWeather Current Weather API.",
+                "Access current weather data for any location on Earth including temperature, humidity, pressure, wind, clouds, and precipitation.",
+                "Use coordinates (lat/lon) for most accurate results, or city names for convenience.",
+                "Supports multiple unit systems and response formats as per OpenWeather API specifications.",
+                "Essential for real-time weather information, travel planning, and weather-dependent decision making."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "forecast",
+                "weather",
+                "api",
+                "current"
+              ],
+              "capabilities": [
+                "data_processing"
+              ],
+              "use_cases": [
+                "Get current status",
+                "Real-time data",
+                "Current conditions"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/current_input.json",
+              "output_schema": "schemas/services/weather/current_output.json"
+            },
+            {
+              "name": "weather.search",
+              "display_name": "OpenWeather Geocoding API Input",
+              "description": [
+                "Search for geographic coordinates (lat/lon) of cities, states, and countries using OpenWeather Geocoding API.",
+                "Essential first step before calling current weather or forecast APIs when you only have city names or addresses.",
+                "Converts location names like 'San Francisco, CA' or 'London, UK' into precise coordinates for accurate weather data.",
+                "Supports direct geocoding (name \u2192 coordinates) with multiple results and optional result limiting.",
+                "Perfect for location lookup, address validation, and preparing coordinates for other OpenWeather API calls."
+              ],
+              "category": "weather",
+              "tags": [
+                "climate",
+                "search",
+                "forecast",
+                "weather",
+                "api"
+              ],
+              "capabilities": [
+                "search",
+                "data_retrieval"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "basic",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/weather/search_input.json",
+              "output_schema": "schemas/services/weather/search_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-11T10:30:16.190135"
+    },
+    {
+      "test_num": 10,
+      "tool_name": "reg.search",
+      "description": "Search for perplexity tools",
+      "execution_time_ms": 0.17,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['query', 'total_results', 'tools']",
+      "result_type": "dict",
+      "result_size": 2458,
+      "raw_result": {
+        "success": true,
+        "message": "Found 2 tools matching query 'perplexity'",
+        "data": {
+          "query": "perplexity",
+          "total_results": 2,
+          "tools": [
+            {
+              "name": "perplexity.research",
+              "display_name": "Perplexity Research Input",
+              "description": [
+                "Conduct comprehensive, multi-step research using Perplexity's Sonar Deep Research model for exhaustive analysis and reporting. Performs automated research across multiple sources with intelligent search refinement, source evaluation, and synthesis. Generates detailed research reports with extensive citations, key findings extraction, and methodology documentation. Supports advanced filtering by domain, date ranges, and focus areas for targeted academic and professional research. Essential for academic research, market analysis, policy studies, technical investigations, and comprehensive fact-gathering that requires depth and rigor."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "web",
+                "filtering",
+                "ai"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Academic research",
+                "Comprehensive analysis",
+                "Investigation"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/research_input.json",
+              "output_schema": "schemas/services/perplexity/research_output.json"
+            },
+            {
+              "name": "perplexity.search",
+              "display_name": "Perplexity Search Input",
+              "description": [
+                "Perform quick, accurate web searches using Perplexity's Sonar models with real-time web information and automatic source citations. Access current web data, news, and information with AI-powered search that provides grounded responses with transparent sourcing. Choose from multiple Sonar models: basic Sonar for cost-effective searches, Sonar Pro for detailed responses, or reasoning models for analytical queries. Filter results by domain, recency, and context size for targeted information retrieval suited to your specific needs. Essential for fact-checking, research tasks, current events, and getting cited information with transparent source attribution."
+              ],
+              "category": "perplexity",
+              "tags": [
+                "search",
+                "api",
+                "perplexity",
+                "research",
+                "web",
+                "filtering",
+                "ai"
+              ],
+              "capabilities": [
+                "search",
+                "filtering"
+              ],
+              "use_cases": [
+                "Find information",
+                "Lookup data",
+                "Search queries"
+              ],
+              "complexity": "complex",
+              "implementation_type": "rest_api",
+              "input_schema": "schemas/services/perplexity/search_input.json",
+              "output_schema": "schemas/services/perplexity/search_output.json"
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-11T10:30:16.691752"
+    },
+    {
+      "test_num": 11,
+      "tool_name": "weather.search",
+      "description": "Execute discovered weather.search tool",
+      "execution_time_ms": 169.23,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: []",
+      "result_type": "dict",
+      "result_size": 2908,
+      "raw_result": {
+        "success": true,
+        "message": "Found 1 location(s) matching 'San Francisco,CA,US'",
+        "data": [
+          {
+            "name": "San Francisco",
+            "lat": 37.7790262,
+            "lon": -122.419906,
+            "country": "US",
+            "state": "California",
+            "local_names": {
+              "sl": "San Francisco",
+              "fi": "San Francisco",
+              "gd": "San Francisco",
+              "ie": "San Francisco",
+              "la": "Franciscopolis",
+              "fy": "San Francisco",
+              "ha": "San Francisco",
+              "mn": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "kk": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "de": "San Francisco",
+              "is": "San Francisco",
+              "ml": "\u0d38\u0d3e\u0d7b \u0d2b\u0d4d\u0d30\u0d3e\u0d7b\u0d38\u0d3f\u0d38\u0d4d\u0d15\u0d4b",
+              "ku": "San Francisco",
+              "cv": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "hr": "San Francisco",
+              "hy": "\u054d\u0561\u0576 \u0556\u0580\u0561\u0576\u0581\u056b\u057d\u056f\u0578",
+              "ps": "\u0633\u0627\u0646 \u0641\u0631\u0627\u0646\u0633\u0633\u06a9\u0648",
+              "fo": "San Francisco",
+              "nl": "San Francisco",
+              "tw": "San Francisco",
+              "fr": "San Francisco",
+              "te": "\u0c36\u0c3e\u0c28\u0c4d \u0c2b\u0c4d\u0c30\u0c3e\u0c28\u0c4d\u0c38\u0c3f\u0c38\u0c4d\u0c15\u0c4b",
+              "yi": "\u05e1\u05d0\u05df \u05e4\u05e8\u05d0\u05e0\u05e6\u05d9\u05e1\u05e7\u05d0",
+              "na": "San Francisco",
+              "br": "San Francisco",
+              "ce": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "eu": "San Frantzisko",
+              "ur": "\u0633\u0627\u0646 \u0641\u0631\u0627\u0646\u0633\u0633\u06a9\u0648",
+              "sw": "San Francisco",
+              "kw": "San Francisco",
+              "ln": "San Francisco",
+              "pa": "\u0a38\u0a3e\u0a28 \u0a2b\u0a3c\u0a30\u0a3e\u0a02\u0a38\u0a3f\u0a38\u0a15\u0a4b",
+              "pt": "S\u00e3o Francisco",
+              "it": "San Francisco",
+              "lb": "San Francisco",
+              "sc": "San Francisco",
+              "th": "\u0e0b\u0e32\u0e19\u0e1f\u0e23\u0e32\u0e19\u0e0b\u0e34\u0e2a\u0e42\u0e01",
+              "am": "\u1233\u1295 \u134d\u122b\u1295\u1232\u1235\u12b0",
+              "ug": "San Fransisko",
+              "ki": "San Francisco",
+              "ty": "San Francisco",
+              "yo": "San Francisco",
+              "io": "San Francisco",
+              "my": "\u1006\u1014\u103a\u1016\u101b\u1014\u103a\u1005\u1005\u1039\u1005\u1000\u102d\u102f\u1019\u103c\u102d\u102f\u1037",
+              "ko": "\uc0cc\ud504\ub780\uc2dc\uc2a4\ucf54",
+              "cy": "San Francisco",
+              "kn": "\u0cb8\u0cbe\u0ca8\u0ccd \u0cab\u0ccd\u0cb0\u0cbe\u0ca8\u0ccd\u0cb8\u0cbf\u0cb8\u0ccd\u0c95\u0cca",
+              "mg": "San Francisco",
+              "sk": "San Francisco",
+              "so": "San Fransisko",
+              "ms": "San Francisco",
+              "os": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "oc": "San Francisco",
+              "qu": "San Francisco",
+              "uk": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "bs": "San Francisco",
+              "lv": "Sanfrancisko",
+              "bn": "\u09b8\u09be\u09a8 \u09ab\u09cd\u09b0\u09be\u09a8\u09cd\u09b8\u09bf\u09b8\u09cd\u0995\u09cb",
+              "bg": "\u0421\u0430\u043d \u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "ka": "\u10e1\u10d0\u10dc-\u10e4\u10e0\u10d0\u10dc\u10ea\u10d8\u10e1\u10d9\u10dd",
+              "ro": "San Francisco",
+              "uz": "San Fransisko",
+              "ga": "San Francisco",
+              "zh": "\u65e7\u91d1\u5c71;\u820a\u91d1\u5c71;\u4e09\u85e9\u5e02",
+              "ba": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "li": "San Francisco",
+              "an": "San Francisco",
+              "vo": "San Francisco",
+              "gv": "San Francisco",
+              "lt": "San Fransiskas",
+              "gl": "San Francisco",
+              "el": "\u03a3\u03b1\u03bd \u03a6\u03c1\u03b1\u03bd\u03c3\u03af\u03c3\u03ba\u03bf",
+              "ja": "\u30b5\u30f3\u30d5\u30e9\u30f3\u30b7\u30b9\u30b3",
+              "fj": "San Francisco",
+              "en": "San Francisco",
+              "ca": "San Francisco",
+              "sv": "San Francisco",
+              "sr": "\u0421\u0430\u043d \u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "af": "San Francisco",
+              "eo": "San-Francisko",
+              "ht": "San Francisco",
+              "ta": "\u0b9a\u0bbe\u0ba9\u0bcd \u0baa\u0bbf\u0bb0\u0bbe\u0ba9\u0bcd\u0b9a\u0bbf\u0bb8\u0bcd\u0b95\u0bcb",
+              "ar": "\u0633\u0627\u0646 \u0641\u0631\u0627\u0646\u0633\u064a\u0633\u0643\u0648",
+              "es": "San Francisco",
+              "he": "\u05e1\u05df \u05e4\u05e8\u05e0\u05e1\u05d9\u05e1\u05e7\u05d5",
+              "bm": "San Francisco",
+              "tl": "San Francisco",
+              "ru": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "vi": "C\u1ef1u Kim S\u01a1n",
+              "tt": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "fa": "\u0633\u0627\u0646 \u0641\u0631\u0627\u0646\u0633\u06cc\u0633\u06a9\u0648",
+              "tr": "San Francisco",
+              "nn": "San Francisco",
+              "ne": "\u0938\u093e\u0928 \u092b\u094d\u0930\u093e\u0928\u094d\u0938\u093f\u0938\u094d\u0915\u094b",
+              "id": "San Francisco",
+              "jv": "San Francisco",
+              "da": "San Francisco",
+              "mr": "\u0938\u0945\u0928 \u092b\u094d\u0930\u093e\u0928\u094d\u0938\u093f\u0938\u094d\u0915\u094b",
+              "no": "San Francisco",
+              "pl": "San Francisco",
+              "nv": "Na\u02bcn\u00ed\u02bc\u00e1 H\u00f3neez\u00ed",
+              "az": "San-Fransisko",
+              "si": "\u0dc3\u0dd0\u0db1\u0dca \u0dc6\u0dca\u200d\u0dbb\u0dd0\u0db1\u0dca\u0dc3\u0dd2\u0dc3\u0dca\u0d9a\u0ddd",
+              "cs": "San Francisco",
+              "ia": "San Francisco",
+              "et": "San Francisco",
+              "mi": "Hana Paraniko",
+              "bo": "\u0f66\u0f53\u0f0b\u0f67\u0fa5\u0f74\u0f0b\u0f62\u0f53\u0f0b\u0f66\u0f72\u0f66\u0f0b\u0f41\u0f7c",
+              "ky": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "sq": "San Francisco",
+              "co": "San Francisco",
+              "hi": "\u0938\u0948\u0928 \u092b\u093c\u094d\u0930\u093e\u0902\u0938\u093f\u0938\u094d\u0915\u094b",
+              "be": "\u0421\u0430\u043d-\u0424\u0440\u0430\u043d\u0446\u044b\u0441\u043a\u0430",
+              "hu": "San Francisco",
+              "mk": "\u0421\u0430\u043d \u0424\u0440\u0430\u043d\u0446\u0438\u0441\u043a\u043e",
+              "sh": "San Francisco"
+            }
+          }
+        ]
+      },
+      "timestamp": "2025-08-11T10:30:17.362370"
+    },
+    {
+      "test_num": 12,
+      "tool_name": "weather.current",
+      "description": "Execute discovered weather.current tool",
+      "execution_time_ms": 195.84,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['coord', 'weather', 'base', 'main', 'visibility', 'wind', 'clouds', 'dt', 'sys', 'timezone', 'id', 'name', 'cod']",
+      "result_type": "dict",
+      "result_size": 662,
+      "raw_result": {
+        "success": true,
+        "message": "Current weather data retrieved successfully",
+        "data": {
+          "coord": {
+            "lon": -0.1257,
+            "lat": 51.5085
+          },
+          "weather": [
+            {
+              "id": 800,
+              "main": "Clear",
+              "description": "clear sky",
+              "icon": "01d"
+            }
+          ],
+          "base": "stations",
+          "main": {
+            "temp": 22.09,
+            "feels_like": 21.92,
+            "temp_min": 20.05,
+            "temp_max": 23.08,
+            "pressure": 1023,
+            "humidity": 60,
+            "sea_level": 1023,
+            "grnd_level": 1020
+          },
+          "visibility": 10000,
+          "wind": {
+            "speed": 1.34,
+            "deg": 142,
+            "gust": 2.68
+          },
+          "clouds": {
+            "all": 8
+          },
+          "dt": 1754900576,
+          "sys": {
+            "type": 2,
+            "id": 268730,
+            "country": "GB",
+            "sunrise": 1754887191,
+            "sunset": 1754940701
+          },
+          "timezone": 3600,
+          "id": 2643743,
+          "name": "London",
+          "cod": 200
+        }
+      },
+      "timestamp": "2025-08-11T10:30:18.059689"
+    },
+    {
+      "test_num": 13,
+      "tool_name": "weather.forecast",
+      "description": "Execute discovered weather.forecast tool",
+      "execution_time_ms": 199.66,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['lat', 'lon', 'timezone', 'timezone_offset', 'current', 'minutely', 'hourly', 'daily', 'alerts']",
+      "result_type": "dict",
+      "result_size": 24249,
+      "raw_result": {
+        "success": true,
+        "message": "Weather forecast data retrieved successfully",
+        "data": {
+          "lat": 40.7128,
+          "lon": -74.006,
+          "timezone": "America/New_York",
+          "timezone_offset": -14400,
+          "current": {
+            "dt": 1754901018,
+            "sunrise": 1754906560,
+            "sunset": 1754956791,
+            "temp": 72.12,
+            "feels_like": 72.37,
+            "pressure": 1022,
+            "humidity": 71,
+            "dew_point": 62.2,
+            "uvi": 0,
+            "clouds": 0,
+            "visibility": 10000,
+            "wind_speed": 5.75,
+            "wind_deg": 250,
+            "weather": [
+              {
+                "id": 800,
+                "main": "Clear",
+                "description": "clear sky",
+                "icon": "01n"
+              }
+            ]
+          },
+          "minutely": [
+            {
+              "dt": 1754901060,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901120,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901180,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901240,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901300,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901360,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901420,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901480,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901540,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901600,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901660,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901720,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901780,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901840,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901900,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754901960,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902020,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902080,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902140,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902200,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902260,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902320,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902380,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902440,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902500,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902560,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902620,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902680,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902740,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902800,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902860,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902920,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754902980,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903040,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903100,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903160,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903220,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903280,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903340,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903400,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903460,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903520,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903580,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903640,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903700,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903760,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903820,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903880,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754903940,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904000,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904060,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904120,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904180,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904240,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904300,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904360,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904420,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904480,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904540,
+              "precipitation": 0
+            },
+            {
+              "dt": 1754904600,
+              "precipitation": 0
+            }
+          ],
+          "hourly": [
+            {
+              "dt": 1754899200,
+              "temp": 70.74,
+              "feels_like": 70.93,
+              "pressure": 1022,
+              "humidity": 73,
+              "dew_point": 61.66,
+              "uvi": 0,
+              "clouds": 16,
+              "visibility": 10000,
+              "wind_speed": 6.6,
+              "wind_deg": 238,
+              "wind_gust": 11.21,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754902800,
+              "temp": 72.12,
+              "feels_like": 72.37,
+              "pressure": 1022,
+              "humidity": 71,
+              "dew_point": 62.2,
+              "uvi": 0,
+              "clouds": 0,
+              "visibility": 10000,
+              "wind_speed": 5.93,
+              "wind_deg": 243,
+              "wind_gust": 9.73,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754906400,
+              "temp": 70.79,
+              "feels_like": 70.81,
+              "pressure": 1022,
+              "humidity": 69,
+              "dew_point": 60.13,
+              "uvi": 0,
+              "clouds": 15,
+              "visibility": 10000,
+              "wind_speed": 5.79,
+              "wind_deg": 247,
+              "wind_gust": 9.08,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754910000,
+              "temp": 70.11,
+              "feels_like": 69.93,
+              "pressure": 1022,
+              "humidity": 66,
+              "dew_point": 58.23,
+              "uvi": 0.24,
+              "clouds": 25,
+              "visibility": 10000,
+              "wind_speed": 6.11,
+              "wind_deg": 251,
+              "wind_gust": 8.97,
+              "weather": [
+                {
+                  "id": 802,
+                  "main": "Clouds",
+                  "description": "scattered clouds",
+                  "icon": "03d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754913600,
+              "temp": 71.46,
+              "feels_like": 71.17,
+              "pressure": 1023,
+              "humidity": 61,
+              "dew_point": 57.33,
+              "uvi": 0.95,
+              "clouds": 32,
+              "visibility": 10000,
+              "wind_speed": 6.24,
+              "wind_deg": 256,
+              "wind_gust": 8.19,
+              "weather": [
+                {
+                  "id": 802,
+                  "main": "Clouds",
+                  "description": "scattered clouds",
+                  "icon": "03d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754917200,
+              "temp": 74.75,
+              "feels_like": 74.52,
+              "pressure": 1024,
+              "humidity": 55,
+              "dew_point": 57.52,
+              "uvi": 2.32,
+              "clouds": 10,
+              "visibility": 10000,
+              "wind_speed": 6.24,
+              "wind_deg": 244,
+              "wind_gust": 7.54,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754920800,
+              "temp": 81,
+              "feels_like": 80.65,
+              "pressure": 1024,
+              "humidity": 40,
+              "dew_point": 53.73,
+              "uvi": 4.25,
+              "clouds": 12,
+              "visibility": 10000,
+              "wind_speed": 6.11,
+              "wind_deg": 232,
+              "wind_gust": 6.78,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754924400,
+              "temp": 84.02,
+              "feels_like": 82.87,
+              "pressure": 1023,
+              "humidity": 37,
+              "dew_point": 53.65,
+              "uvi": 6.29,
+              "clouds": 11,
+              "visibility": 10000,
+              "wind_speed": 5.66,
+              "wind_deg": 214,
+              "wind_gust": 5.88,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754928000,
+              "temp": 86.11,
+              "feels_like": 84.79,
+              "pressure": 1023,
+              "humidity": 36,
+              "dew_point": 53.74,
+              "uvi": 7.82,
+              "clouds": 11,
+              "visibility": 10000,
+              "wind_speed": 6.71,
+              "wind_deg": 182,
+              "wind_gust": 5.95,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754931600,
+              "temp": 87.71,
+              "feels_like": 86.58,
+              "pressure": 1022,
+              "humidity": 36,
+              "dew_point": 54.32,
+              "uvi": 8.34,
+              "clouds": 12,
+              "visibility": 10000,
+              "wind_speed": 9.1,
+              "wind_deg": 170,
+              "wind_gust": 7.74,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754935200,
+              "temp": 88.36,
+              "feels_like": 87.84,
+              "pressure": 1022,
+              "humidity": 38,
+              "dew_point": 54.57,
+              "uvi": 7.69,
+              "clouds": 18,
+              "visibility": 10000,
+              "wind_speed": 11.65,
+              "wind_deg": 161,
+              "wind_gust": 9.48,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754938800,
+              "temp": 88.57,
+              "feels_like": 87.85,
+              "pressure": 1021,
+              "humidity": 37,
+              "dew_point": 54.37,
+              "uvi": 6.11,
+              "clouds": 57,
+              "visibility": 10000,
+              "wind_speed": 11.65,
+              "wind_deg": 162,
+              "wind_gust": 10.09,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754942400,
+              "temp": 88.34,
+              "feels_like": 87.82,
+              "pressure": 1021,
+              "humidity": 38,
+              "dew_point": 54.68,
+              "uvi": 4.08,
+              "clouds": 72,
+              "visibility": 10000,
+              "wind_speed": 11.97,
+              "wind_deg": 161,
+              "wind_gust": 10.89,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754946000,
+              "temp": 86.68,
+              "feels_like": 86.25,
+              "pressure": 1021,
+              "humidity": 40,
+              "dew_point": 55.85,
+              "uvi": 2.18,
+              "clouds": 78,
+              "visibility": 10000,
+              "wind_speed": 12.41,
+              "wind_deg": 161,
+              "wind_gust": 11.65,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754949600,
+              "temp": 84.7,
+              "feels_like": 84.76,
+              "pressure": 1021,
+              "humidity": 44,
+              "dew_point": 57.45,
+              "uvi": 0.85,
+              "clouds": 75,
+              "visibility": 10000,
+              "wind_speed": 12.66,
+              "wind_deg": 162,
+              "wind_gust": 13.89,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754953200,
+              "temp": 81.99,
+              "feels_like": 82.45,
+              "pressure": 1021,
+              "humidity": 48,
+              "dew_point": 58.78,
+              "uvi": 0.21,
+              "clouds": 63,
+              "visibility": 10000,
+              "wind_speed": 12.03,
+              "wind_deg": 164,
+              "wind_gust": 14.9,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754956800,
+              "temp": 78.4,
+              "feels_like": 78.39,
+              "pressure": 1021,
+              "humidity": 52,
+              "dew_point": 59.72,
+              "uvi": 0,
+              "clouds": 61,
+              "visibility": 10000,
+              "wind_speed": 11.07,
+              "wind_deg": 166,
+              "wind_gust": 15.14,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754960400,
+              "temp": 78.64,
+              "feels_like": 78.69,
+              "pressure": 1021,
+              "humidity": 53,
+              "dew_point": 60.17,
+              "uvi": 0,
+              "clouds": 35,
+              "visibility": 10000,
+              "wind_speed": 10.58,
+              "wind_deg": 180,
+              "wind_gust": 16.15,
+              "weather": [
+                {
+                  "id": 802,
+                  "main": "Clouds",
+                  "description": "scattered clouds",
+                  "icon": "03n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754964000,
+              "temp": 78.22,
+              "feels_like": 78.04,
+              "pressure": 1021,
+              "humidity": 49,
+              "dew_point": 57.31,
+              "uvi": 0,
+              "clouds": 22,
+              "visibility": 10000,
+              "wind_speed": 9.73,
+              "wind_deg": 202,
+              "wind_gust": 15.59,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754967600,
+              "temp": 76.93,
+              "feels_like": 76.57,
+              "pressure": 1021,
+              "humidity": 48,
+              "dew_point": 55.76,
+              "uvi": 0,
+              "clouds": 16,
+              "visibility": 10000,
+              "wind_speed": 8.97,
+              "wind_deg": 210,
+              "wind_gust": 16.02,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754971200,
+              "temp": 76.03,
+              "feels_like": 75.63,
+              "pressure": 1021,
+              "humidity": 49,
+              "dew_point": 55.27,
+              "uvi": 0,
+              "clouds": 12,
+              "visibility": 10000,
+              "wind_speed": 8.3,
+              "wind_deg": 212,
+              "wind_gust": 15.68,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754974800,
+              "temp": 75.52,
+              "feels_like": 75.07,
+              "pressure": 1020,
+              "humidity": 49,
+              "dew_point": 55,
+              "uvi": 0,
+              "clouds": 11,
+              "visibility": 10000,
+              "wind_speed": 7.45,
+              "wind_deg": 211,
+              "wind_gust": 13.22,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754978400,
+              "temp": 74.86,
+              "feels_like": 74.39,
+              "pressure": 1020,
+              "humidity": 50,
+              "dew_point": 54.82,
+              "uvi": 0,
+              "clouds": 10,
+              "visibility": 10000,
+              "wind_speed": 7.05,
+              "wind_deg": 215,
+              "wind_gust": 11.45,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754982000,
+              "temp": 74.39,
+              "feels_like": 73.92,
+              "pressure": 1020,
+              "humidity": 51,
+              "dew_point": 55.02,
+              "uvi": 0,
+              "clouds": 21,
+              "visibility": 10000,
+              "wind_speed": 6.64,
+              "wind_deg": 230,
+              "wind_gust": 11.48,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754985600,
+              "temp": 74.23,
+              "feels_like": 73.85,
+              "pressure": 1020,
+              "humidity": 53,
+              "dew_point": 55.74,
+              "uvi": 0,
+              "clouds": 63,
+              "visibility": 10000,
+              "wind_speed": 6.02,
+              "wind_deg": 243,
+              "wind_gust": 10.69,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754989200,
+              "temp": 73.87,
+              "feels_like": 73.58,
+              "pressure": 1020,
+              "humidity": 56,
+              "dew_point": 56.95,
+              "uvi": 0,
+              "clouds": 76,
+              "visibility": 10000,
+              "wind_speed": 6.2,
+              "wind_deg": 255,
+              "wind_gust": 11.01,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754992800,
+              "temp": 73.45,
+              "feels_like": 73.33,
+              "pressure": 1020,
+              "humidity": 60,
+              "dew_point": 58.78,
+              "uvi": 0,
+              "clouds": 81,
+              "visibility": 10000,
+              "wind_speed": 6.17,
+              "wind_deg": 261,
+              "wind_gust": 11.1,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1754996400,
+              "temp": 73.78,
+              "feels_like": 73.81,
+              "pressure": 1020,
+              "humidity": 63,
+              "dew_point": 60.4,
+              "uvi": 0.23,
+              "clouds": 78,
+              "visibility": 10000,
+              "wind_speed": 5.57,
+              "wind_deg": 265,
+              "wind_gust": 8.95,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755000000,
+              "temp": 75.67,
+              "feels_like": 75.79,
+              "pressure": 1020,
+              "humidity": 61,
+              "dew_point": 61.5,
+              "uvi": 0.95,
+              "clouds": 75,
+              "visibility": 10000,
+              "wind_speed": 4.63,
+              "wind_deg": 263,
+              "wind_gust": 6.11,
+              "weather": [
+                {
+                  "id": 803,
+                  "main": "Clouds",
+                  "description": "broken clouds",
+                  "icon": "04d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755003600,
+              "temp": 78.17,
+              "feels_like": 78.42,
+              "pressure": 1020,
+              "humidity": 58,
+              "dew_point": 62.1,
+              "uvi": 2.36,
+              "clouds": 22,
+              "visibility": 10000,
+              "wind_speed": 4.56,
+              "wind_deg": 240,
+              "wind_gust": 5.48,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755007200,
+              "temp": 80.78,
+              "feels_like": 82,
+              "pressure": 1020,
+              "humidity": 54,
+              "dew_point": 62.29,
+              "uvi": 4.33,
+              "clouds": 16,
+              "visibility": 10000,
+              "wind_speed": 5.77,
+              "wind_deg": 222,
+              "wind_gust": 6.98,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755010800,
+              "temp": 83.41,
+              "feels_like": 84.2,
+              "pressure": 1019,
+              "humidity": 49,
+              "dew_point": 61.5,
+              "uvi": 6.4,
+              "clouds": 14,
+              "visibility": 10000,
+              "wind_speed": 6.15,
+              "wind_deg": 193,
+              "wind_gust": 6.93,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755014400,
+              "temp": 84.92,
+              "feels_like": 85.42,
+              "pressure": 1019,
+              "humidity": 46,
+              "dew_point": 61.25,
+              "uvi": 8,
+              "clouds": 12,
+              "visibility": 10000,
+              "wind_speed": 8.03,
+              "wind_deg": 175,
+              "wind_gust": 8.63,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755018000,
+              "temp": 85.53,
+              "feels_like": 86.45,
+              "pressure": 1018,
+              "humidity": 47,
+              "dew_point": 61.65,
+              "uvi": 8.55,
+              "clouds": 13,
+              "visibility": 10000,
+              "wind_speed": 10.29,
+              "wind_deg": 167,
+              "wind_gust": 10.69,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755021600,
+              "temp": 85.5,
+              "feels_like": 86.65,
+              "pressure": 1017,
+              "humidity": 48,
+              "dew_point": 62.24,
+              "uvi": 7.9,
+              "clouds": 13,
+              "visibility": 10000,
+              "wind_speed": 11.65,
+              "wind_deg": 161,
+              "wind_gust": 11.52,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755025200,
+              "temp": 85.5,
+              "feels_like": 86.65,
+              "pressure": 1017,
+              "humidity": 48,
+              "dew_point": 62.42,
+              "uvi": 6.29,
+              "clouds": 5,
+              "visibility": 10000,
+              "wind_speed": 12.75,
+              "wind_deg": 158,
+              "wind_gust": 12.21,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755028800,
+              "temp": 85.86,
+              "feels_like": 87.13,
+              "pressure": 1016,
+              "humidity": 48,
+              "dew_point": 63,
+              "uvi": 4.2,
+              "clouds": 6,
+              "visibility": 10000,
+              "wind_speed": 13.56,
+              "wind_deg": 157,
+              "wind_gust": 12.59,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755032400,
+              "temp": 84.54,
+              "feels_like": 86.31,
+              "pressure": 1016,
+              "humidity": 52,
+              "dew_point": 64.58,
+              "uvi": 2.25,
+              "clouds": 4,
+              "visibility": 10000,
+              "wind_speed": 14.47,
+              "wind_deg": 156,
+              "wind_gust": 14.12,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755036000,
+              "temp": 82.58,
+              "feels_like": 84.87,
+              "pressure": 1015,
+              "humidity": 58,
+              "dew_point": 65.86,
+              "uvi": 0.87,
+              "clouds": 3,
+              "visibility": 10000,
+              "wind_speed": 14.47,
+              "wind_deg": 158,
+              "wind_gust": 16.4,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755039600,
+              "temp": 81.18,
+              "feels_like": 83.44,
+              "pressure": 1015,
+              "humidity": 61,
+              "dew_point": 66.27,
+              "uvi": 0.21,
+              "clouds": 3,
+              "visibility": 10000,
+              "wind_speed": 14.32,
+              "wind_deg": 163,
+              "wind_gust": 18.28,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755043200,
+              "temp": 79.88,
+              "feels_like": 79.88,
+              "pressure": 1015,
+              "humidity": 66,
+              "dew_point": 67.39,
+              "uvi": 0,
+              "clouds": 3,
+              "visibility": 10000,
+              "wind_speed": 13.38,
+              "wind_deg": 171,
+              "wind_gust": 20.74,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755046800,
+              "temp": 80.01,
+              "feels_like": 82.72,
+              "pressure": 1015,
+              "humidity": 68,
+              "dew_point": 68.49,
+              "uvi": 0,
+              "clouds": 2,
+              "visibility": 10000,
+              "wind_speed": 12.35,
+              "wind_deg": 180,
+              "wind_gust": 20.92,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755050400,
+              "temp": 79.29,
+              "feels_like": 79.29,
+              "pressure": 1016,
+              "humidity": 69,
+              "dew_point": 67.95,
+              "uvi": 0,
+              "clouds": 1,
+              "visibility": 10000,
+              "wind_speed": 10.98,
+              "wind_deg": 194,
+              "wind_gust": 21.3,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755054000,
+              "temp": 78.71,
+              "feels_like": 78.71,
+              "pressure": 1015,
+              "humidity": 70,
+              "dew_point": 67.96,
+              "uvi": 0,
+              "clouds": 1,
+              "visibility": 10000,
+              "wind_speed": 10,
+              "wind_deg": 207,
+              "wind_gust": 21.41,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755057600,
+              "temp": 77.99,
+              "feels_like": 78.87,
+              "pressure": 1015,
+              "humidity": 72,
+              "dew_point": 68.34,
+              "uvi": 0,
+              "clouds": 0,
+              "visibility": 10000,
+              "wind_speed": 9.35,
+              "wind_deg": 210,
+              "wind_gust": 18.99,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755061200,
+              "temp": 77.41,
+              "feels_like": 78.39,
+              "pressure": 1015,
+              "humidity": 75,
+              "dew_point": 68.67,
+              "uvi": 0,
+              "clouds": 0,
+              "visibility": 10000,
+              "wind_speed": 8.68,
+              "wind_deg": 217,
+              "wind_gust": 16.8,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755064800,
+              "temp": 77.04,
+              "feels_like": 78.01,
+              "pressure": 1015,
+              "humidity": 76,
+              "dew_point": 68.86,
+              "uvi": 0,
+              "clouds": 0,
+              "visibility": 10000,
+              "wind_speed": 7.49,
+              "wind_deg": 227,
+              "wind_gust": 14.94,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            },
+            {
+              "dt": 1755068400,
+              "temp": 76.84,
+              "feels_like": 77.85,
+              "pressure": 1014,
+              "humidity": 77,
+              "dew_point": 68.77,
+              "uvi": 0,
+              "clouds": 0,
+              "visibility": 10000,
+              "wind_speed": 6.55,
+              "wind_deg": 236,
+              "wind_gust": 13.67,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01n"
+                }
+              ],
+              "pop": 0
+            }
+          ],
+          "daily": [
+            {
+              "dt": 1754931600,
+              "sunrise": 1754906560,
+              "sunset": 1754956791,
+              "moonrise": 1754961540,
+              "moonset": 1754915340,
+              "moon_phase": 0.58,
+              "summary": "Expect a day of partly cloudy with clear spells",
+              "temp": {
+                "day": 87.71,
+                "min": 68.13,
+                "max": 88.57,
+                "night": 76.93,
+                "eve": 81.99,
+                "morn": 70.11
+              },
+              "feels_like": {
+                "day": 86.58,
+                "night": 76.57,
+                "eve": 82.45,
+                "morn": 69.93
+              },
+              "pressure": 1022,
+              "humidity": 36,
+              "dew_point": 54.32,
+              "wind_speed": 12.66,
+              "wind_deg": 162,
+              "wind_gust": 16.15,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "clouds": 12,
+              "pop": 0,
+              "uvi": 8.34
+            },
+            {
+              "dt": 1755018000,
+              "sunrise": 1754993020,
+              "sunset": 1755043113,
+              "moonrise": 1755049320,
+              "moonset": 1755006120,
+              "moon_phase": 0.62,
+              "summary": "Expect a day of partly cloudy with clear spells",
+              "temp": {
+                "day": 85.53,
+                "min": 73.45,
+                "max": 85.86,
+                "night": 78.71,
+                "eve": 81.18,
+                "morn": 73.78
+              },
+              "feels_like": {
+                "day": 86.45,
+                "night": 78.71,
+                "eve": 83.44,
+                "morn": 73.81
+              },
+              "pressure": 1018,
+              "humidity": 47,
+              "dew_point": 61.65,
+              "wind_speed": 14.47,
+              "wind_deg": 156,
+              "wind_gust": 21.41,
+              "weather": [
+                {
+                  "id": 801,
+                  "main": "Clouds",
+                  "description": "few clouds",
+                  "icon": "02d"
+                }
+              ],
+              "clouds": 13,
+              "pop": 0,
+              "uvi": 8.55
+            },
+            {
+              "dt": 1755104400,
+              "sunrise": 1755079480,
+              "sunset": 1755129433,
+              "moonrise": 1755137160,
+              "moonset": 1755096900,
+              "moon_phase": 0.66,
+              "summary": "Expect a day of partly cloudy with rain",
+              "temp": {
+                "day": 86.65,
+                "min": 75.79,
+                "max": 87.69,
+                "night": 80.1,
+                "eve": 83.26,
+                "morn": 76.23
+              },
+              "feels_like": {
+                "day": 89.83,
+                "night": 82.62,
+                "eve": 87.06,
+                "morn": 77.22
+              },
+              "pressure": 1012,
+              "humidity": 53,
+              "dew_point": 66.67,
+              "wind_speed": 15.82,
+              "wind_deg": 159,
+              "wind_gust": 18.99,
+              "weather": [
+                {
+                  "id": 500,
+                  "main": "Rain",
+                  "description": "light rain",
+                  "icon": "10d"
+                }
+              ],
+              "clouds": 82,
+              "pop": 0.92,
+              "rain": 1.06,
+              "uvi": 8.35
+            },
+            {
+              "dt": 1755190800,
+              "sunrise": 1755165940,
+              "sunset": 1755215753,
+              "moonrise": 1755225240,
+              "moonset": 1755187800,
+              "moon_phase": 0.69,
+              "summary": "You can expect partly cloudy in the morning, with clearing in the afternoon",
+              "temp": {
+                "day": 91.29,
+                "min": 77.05,
+                "max": 91.9,
+                "night": 83.88,
+                "eve": 86.79,
+                "morn": 79.29
+              },
+              "feels_like": {
+                "day": 92.64,
+                "night": 83.48,
+                "eve": 87.91,
+                "morn": 79.29
+              },
+              "pressure": 1012,
+              "humidity": 40,
+              "dew_point": 62.82,
+              "wind_speed": 9.51,
+              "wind_deg": 48,
+              "wind_gust": 15.21,
+              "weather": [
+                {
+                  "id": 804,
+                  "main": "Clouds",
+                  "description": "overcast clouds",
+                  "icon": "04d"
+                }
+              ],
+              "clouds": 99,
+              "pop": 0,
+              "uvi": 8.19
+            },
+            {
+              "dt": 1755277200,
+              "sunrise": 1755252399,
+              "sunset": 1755302071,
+              "moonrise": 1755313620,
+              "moonset": 1755278820,
+              "moon_phase": 0.73,
+              "summary": "You can expect clear sky in the morning, with partly cloudy in the afternoon",
+              "temp": {
+                "day": 87.31,
+                "min": 77.68,
+                "max": 87.31,
+                "night": 78.28,
+                "eve": 79.32,
+                "morn": 77.68
+              },
+              "feels_like": {
+                "day": 85.91,
+                "night": 78.62,
+                "eve": 79.32,
+                "morn": 77.22
+              },
+              "pressure": 1018,
+              "humidity": 35,
+              "dew_point": 55.2,
+              "wind_speed": 12.26,
+              "wind_deg": 159,
+              "wind_gust": 14.36,
+              "weather": [
+                {
+                  "id": 800,
+                  "main": "Clear",
+                  "description": "clear sky",
+                  "icon": "01d"
+                }
+              ],
+              "clouds": 5,
+              "pop": 0,
+              "uvi": 0.85
+            },
+            {
+              "dt": 1755363600,
+              "sunrise": 1755338859,
+              "sunset": 1755388388,
+              "moonrise": 1755402540,
+              "moonset": 1755369780,
+              "moon_phase": 0.75,
+              "summary": "You can expect clear sky in the morning, with rain in the afternoon",
+              "temp": {
+                "day": 87.15,
+                "min": 76.41,
+                "max": 87.15,
+                "night": 80.71,
+                "eve": 81.36,
+                "morn": 77.99
+              },
+              "feels_like": {
+                "day": 89.33,
+                "night": 83.52,
+                "eve": 84.18,
+                "morn": 78.12
+              },
+              "pressure": 1018,
+              "humidity": 49,
+              "dew_point": 64.6,
+              "wind_speed": 15.64,
+              "wind_deg": 158,
+              "wind_gust": 21.21,
+              "weather": [
+                {
+                  "id": 500,
+                  "main": "Rain",
+                  "description": "light rain",
+                  "icon": "10d"
+                }
+              ],
+              "clouds": 0,
+              "pop": 0.9,
+              "rain": 0.9,
+              "uvi": 1
+            },
+            {
+              "dt": 1755450000,
+              "sunrise": 1755425319,
+              "sunset": 1755474704,
+              "moonrise": 0,
+              "moonset": 1755460620,
+              "moon_phase": 0.8,
+              "summary": "Expect a day of partly cloudy with rain",
+              "temp": {
+                "day": 94.42,
+                "min": 77.76,
+                "max": 94.42,
+                "night": 81.77,
+                "eve": 92.52,
+                "morn": 79.5
+              },
+              "feels_like": {
+                "day": 97.93,
+                "night": 85.41,
+                "eve": 96.94,
+                "morn": 79.5
+              },
+              "pressure": 1015,
+              "humidity": 40,
+              "dew_point": 65.28,
+              "wind_speed": 10.54,
+              "wind_deg": 244,
+              "wind_gust": 20.67,
+              "weather": [
+                {
+                  "id": 500,
+                  "main": "Rain",
+                  "description": "light rain",
+                  "icon": "10d"
+                }
+              ],
+              "clouds": 5,
+              "pop": 1,
+              "rain": 1.32,
+              "uvi": 1
+            },
+            {
+              "dt": 1755532800,
+              "sunrise": 1755511778,
+              "sunset": 1755561019,
+              "moonrise": 1755492000,
+              "moonset": 1755550920,
+              "moon_phase": 0.84,
+              "summary": "The day will start with rain through the late morning hours, transitioning to partly cloudy",
+              "temp": {
+                "day": 82.69,
+                "min": 72.16,
+                "max": 83.43,
+                "night": 72.16,
+                "eve": 79,
+                "morn": 76.86
+              },
+              "feels_like": {
+                "day": 83.37,
+                "night": 72.55,
+                "eve": 79,
+                "morn": 78.1
+              },
+              "pressure": 1019,
+              "humidity": 49,
+              "dew_point": 61.14,
+              "wind_speed": 14.32,
+              "wind_deg": 140,
+              "wind_gust": 15.7,
+              "weather": [
+                {
+                  "id": 501,
+                  "main": "Rain",
+                  "description": "moderate rain",
+                  "icon": "10d"
+                }
+              ],
+              "clouds": 16,
+              "pop": 1,
+              "rain": 4.8,
+              "uvi": 1
+            }
+          ],
+          "alerts": [
+            {
+              "sender_name": "NWS Upton NY",
+              "event": "Air Quality Alert",
+              "start": 1754892540,
+              "end": 1754967600,
+              "description": "The New York State Department of Environmental Conservation has\nissued an Air Quality Health Advisory for the following counties:\n\nNew York, Bronx, Kings, Queens, Richmond, Nassau, Suffolk,\nWestchester, Rockland, Orange, Putnam.\n\nfrom 11 AM to 11 PM EDT Monday.\n\nAir quality levels in outdoor air are predicted to be greater than\nan Air Quality Index value of 100 for the pollutant of Ground Level\nOzone. The Air Quality Index, or AQI, was created as an easy way to\ncorrelate levels of different pollutants to one scale. The higher\nthe AQI value, the greater the health concern.\n\nWhen pollution levels are elevated, the New York State Department of\nHealth recommends that individuals consider limiting strenuous\noutdoor physical activity to reduce the risk of adverse health\neffects. People who may be especially sensitive to the effects of\nelevated levels of pollutants include the very young, and those with\npreexisting respiratory problems such as asthma or heart disease.\nThose with symptoms should consider consulting their personal\nphysician.\n\nFor additional information, please visit the New York State\nDepartment of Environmental Conservation website at,\nhttps://on.ny.gov/nyaqi, or call the Air Quality Hotline at\n1 800 5 3 5, 1 3 4 5.",
+              "tags": [
+                "Air quality"
+              ]
+            }
+          ]
+        }
+      },
+      "timestamp": "2025-08-11T10:30:18.761184"
+    },
+    {
+      "test_num": 14,
+      "tool_name": "perplexity.search",
+      "description": "Execute discovered perplexity.search tool",
+      "execution_time_ms": 9551.85,
+      "success": true,
+      "analysis": "Success: registry tool returned data with keys: ['answer', 'model', 'usage', 'citations', 'related_questions', 'images']",
+      "result_type": "dict",
+      "result_size": 3511,
+      "raw_result": {
+        "success": true,
+        "message": "Search completed successfully using sonar",
+        "data": {
+          "answer": "The latest developments in AI agent technology in 2025 highlight a transition from experimental tools to operational, enterprise-grade systems delivering measurable business impact. Key advances include:\n\n- **OpenAI\u2019s GPT-5**: Released recently, GPT-5 features a massive 256,000-token context window and significant improvements in coding, automation, and scientific reasoning. CEO Sam Altman calls it a major step toward Artificial General Intelligence (AGI), enabling developers to build more sophisticated AI agents and businesses to enhance automation[1].\n\n- **Gemini 2.5 Deep Think**: This is the first publicly available multi-agent AI model capable of \"parallel thinking,\" where multiple agents simultaneously explore solutions to complex problems. It outperforms competitors on challenging benchmarks, representing a breakthrough for enterprise systems and research[1].\n\n- **Agentic AI**: The new wave of AI agents is more autonomous and intelligent, shifting innovation higher up the software stack. This trend is expected to accelerate AI spending and adoption in enterprises between 2026 and 2027, moving from DIY solutions to off-the-shelf agentic AI products[2].\n\n- **Microsoft\u2019s AI agents**: Microsoft has introduced specialized AI agents integrated with Microsoft 365 and Azure AI Foundry. These agents assist with tasks like data analysis, cybersecurity (e.g., phishing triage), and secure AI app development, helping organizations automate routine tasks and improve efficiency[3].\n\n- **Market and adoption trends**: The global AI agents market is projected to reach $5.4 billion in 2024 with a 45.8% CAGR through 2030. Surveys show 79% of US companies have adopted AI agents, with 66% reporting measurable productivity gains. However, broad adoption often focuses on incremental productivity rather than full transformation. Multi-agent systems working in concert are emerging as the next step to tackle complex workflows across industries[1][5].\n\n- **Realistic expectations**: While media hype suggests AI agents will revolutionize all aspects of life, current agents mostly add planning and tool-calling capabilities to large language models. More robust, autonomous agents are anticipated soon, promising to handle high-level tasks with minimal user input[4].\n\nIn summary, 2025 marks a pivotal year where AI agents have matured into powerful, multi-agent systems with broad enterprise applications, significant automation potential, and growing market adoption, setting the stage for deeper transformation in the near future.",
+          "model": "sonar",
+          "usage": {
+            "prompt_tokens": 6,
+            "completion_tokens": 486,
+            "total_tokens": 492,
+            "search_context_size": "low",
+            "cost": {
+              "input_tokens_cost": 6e-06,
+              "output_tokens_cost": 0.000486,
+              "request_cost": 0.005,
+              "total_cost": 0.005492
+            }
+          },
+          "citations": [
+            {
+              "url": "https://aiagentstore.ai/ai-agent-news/this-week",
+              "title": "",
+              "snippet": ""
+            },
+            {
+              "url": "https://www.tdsecurities.com/ca/en/not-007-but-a-new-kind-of-ai-agent",
+              "title": "",
+              "snippet": ""
+            },
+            {
+              "url": "https://news.microsoft.com/source/features/ai/3-new-ways-ai-agents-can-help-you-do-even-more/",
+              "title": "",
+              "snippet": ""
+            },
+            {
+              "url": "https://www.ibm.com/think/insights/ai-agents-2025-expectations-vs-reality",
+              "title": "",
+              "snippet": ""
+            },
+            {
+              "url": "https://www.pwc.com/us/en/tech-effect/ai-analytics/ai-agent-survey.html",
+              "title": "",
+              "snippet": ""
+            }
+          ],
+          "related_questions": [],
+          "images": []
+        }
+      },
+      "timestamp": "2025-08-11T10:30:28.814941"
+    }
+  ]
+}

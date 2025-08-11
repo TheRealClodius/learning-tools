@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from interfaces.slack_interface import create_slack_app
+from interfaces.slack.core_slack_orchestration import create_slack_app
 
 # Create a FastAPI instance
 app = FastAPI()

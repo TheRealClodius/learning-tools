@@ -44,7 +44,7 @@
         {
             "explanation": "Get recent conversation history - returns relevant short-term memory",
             "query": "recent conversation history",
-            "max_results": 10
+            "max_results": 3
         }
     ]
 }

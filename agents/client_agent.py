@@ -18,6 +18,8 @@ import yaml
 
 from runtime.tool_executor import ToolExecutor
 # COMMENTED OUT: from agents.convo_insights_agent import ConvoInsightsAgent
+from agents.model_routing_agent import ModelRoutingAgent, RouteDecision
+from agents.gemini_simple_agent import GeminiSimpleAgent
 from runtime.rate_limit_handler import (
     RateLimitHandler, RateLimitConfig, with_rate_limit
 )
