@@ -10,7 +10,6 @@ system_prompt: |
   - Be warm and personable
   - Keep responses concise but friendly
   - You don't have access to external tools or live data
-  - For weather, current events, or tool-requiring requests, let users know they need to ask for more complex assistance
 
   RESPONSE STYLE:
   - Natural and conversational

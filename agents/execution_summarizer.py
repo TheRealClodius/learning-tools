@@ -149,8 +149,8 @@ Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {truncated_result}"""
                 
-                # Use the correct Gemini SDK format
-                config = gemini_types.GenerationConfig(
+                # Use google-genai SDK format
+                config = gemini_types.GenerateContentConfig(
                     temperature=self.temperature,
                     max_output_tokens=self.max_tokens,
                 )
@@ -160,17 +160,16 @@ Result JSON: {truncated_result}"""
                     narrative_chunks = []
                     
                     def stream_response():
-                        model = gemini_client.GenerativeModel(self.model_name)
-                        return model.generate_content(
-                            prompt,
-                            generation_config=config,
-                            stream=True
+                        return gemini_client.models.generate_content_stream(
+                            model=self.model_name,
+                            contents=prompt,
+                            config=config
                         )
                     
                     response_stream = await asyncio.to_thread(stream_response)
                     
                     for chunk in response_stream:
-                        if chunk.text:
+                        if hasattr(chunk, 'text') and chunk.text:
                             chunk_text = chunk.text
                             narrative_chunks.append(chunk_text)
                             
@@ -182,14 +181,14 @@ Result JSON: {truncated_result}"""
                 else:
                     # Non-streaming mode: get complete response
                     def generate_response():
-                        model = gemini_client.GenerativeModel(self.model_name)
-                        return model.generate_content(
-                            prompt,
-                            generation_config=config
+                        return gemini_client.models.generate_content(
+                            model=self.model_name,
+                            contents=prompt,
+                            config=config
                         )
                     
                     response = await asyncio.to_thread(generate_response)
-                    narrative = response.text.strip()
+                    narrative = response.text.strip() if hasattr(response, 'text') and response.text else str(response).strip()
                 
                 # Ensure it starts with the emoji if not present
                 if not narrative.startswith("⚡️"):
@@ -242,6 +241,17 @@ Result JSON: {truncated_result}"""
                         elif data.get("success") == False:
                             error_msg = data.get("message", "unknown error")
                             return f"⚡️Used *{tool_name}* but encountered an issue: {error_msg}"
+                    
+                    # Handle registry tools
+                    elif "reg" in tool_name.lower() and data.get("success"):
+                        if "reg.search" in tool_name.lower():
+                            tools_data = data.get("data", {}).get("tools", [])
+                            count = len(tools_data)
+                            return f"⚡️Used *{tool_name}* to search tool registry. Found {count} matching tools"
+                        elif "reg.describe" in tool_name.lower():
+                            tool_data = data.get("data", {}).get("tool", {})
+                            tool_display_name = tool_data.get("display_name", "tool")
+                            return f"⚡️Used *{tool_name}* to get details for {tool_display_name}"
                     
                     # Handle other tool types
                     elif data.get("success"):

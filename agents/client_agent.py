@@ -76,11 +76,13 @@ class ClientAgent:
         self.summarizer = None
         if self.summarization_enabled:
             self._init_summarization_client()
-            # Initialize ExecutionSummarizer utility class
-            self.execution_summarizer = ExecutionSummarizer(self.summarization_config)
+            # Initialize ExecutionSummarizer utility class (uses YAML config)
+            self.execution_summarizer = ExecutionSummarizer()
         else:
             self.execution_summarizer = None
 
+        # Tool streaming configuration
+        self.stream_tool_details = self.config.get('stream_tool_details', False)
         
         # Define function schemas for Claude - use underscore format per Anthropic API constraints
         self.tools = [
@@ -251,7 +253,7 @@ class ClientAgent:
         
         try:
             if model_name.startswith('gemini'):
-                # Initialize Gemini client
+                # Initialize Gemini client (using google-genai package)
                 from google import genai
                 from google.genai import types
                 api_key = os.environ.get("GEMINI_API_KEY")
@@ -350,6 +352,8 @@ class ClientAgent:
                 claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
                 streaming_callback=streaming_callback  # Pass streaming callback to Gemini
             )
+            # Send the final complete summary as tool_result for execution details
+            await streaming_callback(summary, "tool_result")
             return summary
         except Exception as e:
             logger.warning(f"Tool summarization failed: {e}")
@@ -902,9 +906,8 @@ class ClientAgent:
                 except Exception as e:
                     logger.warning(f"AUTO-MEMORY: Failed to add conversation to memory: {e}")
             
-            # Create background task for memory addition
-            memory_task = asyncio.create_task(add_memory_background())
-            self._track_background_task(memory_task)
+            # Create background task for memory addition (fire and forget)
+            asyncio.create_task(add_memory_background())
             
         except Exception as e:
             logger.warning(f"AUTO-MEMORY: Failed to initiate memory addition: {e}")
@@ -1345,9 +1348,8 @@ class ClientAgent:
                 except Exception as e:
                     logger.warning(f"MEMORY-STORAGE: Failed to add conversation to memory: {e}")
             
-            # Create background task for memory addition
-            memory_task = asyncio.create_task(add_memory_background())
-            self._track_background_task(memory_task)
+            # Create background task for memory addition (fire and forget)
+            asyncio.create_task(add_memory_background())
             
         except Exception as e:
             logger.warning(f"MEMORY-STORAGE: Failed to initiate memory addition: {e}")

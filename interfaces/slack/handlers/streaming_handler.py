@@ -172,7 +172,7 @@ class SlackStreamingHandler:
                 tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
                 # Ensure text is never empty (Slack requires at least 1 character)
                 if not tool_formatted:
-                    tool_formatted = "_Received an empty response_"
+                    tool_formatted = "_Tool executed_"
                 
                 blocks.append({
                     "type": "context",
@@ -190,7 +190,7 @@ class SlackStreamingHandler:
             thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
             # Ensure text is never empty (Slack requires at least 1 character)
             if not thinking_formatted:
-                thinking_formatted = "_Received an empty response_"
+                thinking_formatted = "_Processing..._"
             blocks.append({
                 "type": "context",
                 "elements": [
@@ -214,7 +214,7 @@ class SlackStreamingHandler:
             tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
             # Ensure text is never empty (Slack requires at least 1 character)
             if not tool_formatted:
-                tool_formatted = "_Received an empty response_"
+                tool_formatted = "_Tool executing..._"
             
             blocks.append({
                 "type": "context", 

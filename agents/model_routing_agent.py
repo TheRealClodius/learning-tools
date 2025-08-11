@@ -114,24 +114,26 @@ class ModelRoutingAgent:
                 return self._fallback_routing(user_message)
             
             try:
-                import google.generativeai as genai
+                from google import genai
+                from google.genai import types
                 
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(self.model)
+                # Create client
+                client = genai.Client(api_key=api_key)
                 
                 # Construct routing prompt
                 full_prompt = f"{self.routing_prompt}\n\nUser query: {user_message}"
                 
                 # Generate routing decision
-                response = model.generate_content(
-                    full_prompt,
-                    generation_config=genai.types.GenerationConfig(
+                response = client.models.generate_content(
+                    model=self.model,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
                         max_output_tokens=self.max_tokens,
                         temperature=self.temperature,
                     )
                 )
                 
-                response_text = response.text.strip()
+                response_text = response.text.strip() if response.text else ""
                 
                 # Try to parse JSON response
                 try:

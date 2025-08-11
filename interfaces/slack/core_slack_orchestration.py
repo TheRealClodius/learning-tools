@@ -162,6 +162,13 @@ class SlackInterface:
                 await self.modal_handler.update_execution_modal_page(client, body, message_ts, page)
             except Exception as e:
                 logger.error(f"Error handling prev page: {e}")
+        
+        @self.app.event("assistant_thread_context_changed")
+        async def handle_assistant_thread_context_changed(body, logger):
+            """Handle assistant thread context changed events"""
+            logger.info(f"Assistant thread context changed: {body}")
+            # This event is informational - no action needed
+            # Just acknowledging to avoid unhandled request warnings
     
     async def _handle_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming messages - simplified version"""
@@ -300,15 +307,21 @@ class SlackInterface:
             )
             logger.info(f"SLACK-TIMING: agent.process_request took {int((time.time()-t_agent)*1000)} ms user={user_id}")
             
-            # Get response text from Claude (not status message)
+            # Get response text and agent info
             response_text = response.get("response", "No response generated")
+            agent_used = response.get("agent", "unknown")
             
             # Convert mentions back to Slack format for proper linking
             response_text = await self.mention_resolver.resolve_and_format_mentions(response_text, mention_context, self.app.client)
             
-            # Replace thinking message with final response
+            # Handle response based on which agent was used
             t_finish = time.time()
-            await streaming_handler.finish_with_response(response_text, self)
+            if agent_used.startswith("gemini"):
+                # Gemini responses: simple update without execution details
+                await self._handle_simple_response(response_text, streaming_handler)
+            else:
+                # Claude responses: full execution details tracking
+                await streaming_handler.finish_with_response(response_text, self)
             logger.info(f"SLACK-TIMING: finish_with_response took {int((time.time()-t_finish)*1000)} ms user={user_id}")
             
             logger.info(f"SLACK-TIMING: end-to-end for user={user_id} ms={int((time.time()-t_overall)*1000)}")
@@ -450,6 +463,44 @@ class SlackInterface:
                 'title': '',
                 'timezone': 'UTC'
             }
+    
+    async def _handle_simple_response(self, response_text: str, streaming_handler):
+        """Handle simple Gemini responses without execution details tracking"""
+        try:
+            # Parse the response as markdown and convert to Slack blocks
+            response_blocks = MarkdownToSlackParser.parse_to_blocks(response_text)
+            if not response_blocks:
+                response_blocks = [{
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": response_text
+                    }
+                }]
+            
+            # Simple update - no execution details button for Gemini responses
+            await streaming_handler.app_client.chat_update(
+                channel=streaming_handler.channel_id,
+                ts=streaming_handler.message_ts,
+                blocks=response_blocks,
+                text=response_text  # Fallback for notifications
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating simple response: {e}")
+            # Fallback to simple text block
+            await streaming_handler.app_client.chat_update(
+                channel=streaming_handler.channel_id,
+                ts=streaming_handler.message_ts,
+                blocks=[{
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": response_text or "Error displaying response"
+                    }
+                }],
+                text=response_text
+            )
     
     async def _cleanup_cache_periodically(self):
         """Background task to clean up stale cache entries - delegated to cache service"""

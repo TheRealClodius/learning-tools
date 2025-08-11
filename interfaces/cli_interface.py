@@ -47,6 +47,10 @@ class CLIInterface:
         # Setup logging level based on verbose flag
         if verbose:
             logging.getLogger().setLevel(logging.INFO)
+        else:
+            # In non-verbose mode, suppress most logs to keep output clean
+            # Only show ERROR level logs to avoid cluttering the UI
+            logging.getLogger().setLevel(logging.ERROR)
         
         # Setup signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -122,6 +126,14 @@ class CLIInterface:
     async def _get_user_input(self) -> str:
         """Get user input asynchronously"""
         try:
+            # Ensure we're ready for input by flushing any pending output
+            import sys
+            sys.stdout.flush()
+            sys.stderr.flush()
+            
+            # Add small delay to ensure background tasks have completed
+            await asyncio.sleep(0.1)
+            
             # Run input in thread to avoid blocking
             loop = asyncio.get_event_loop()
             user_input = await loop.run_in_executor(
@@ -131,6 +143,10 @@ class CLIInterface:
             return user_input
         except EOFError:
             return "exit"
+        except Exception as e:
+            if self.verbose:
+                print(f"\n🔍 DEBUG - Input error: {e}")
+            return "exit"
     
     async def _process_user_message(self, message: str):
         """Process user message through agent"""
@@ -138,7 +154,12 @@ class CLIInterface:
             # Initialize streaming state
             self.thinking_active = True
             start_time = time.time()
-            print("🤔 Thinking...")
+            
+            # Show prettier status in non-verbose mode
+            if not self.verbose:
+                print("🎯 Processing your request...")
+            else:
+                print("Reasoning...")
             
             # Get timestamp for context
             timestamp = datetime.now().isoformat()
@@ -151,6 +172,8 @@ class CLIInterface:
                     "user_id": self.user_id,  # Unique user ID for this session
                     "timestamp": timestamp,
                     "verbose": self.verbose,
+                    "user_timezone": "UTC",
+                    "user_name": "CLI User",
                     # Disable insights updates in CLI to avoid background hangs by default
                     "disable_insights": True
                 },
@@ -160,10 +183,33 @@ class CLIInterface:
             # End thinking phase
             self.thinking_active = False
             total_time = int((time.time() - start_time) * 1000)
-            print(f"\n✨ Ready to respond! (Total processing: {total_time}ms)")
+            
+            # Show routing information
+            agent_used = response.get("agent", "unknown")
+            if not self.verbose:
+                # Prettier, simpler output for non-verbose mode
+                if agent_used.startswith("gemini"):
+                    print(f"\n🟢 Gemini • {total_time/1000:.1f}s")
+                elif agent_used.startswith("claude"):
+                    print(f"\n🔵 Claude • {total_time/1000:.1f}s")
+                else:
+                    print(f"\n✨ Complete • {total_time/1000:.1f}s")
+            else:
+                # Detailed output for verbose mode
+                if agent_used.startswith("gemini"):
+                    print(f"\n🟢 Processed by Gemini (Simple) in {total_time}ms")
+                elif agent_used.startswith("claude"):
+                    print(f"\n🔵 Processed by Claude (Complex) in {total_time}ms")
+                else:
+                    print(f"\n✨ Ready to respond! (Total processing: {total_time}ms)")
             
             # Display response
             self._display_response(response)
+            
+            # DEBUG: Add a small delay to ensure all background operations complete
+            if self.verbose:
+                print("\n🔍 DEBUG - Response display complete, preparing for next input...")
+            await asyncio.sleep(0.1)  # Give background tasks time to complete
             
         except RateLimitError as e:
             self.thinking_active = False
@@ -181,34 +227,77 @@ class CLIInterface:
                 logger.exception("Agent processing error:")
     
     async def _streaming_callback(self, content: str, content_type: str):
-        """Handle streaming content from agent"""
+        """Handle streaming content from agent - only actual events sent"""
         if content_type == "thinking" and self.thinking_active:
-            # Show each thinking line as it comes, creating a stream of consciousness
-            print(f"\n💭 {content}")
-            await asyncio.sleep(0.2)  # Brief pause to show the thinking flow
-        elif content_type == "tool_discovery":
-            # Show tool discovery notifications
-            print(f"\n🔍 {content}")
-        elif content_type == "tool_execution":
-            # Show tool execution notifications
-            print(f"\n⚡ {content}")
-        elif content_type == "tool_result":
-            # Show tool results briefly
-            print(f"\n✅ {content}")
+            if self.verbose:
+                # In verbose mode, show detailed thinking
+                print(f"\n💭 {content}")
+                await asyncio.sleep(0.2)
+            # In non-verbose mode, just update a simple thinking indicator
+            elif not hasattr(self, '_thinking_dots'):
+                self._thinking_dots = 0
+                print("🤔 Thinking", end="", flush=True)
+            else:
+                self._thinking_dots = (self._thinking_dots + 1) % 4
+                print("." * (self._thinking_dots + 1) + "\b" * 4, end="", flush=True)
+                await asyncio.sleep(0.3)
+        elif content_type == "tool_start":
+            # Only show tool_start in verbose mode or when execution summaries are disabled
+            # In normal mode, execution summaries will replace this notification
+            if self.verbose:
+                if isinstance(content, dict):
+                    tool_name = content.get("name", "unknown")
+                    print(f"\n🚀 Using {tool_name}...")
+                else:
+                    print(f"\n🚀 Using {content}...")
+            # In non-verbose mode, suppress tool_start - execution summaries will show instead
+        elif content_type == "tool_summary_chunk":
+            # MANDATORY: Real-time Gemini summary chunks from ExecutionSummarizer
+            # This replaces operation + tool_result - it's the live AI-generated summary
+            print(content, end="", flush=True)
     
     def _display_response(self, response: Dict[str, Any]):
-        """Display agent response in formatted way"""
-        print("\n🤖 Agent:")
+        """Display agent response in formatted way with routing and execution info"""
+        print("\n🤖 Agent Response:")
         
         # Main response content
         agent_response = response.get("response", "")
         if agent_response:
-            print(f"   {agent_response}")
+            # Format multi-line responses nicely
+            lines = agent_response.split('\n')
+            for line in lines:
+                if line.strip():
+                    print(f"   {line}")
+                else:
+                    print()
+        
+        # Get agent and model info (needed for both verbose and non-verbose)
+        agent_used = response.get("agent", "unknown")
+        model_used = response.get("model", "unknown")
+        
+        # Show execution summary (only in verbose mode)
+        if self.verbose:
+            
+            print(f"\n📊 Execution Summary:")
+            print(f"   • Agent: {agent_used}")
+            print(f"   • Model: {model_used}")
+            
+            # Show processing times
+            routing_time = response.get("routing_time_ms")
+            processing_time = response.get("processing_time_ms")
+            total_time = response.get("total_time_ms")
+            
+            if routing_time is not None:
+                print(f"   • Routing time: {routing_time}ms")
+            if processing_time is not None:
+                print(f"   • Processing time: {processing_time}ms")
+            if total_time is not None:
+                print(f"   • Total time: {total_time}ms")
         
         # Processing message  
         message = response.get("message", "")
-        if message:
-            print(f"\n   Status: {message}")
+        if message and message != "Request processed successfully":
+            print(f"   • Status: {message}")
         
         # Debug: Show what's actually in the response
         if self.verbose:
@@ -221,7 +310,7 @@ class CLIInterface:
         # Tool calls information - always show with detailed timing
         tool_calls = response.get("tool_calls", [])
         if tool_calls:
-            print("\n🔧 Tools executed:")
+            print("\n🔧 Tools Executed:")
             for i, tool_call in enumerate(tool_calls, 1):
                 tool_name = tool_call.get("tool", "unknown")
                 execution_time = tool_call.get("execution_time_ms", 0)
@@ -239,10 +328,11 @@ class CLIInterface:
                 elif not success:
                     error_msg = tool_call.get("error", "Unknown error")
                     print(f"      → Error: {error_msg}")
-        else:
-            # If no tool_calls found, let's check if memory is working by showing evidence
-            if "Sarah" in agent_response or "TechCorp" in agent_response or "Kubernetes" in agent_response:
-                print("\n🧠 Memory retrieval detected (agent knows previous context)")
+        # Only show tool information if tools were actually used
+        
+        # Check for memory usage indicators
+        if any(keyword in agent_response.lower() for keyword in ["remember", "recall", "previous", "context", "history"]):
+            print("\n🧠 Memory: Conversation context utilized")
         
         # Context information
         context = response.get("context", {})
@@ -251,11 +341,6 @@ class CLIInterface:
             for key, value in context.items():
                 if isinstance(value, str) and len(value) < 100:
                     print(f"   • {key}: {value}")
-        
-        # Show total agent timing if available
-        total_time = response.get("total_time_ms")
-        if total_time:
-            print(f"\n⏱️  Total agent time: {total_time}ms")
         
         print()  # Empty line for spacing
     
@@ -315,15 +400,20 @@ class CLIInterface:
         print("=" * 60)
         print("🤖 AI Agent CLI Interface")
         print("=" * 60)
-        print("Welcome! I'm your AI agent assistant.")
-        print("Type your message and I'll help you with various tasks.")
+        print("Welcome! I'm your intelligent AI assistant with routing capabilities.")
+        print("I can route to Gemini (fast) or Claude (complex) based on your needs.")
         print("\nAvailable commands:")
         print("  • help/h      - Show this help")
         print("  • status      - Show agent status") 
         print("  • tools       - List available tools")
         print("  • clear       - Clear screen")
         print("  • exit/quit/q - Exit")
-        print("\nTip: Use --verbose flag for detailed information")
+        print("\nFeatures:")
+        print("  🎯 Smart routing (Gemini for simple, Claude for complex tasks)")
+        print("  🔧 Dynamic tool execution (weather, search, memory)")
+        print("  ⚡ Real-time execution summaries powered by AI")
+        print("  🧠 Conversation memory across interactions")
+        print("\nTip: Use --verbose flag for detailed streaming information")
         print("=" * 60)
         print()
     

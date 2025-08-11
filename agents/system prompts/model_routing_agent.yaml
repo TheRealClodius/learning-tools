@@ -25,7 +25,7 @@ routing_prompt: |
 # Model configuration for routing agent
 model_config:
   model: "gemini-2.5-flash"
-  max_tokens: 200  # JSON response with reasoning
+  max_tokens: 500  # JSON response with reasoning and thinking section
   temperature: 0.0  # Deterministic routing
   timeout: 3  # Super fast timeout
 

@@ -195,9 +195,11 @@ class SlackModalHandler:
             if block_type == "thinking":
                 thinking_lines = content.split('\n') if isinstance(content, str) else [content]
                 thinking_formatted = '\n'.join([f"_{line.strip()}_" for line in thinking_lines if line.strip()])
-                # Ensure thinking_formatted is never empty
+                
+                # If no thinking content, show a helpful message or skip
                 if not thinking_formatted:
-                    thinking_formatted = "_Received an empty response_"
+                    thinking_formatted = "_Agent processed request without detailed reasoning_"
+                
                 for chunk in self._split_text_for_slack(f"*Reasoning:*\n{thinking_formatted}"):
                     add_block({
                         "type": "section",
@@ -207,18 +209,21 @@ class SlackModalHandler:
                 tool_info = content
                 # Operations are Gemini-generated summaries - just display them
                 operations_text = '\n'.join([op.strip() for op in tool_info.get('operations', []) if op])
-                # Ensure operations_text is never empty before creating blocks
-                if operations_text:
-                    for chunk in self._split_text_for_slack(operations_text):
-                        add_block({
-                            "type": "section",
-                            "text": {"type": "mrkdwn", "text": f"_{chunk}_"}
-                        })
-                else:
-                    # Empty tool response
+                
+                # If no operations text, try to show something more helpful
+                if not operations_text:
+                    tool_name = tool_info.get('name', 'Unknown tool')
+                    tool_status = tool_info.get('status', 'unknown')
+                    if tool_status == 'completed':
+                        operations_text = f"Tool '{tool_name}' completed successfully"
+                    else:
+                        operations_text = f"Tool '{tool_name}' executed ({tool_status})"
+                
+                # Create blocks for the tool information
+                for chunk in self._split_text_for_slack(operations_text):
                     add_block({
                         "type": "section",
-                        "text": {"type": "mrkdwn", "text": "_Received an empty response_"}
+                        "text": {"type": "mrkdwn", "text": f"_{chunk}_"}
                     })
             add_block({"type": "divider"})
 
