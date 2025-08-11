@@ -19,8 +19,12 @@ logger = logging.getLogger(__name__)
 
 class RouteDecision(str, Enum):
     """Route decision options"""
-    SIMPLE = "simple"    # Route to Gemini Flash
-    COMPLEX = "complex"  # Route to Claude Sonnet
+    TIER_1 = "TIER_1"    # Route to Gemini Flash (Fast & Cheap)
+    TIER_2 = "TIER_2"    # Route to Claude Sonnet (Advanced & Capable)
+    
+    # Legacy compatibility
+    SIMPLE = "TIER_1"
+    COMPLEX = "TIER_2"
 
 class ModelRoutingAgent:
     """
@@ -127,16 +131,52 @@ class ModelRoutingAgent:
                     )
                 )
                 
-                decision_text = response.text.strip().lower()
+                response_text = response.text.strip()
                 
-                # Parse the decision
-                if "simple" in decision_text:
-                    decision = RouteDecision.SIMPLE
-                elif "complex" in decision_text:
-                    decision = RouteDecision.COMPLEX
-                else:
-                    logger.warning(f"ROUTING-AGENT: Unexpected response '{decision_text}', defaulting to complex")
-                    decision = RouteDecision.COMPLEX
+                # Try to parse JSON response
+                try:
+                    import json
+                    # Extract JSON from response (might have thinking tags)
+                    json_start = response_text.find('{')
+                    json_end = response_text.rfind('}') + 1
+                    
+                    if json_start != -1 and json_end > json_start:
+                        json_text = response_text[json_start:json_end]
+                        parsed_response = json.loads(json_text)
+                        
+                        tier = parsed_response.get('tier', '').upper()
+                        reasoning = parsed_response.get('reasoning', '')
+                        
+                        if tier == "TIER_1":
+                            decision = RouteDecision.TIER_1
+                        elif tier == "TIER_2":
+                            decision = RouteDecision.TIER_2
+                        else:
+                            logger.warning(f"ROUTING-AGENT: Invalid tier '{tier}', defaulting to TIER_2")
+                            decision = RouteDecision.TIER_2
+                        
+                        # Log the reasoning for debugging
+                        if reasoning:
+                            logger.info(f"ROUTING-AGENT: Reasoning - {reasoning}")
+                    else:
+                        # Fallback to simple text parsing
+                        logger.warning("ROUTING-AGENT: No JSON found, trying text parsing")
+                        decision_text = response_text.lower()
+                        if "tier_1" in decision_text:
+                            decision = RouteDecision.TIER_1
+                        elif "tier_2" in decision_text:
+                            decision = RouteDecision.TIER_2
+                        else:
+                            logger.warning(f"ROUTING-AGENT: Unexpected response format, defaulting to TIER_2")
+                            decision = RouteDecision.TIER_2
+                            
+                except json.JSONDecodeError:
+                    logger.warning("ROUTING-AGENT: Failed to parse JSON, using fallback parsing")
+                    decision_text = response_text.lower()
+                    if "tier_1" in decision_text:
+                        decision = RouteDecision.TIER_1
+                    else:
+                        decision = RouteDecision.TIER_2
                 
                 duration_ms = int((time.time() - start_time) * 1000)
                 logger.info(f"ROUTING-AGENT: Routed to {decision.value} in {duration_ms}ms - '{user_message[:50]}...'")
@@ -149,8 +189,8 @@ class ModelRoutingAgent:
             
         except Exception as e:
             logger.error(f"ROUTING-AGENT: Failed to route query: {e}")
-            # Default to complex route when in doubt
-            return RouteDecision.COMPLEX
+            # Default to TIER_2 route when in doubt
+            return RouteDecision.TIER_2
     
     def _fallback_routing(self, user_message: str) -> RouteDecision:
         """
@@ -160,23 +200,23 @@ class ModelRoutingAgent:
         
         # Check for simple patterns
         if normalized in self.simple_patterns:
-            return RouteDecision.SIMPLE
+            return RouteDecision.TIER_1
         
         # Short messages that start with simple patterns
         if len(normalized.split()) <= self.max_simple_message_words:
             for pattern in self.simple_patterns:
                 if normalized.startswith(pattern):
-                    return RouteDecision.SIMPLE
+                    return RouteDecision.TIER_1
         
         # Check for complex indicators
         for indicator in self.complex_indicators:
             if indicator in normalized:
-                return RouteDecision.COMPLEX
+                return RouteDecision.TIER_2
         
         # Simple factual questions
         for starter in self.simple_question_starters:
             if normalized.startswith(starter) and len(normalized.split()) <= self.max_simple_question_words:
-                return RouteDecision.SIMPLE
+                return RouteDecision.TIER_1
         
         # Default to complex for ambiguous cases
-        return RouteDecision.COMPLEX
+        return RouteDecision.TIER_2

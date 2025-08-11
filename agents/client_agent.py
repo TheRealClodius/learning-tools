@@ -492,7 +492,7 @@ class ClientAgent:
             
             logger.info(f"MODEL-ROUTING: Routed to {route_decision.value} in {routing_time_ms}ms")
             
-            if route_decision == RouteDecision.SIMPLE:
+            if route_decision in [RouteDecision.SIMPLE, RouteDecision.TIER_1]:
                 # Route to Gemini Flash for simple queries
                 if streaming_callback:
                     await streaming_callback("⚡ Processing with fast conversational agent...", "operation")
