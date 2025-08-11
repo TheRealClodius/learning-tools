@@ -114,24 +114,23 @@ class ModelRoutingAgent:
                 return self._fallback_routing(user_message)
             
             try:
-                from google import genai
-                from google.genai import types
+                import google.generativeai as genai
                 
-                # Create client
-                client = genai.Client(api_key=api_key)
+                # Configure API key
+                genai.configure(api_key=api_key)
                 
                 # Construct routing prompt
                 full_prompt = f"{self.routing_prompt}\n\nUser query: {user_message}"
                 
-                # Generate routing decision
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=full_prompt,
-                    config=types.GenerateContentConfig(
-                        max_output_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                    )
+                # Create model and generate routing decision
+                model = genai.GenerativeModel(
+                    model_name=self.model,
+                    generation_config={
+                        "max_output_tokens": self.max_tokens,
+                        "temperature": self.temperature,
+                    }
                 )
+                response = model.generate_content(full_prompt)
                 
                 response_text = response.text.strip() if response.text else ""
                 

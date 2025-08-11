@@ -136,7 +136,7 @@ class ExecutionSummarizer:
             Complete narrative with result summary
         """
         # Try the configured model with provided clients
-        if self.model_name.startswith('gemini') and gemini_client and gemini_types:
+        if self.model_name.startswith('gemini') and gemini_client:
             try:
                 # Truncate result data based on token estimate for Gemini processing
                 max_tokens = self.max_result_tokens
@@ -149,10 +149,13 @@ Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {truncated_result}"""
                 
-                # Use google-genai SDK format
-                config = gemini_types.GenerateContentConfig(
-                    temperature=self.temperature,
-                    max_output_tokens=self.max_tokens,
+                # Use google.generativeai API
+                model = gemini_client.GenerativeModel(
+                    model_name=self.model_name,
+                    generation_config={
+                        "temperature": self.temperature,
+                        "max_output_tokens": self.max_tokens,
+                    }
                 )
                 
                 if streaming_callback:
@@ -160,11 +163,7 @@ Result JSON: {truncated_result}"""
                     narrative_chunks = []
                     
                     def stream_response():
-                        return gemini_client.models.generate_content_stream(
-                            model=self.model_name,
-                            contents=prompt,
-                            config=config
-                        )
+                        return model.generate_content(prompt, stream=True)
                     
                     response_stream = await asyncio.to_thread(stream_response)
                     
@@ -181,11 +180,7 @@ Result JSON: {truncated_result}"""
                 else:
                     # Non-streaming mode: get complete response
                     def generate_response():
-                        return gemini_client.models.generate_content(
-                            model=self.model_name,
-                            contents=prompt,
-                            config=config
-                        )
+                        return model.generate_content(prompt)
                     
                     response = await asyncio.to_thread(generate_response)
                     narrative = response.text.strip() if hasattr(response, 'text') and response.text else str(response).strip()

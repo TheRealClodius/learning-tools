@@ -1,14 +1,14 @@
 # Tool Summary Display Issue Analysis
 
 ## Executive Summary
-Tool summaries are not being displayed during real-time execution because the **GEMINI_API_KEY environment variable is not set**. Without this key, the tool summarization feature is automatically disabled, preventing the generation and display of AI-powered tool execution summaries.
+Tool summaries were not being displayed during real-time execution despite the GEMINI_API_KEY being set in deployment variables. The root cause was an **incorrect import statement** for the Google Generative AI library that caused the initialization to fail silently, disabling the summarization feature.
 
 ## Root Cause Analysis
 
-### 1. Environment Configuration Issue
-- **Primary Issue**: The `GEMINI_API_KEY` environment variable is not configured
-- **Location**: Should be set in `.env.local` file or as an environment variable
-- **Impact**: Without this key, the entire summarization pipeline is disabled
+### 1. Import Statement Issue
+- **Primary Issue**: Incorrect import statement `from google import genai` instead of `import google.generativeai as genai`
+- **Location**: `agents/client_agent.py` line 257 and `agents/model_routing_agent.py` line 117
+- **Impact**: ImportError was caught silently, causing the summarization feature to be disabled even with valid API key
 
 ### 2. Code Flow Analysis
 
@@ -31,13 +31,13 @@ Tool summaries are not being displayed during real-time execution because the **
    ```python
    def _init_summarization_client(self):
        if model_name.startswith('gemini'):
+           # INCORRECT: from google import genai  
+           # This import would fail with ImportError
+           # CORRECT: import google.generativeai as genai
            api_key = os.environ.get("GEMINI_API_KEY")
            if api_key:
-               self.gemini_client = genai.Client(api_key=api_key)
-               # ... setup continues
-           else:
-               logger.warning("GEMINI_API_KEY not found - tool summarization disabled")
-               self.summarization_enabled = False  # DISABLED HERE!
+               # ImportError caught here, disabling summarization
+               self.summarization_enabled = False
    ```
 
 #### Execution Flow
@@ -57,12 +57,12 @@ Tool summaries are not being displayed during real-time execution because the **
        await streaming_handler.append_to_current_tool(content)
    ```
 
-### 3. Why Summaries Don't Appear
+### 3. Why Summaries Didn't Appear
 
-When `GEMINI_API_KEY` is not set:
+When the import failed (even with GEMINI_API_KEY set):
 
-1. ❌ `self.summarization_enabled` becomes `False`
-2. ❌ `self.execution_summarizer` is set to `None`
+1. ❌ ImportError caught in try/except block (line 277-279)
+2. ❌ `self.summarization_enabled` set to `False` 
 3. ❌ Tool execution skips the summary generation step
 4. ❌ No `tool_summary_chunk` events are sent to the streaming handler
 5. ❌ The UI never receives summary content to display
@@ -97,24 +97,23 @@ summarization_config:
   enabled: true  # Feature is enabled, but requires API key
 ```
 
-## Solutions
+## The Fix Applied
 
-### Solution 1: Set GEMINI_API_KEY (Recommended)
-1. Create or edit `.env.local` file in the workspace root
-2. Add: `GEMINI_API_KEY=your_actual_gemini_api_key`
-3. Restart the application
+### Import Statement Corrections
+Fixed the incorrect imports in multiple files:
 
-### Solution 2: Implement Fallback Summaries
-If Gemini API is not available, implement a fallback mechanism:
-- Use Claude API (already available) for summarization
-- Generate basic summaries without AI
-- Display raw tool results with formatting
+1. **`agents/client_agent.py`** (line 257):
+   - Before: `from google import genai`
+   - After: `import google.generativeai as genai`
 
-### Solution 3: Better Error Messaging
-Add explicit warnings when summarization is disabled:
-- Log clear message at startup
-- Show notification in UI when summaries are unavailable
-- Provide setup instructions to users
+2. **`agents/model_routing_agent.py`** (line 117):
+   - Before: `from google import genai`
+   - After: `import google.generativeai as genai`
+
+3. **`agents/execution_summarizer.py`**:
+   - Updated to use the correct `google.generativeai` API methods
+   - Changed from `genai.Client()` to `genai.GenerativeModel()`
+   - Updated streaming implementation to match the correct API
 
 ## Testing Verification
 
@@ -140,4 +139,11 @@ Key files involved in the tool summarization pipeline:
 
 ## Conclusion
 
-The tool summaries feature is fully implemented and functional but requires the `GEMINI_API_KEY` environment variable to be set. Without this key, the entire summarization pipeline is disabled, resulting in no tool summaries being displayed during real-time execution. Setting the API key will immediately restore this functionality.
+The tool summaries feature was not working despite having the GEMINI_API_KEY set in deployment variables because of incorrect import statements for the `google-generativeai` package. The code was trying to import `from google import genai` (which doesn't exist) instead of the correct `import google.generativeai as genai`. This caused an ImportError that was silently caught, disabling the entire summarization pipeline.
+
+The fix involved:
+1. Correcting all import statements to use `import google.generativeai as genai`
+2. Updating API calls to match the correct `google.generativeai` library interface
+3. Removing references to non-existent `google.genai.types` module
+
+With these fixes applied, tool summaries should now display correctly during real-time execution when the GEMINI_API_KEY is properly configured in the deployment environment.

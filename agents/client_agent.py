@@ -253,13 +253,13 @@ class ClientAgent:
         
         try:
             if model_name.startswith('gemini'):
-                # Initialize Gemini client (using google-genai package)
-                from google import genai
-                from google.genai import types
+                # Initialize Gemini client (using google-generativeai package)
+                import google.generativeai as genai
                 api_key = os.environ.get("GEMINI_API_KEY")
                 if api_key:
-                    self.gemini_client = genai.Client(api_key=api_key)
-                    self.gemini_types = types
+                    genai.configure(api_key=api_key)
+                    self.gemini_client = genai
+                    self.gemini_types = None  # Not needed with google.generativeai
                     self.summarizer_model = model_name
                     logger.info(f"Initialized {model_name} for tool summarization")
                 else:
@@ -348,7 +348,7 @@ class ClientAgent:
                 result_data=result_data,
                 initial_narrative="",
                 gemini_client=getattr(self, 'gemini_client', None),
-                gemini_types=getattr(self, 'gemini_types', None),
+                gemini_types=None,  # Not needed with google.generativeai
                 claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
                 streaming_callback=streaming_callback  # Pass streaming callback to Gemini
             )
@@ -381,7 +381,7 @@ class ClientAgent:
                 result_data=result_data,
                 initial_narrative="",
                 gemini_client=getattr(self, 'gemini_client', None),
-                gemini_types=getattr(self, 'gemini_types', None),
+                gemini_types=None,  # Not needed with google.generativeai
                 claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None
             )
             return summary
