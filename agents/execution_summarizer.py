@@ -77,8 +77,8 @@ Examples:
 
 Write the narrative summary:"""
                 
-                # Use the new SDK format with GenerateContentConfig
-                config = gemini_types.GenerateContentConfig(
+                # Use the correct Gemini SDK format
+                config = gemini_types.GenerationConfig(
                     temperature=self.temperature,
                     max_output_tokens=self.max_tokens,
                 )
@@ -88,10 +88,11 @@ Write the narrative summary:"""
                     narrative_chunks = []
                     
                     def stream_response():
-                        return gemini_client.models.generate_content_stream(
-                            model=self.model_name,
-                            contents=prompt,
-                            config=config
+                        model = gemini_client.GenerativeModel(self.model_name)
+                        return model.generate_content(
+                            prompt,
+                            generation_config=config,
+                            stream=True
                         )
                     
                     response_stream = await asyncio.to_thread(stream_response)
@@ -108,12 +109,14 @@ Write the narrative summary:"""
                     narrative = "".join(narrative_chunks).strip()
                 else:
                     # Non-streaming mode: get complete response
-                    response = await asyncio.to_thread(
-                        gemini_client.models.generate_content,
-                        model=self.model_name,
-                        contents=prompt,
-                        config=config
-                    )
+                    def generate_response():
+                        model = gemini_client.GenerativeModel(self.model_name)
+                        return model.generate_content(
+                            prompt,
+                            generation_config=config
+                        )
+                    
+                    response = await asyncio.to_thread(generate_response)
                     narrative = response.text.strip()
                 
                 # Ensure it starts with the emoji if not present
@@ -136,39 +139,63 @@ Write the narrative summary:"""
         """Fallback narrative completion when LLM is not available"""
         try:
             # Try to parse as JSON for better analysis
-            if result_data.startswith("{") or result_data.startswith("["):
+            if result_data.strip().startswith("{") or result_data.strip().startswith("["):
                 data = json.loads(result_data)
                 
                 if isinstance(data, dict):
-                    # Check for common patterns
-                    if data.get("status") == "success":
-                        if "weather" in tool_name.lower():
-                            temp = data.get("data", {}).get("temperature")
-                            conditions = data.get("data", {}).get("conditions")
-                            if temp and conditions:
-                                return f"{initial_narrative}. Got {temp}°F and {conditions}"
-                            elif temp:
-                                return f"{initial_narrative}. Got temperature {temp}°F"
-                            return f"{initial_narrative}. Retrieved weather information"
-                        elif "slack" in tool_name.lower():
+                    # Enhanced weather tool handling
+                    if "weather" in tool_name.lower():
+                        if data.get("success") and "data" in data:
+                            weather_data = data["data"]
+                            # Handle OpenWeatherMap format
+                            if "main" in weather_data and "weather" in weather_data:
+                                temp = weather_data.get("main", {}).get("temp")
+                                weather_desc = weather_data.get("weather", [{}])[0].get("description", "")
+                                city = weather_data.get("name", "location")
+                                
+                                if temp and weather_desc:
+                                    return f"⚡️Used *{tool_name}* to get weather for {city}. Currently {temp}°C, {weather_desc}"
+                                elif temp:
+                                    return f"⚡️Used *{tool_name}* to get weather for {city}. Currently {temp}°C"
+                                else:
+                                    return f"⚡️Used *{tool_name}* to get weather for {city}. Retrieved current conditions"
+                            
+                            # Handle search results format
+                            elif isinstance(weather_data, list) and weather_data:
+                                location = weather_data[0]
+                                name = location.get("name", "location")
+                                country = location.get("country", "")
+                                return f"⚡️Used *{tool_name}* to search locations. Found {name}, {country}"
+                        
+                        elif data.get("success") == False:
+                            error_msg = data.get("message", "unknown error")
+                            return f"⚡️Used *{tool_name}* but encountered an issue: {error_msg}"
+                    
+                    # Handle other tool types
+                    elif data.get("success"):
+                        if "slack" in tool_name.lower():
                             if "messages" in str(data):
                                 count = len(data.get("data", {}).get("messages", []))
-                                return f"{initial_narrative}. Found {count} relevant messages"
+                                return f"⚡️Used *{tool_name}* to search messages. Found {count} relevant messages"
                             elif "channels" in str(data):
                                 count = len(data.get("data", {}).get("channels", []))
-                                return f"{initial_narrative}. Retrieved {count} channels"
-                        return f"{initial_narrative}. Completed successfully"
+                                return f"⚡️Used *{tool_name}* to get channels. Retrieved {count} channels"
+                        return f"⚡️Used *{tool_name}* successfully. Retrieved requested data"
+                    
                     elif "error" in data:
-                        return f"{initial_narrative}. Error: {str(data['error'])[:50]}"
+                        return f"⚡️Used *{tool_name}* but got error: {str(data['error'])[:50]}"
                     elif "results" in data:
                         count = len(data["results"]) if isinstance(data["results"], list) else 1
-                        return f"{initial_narrative}. Found {count} results"
+                        return f"⚡️Used *{tool_name}* successfully. Found {count} results"
                     
                 elif isinstance(data, list):
-                    return f"{initial_narrative}. Retrieved {len(data)} items"
+                    return f"⚡️Used *{tool_name}* successfully. Retrieved {len(data)} items"
                     
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Fallback parsing failed for {tool_name}: {e}")
         
-        # Generic fallback
-        return f"{initial_narrative}. Completed operation"
+        # Ensure we always have a meaningful response
+        if initial_narrative and len(initial_narrative.strip()) > 10:
+            return f"{initial_narrative}. Operation completed"
+        else:
+            return f"⚡️Used *{tool_name}* - completed successfully"
