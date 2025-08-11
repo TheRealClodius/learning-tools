@@ -105,12 +105,8 @@ class SlackStreamingHandler:
     async def append_to_current_tool(self, chunk: str):
         """Append a chunk to the current tool's operations (for streaming summaries)"""
         if self.current_tool_block:
-            # If this is the first chunk, replace any existing operations
-            if len(self.current_tool_block["operations"]) == 0:
-                self.current_tool_block["operations"] = [chunk]
-            else:
-                # Append to the last operation (streaming continuation)
-                self.current_tool_block["operations"][-1] += chunk
+            # Always append each chunk as a separate operation entry
+            self.current_tool_block["operations"].append(chunk)
             await self._update_display()
         
     async def complete_tool(self, result_summary: str):
@@ -122,8 +118,11 @@ class SlackStreamingHandler:
         
         if result_summary:
             # All tools now get complete summaries from ClientAgent (Gemini)
-            # Just use the summary directly - no need for complex logic
-            self.current_tool_block["operations"] = [result_summary]
+            # Append the summary to any existing operations instead of replacing them
+            if not self.current_tool_block["operations"]:
+                self.current_tool_block["operations"] = [result_summary]
+            else:
+                self.current_tool_block["operations"].append(result_summary)
         
         # Store completed tool for display and modal
         completed_tool = self.current_tool_block.copy()

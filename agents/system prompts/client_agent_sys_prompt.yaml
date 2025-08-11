@@ -140,6 +140,10 @@ model_config:
   temperature: 0.4
   max_iterations: 24
 
+# Tool summarization configuration
+summarization_config:
+  enabled: true
+
 # Metadata
 version: "1.2"
 description: "System prompt configuration for the client agent"
