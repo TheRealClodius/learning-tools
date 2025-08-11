@@ -1278,12 +1278,8 @@ class ClientAgent:
             prompt_parts.append(context_info)
             prompt_parts.append("")
         
-        # 4. HIGHLIGHTS (pins/recommendations - currently disabled)
-        highlights = await self._get_highlights(user_id)
-        if highlights:
-            prompt_parts.append("HIGHLIGHTS")
-            prompt_parts.append(highlights)
-            prompt_parts.append("")
+        # 4. HIGHLIGHTS (pins/recommendations - REMOVED)
+        # Note: pins/recommendations system was removed as requested
         
         # 5. CURRENT TIME
         import datetime
