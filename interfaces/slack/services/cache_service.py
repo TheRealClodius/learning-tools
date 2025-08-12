@@ -59,10 +59,14 @@ class SlackCacheService:
                 logger.warning(f"No execution details found in database for message_ts: {message_ts}")
                 return None
             
+            # ENHANCED DEBUG: Log first item content to verify correct data
+            first_item = execution_data[0] if execution_data else None
+            first_content = str(first_item[1])[:100] if first_item and len(first_item) > 1 else "N/A"
+            logger.info(f"🔍 DB-HIT: message_ts={message_ts}, count={len(execution_data)}, first_content='{first_content}...'")
+            
             # Return in same format as before (timestamp, data) for compatibility
             # Use current time as timestamp since we don't need it for staleness checks anymore
             current_time = time.time()
-            logger.info(f"DB-HIT: Retrieved {len(execution_data)} execution details from database")
             return (current_time, execution_data)
             
         except Exception as e:

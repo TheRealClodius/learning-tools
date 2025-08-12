@@ -38,6 +38,12 @@ class SlackModalHandler:
             user_id = body.get("user", {}).get("id")
             message_ts = body["actions"][0]["value"]
             
+            # ENHANCED DEBUG: Log the exact button details
+            container = body.get("container", {})
+            container_message_ts = container.get("message_ts", "N/A")
+            logger.info(f"🔍 MODAL-DEBUG: button_value={message_ts}, container_message_ts={container_message_ts}")
+            logger.info(f"🔍 MODAL-DEBUG: action_details={body.get('actions', [{}])[0]}")
+            
             logger.info(f"Fast modal open for user {user_id}, message_ts: {message_ts}, trigger_id: {trigger_id[:8]}...")
             
             # FAST DATABASE LOOKUP: Get execution details from database immediately
@@ -207,23 +213,14 @@ class SlackModalHandler:
                     })
             elif block_type == "tool":
                 tool_info = content
-                # Operations are Gemini-generated summaries - just display them
-                operations_text = '\n'.join([op.strip() for op in tool_info.get('operations', []) if op])
-                
-                # If no operations text, try to show something more helpful
-                if not operations_text:
-                    tool_name = tool_info.get('name', 'Unknown tool')
-                    tool_status = tool_info.get('status', 'unknown')
-                    if tool_status == 'completed':
-                        operations_text = f"Tool '{tool_name}' completed successfully"
-                    else:
-                        operations_text = f"Tool '{tool_name}' executed ({tool_status})"
+                # Use the same formatting logic as real-time display
+                formatted_tool_text = self._format_tool_block_for_modal(tool_info)
                 
                 # Create blocks for the tool information
-                for chunk in self._split_text_for_slack(operations_text):
+                for chunk in self._split_text_for_slack(formatted_tool_text):
                     add_block({
                         "type": "section",
-                        "text": {"type": "mrkdwn", "text": f"_{chunk}_"}
+                        "text": {"type": "mrkdwn", "text": chunk}
                     })
             add_block({"type": "divider"})
 
@@ -232,6 +229,62 @@ class SlackModalHandler:
             pages[-1].pop()
 
         return pages
+
+    def _format_tool_block_for_modal(self, tool_info: Dict) -> str:
+        """Format tool information for modal display (same logic as real-time streaming)"""
+        tool_name = tool_info.get('name', 'Unknown tool')
+        status = tool_info.get('status', 'running')
+        error = tool_info.get('error')
+        result = tool_info.get('result')
+        tool_args = tool_info.get('args', {})
+
+        # Start with tool name and operation
+        parts = []
+
+        if status == "running":
+            parts.append(f"⚡️ *{tool_name}* executing...")
+        elif status == "failed" and error:
+            parts.append(f"⚡️ *{tool_name}* failed: {error}")
+        elif status == "completed":
+            # Format success message based on tool type and result
+            success_msg = self._format_tool_success_for_modal(tool_name, tool_args, result)
+            parts.append(success_msg)
+        else:
+            parts.append(f"⚡️ *{tool_name}* completed")
+
+        # Combine all parts and italicize the entire block
+        tool_content = '\n'.join(parts)
+        return f"_{tool_content}_"
+
+    def _format_tool_success_for_modal(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format successful tool execution message for modal"""
+        # Weather tools
+        if tool_name.startswith('weather.'):
+            if 'search' in tool_name:
+                return f"⚡️ *{tool_name}* found location: {tool_args.get('q', 'unknown location')}"
+            elif 'current' in tool_name:
+                return f"⚡️ *{tool_name}* retrieved current weather"
+            elif 'forecast' in tool_name:
+                return f"⚡️ *{tool_name}* retrieved weather data"
+            else:
+                return f"⚡️ *{tool_name}* completed successfully"
+
+        # Registry tools
+        elif tool_name.startswith('reg_'):
+            if 'search' in tool_name:
+                return f"⚡️ *{tool_name}* completed successfully"
+            elif 'describe' in tool_name:
+                return f"⚡️ *{tool_name}* completed successfully"
+            else:
+                return f"⚡️ *{tool_name}* completed successfully"
+
+        # Memory tools
+        elif tool_name.startswith('memory.'):
+            return f"⚡️ *{tool_name}* completed successfully"
+
+        # Default format
+        else:
+            return f"⚡️ *{tool_name}* completed successfully"
 
     def _build_modal_view(self, page_blocks: List[Dict[str, Any]], page_index: int, total_pages: int, message_ts: str) -> Dict[str, Any]:
         """Construct a modal view with navigation for the given page of blocks"""
