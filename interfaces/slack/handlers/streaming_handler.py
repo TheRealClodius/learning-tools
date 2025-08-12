@@ -143,11 +143,8 @@ class SlackStreamingHandler:
         
         if result_summary:
             # All tools now get complete summaries from ClientAgent (Gemini)
-            # Append the summary to any existing operations instead of replacing them
-            if not self.current_tool_block["operations"]:
-                self.current_tool_block["operations"] = [result_summary]
-            else:
-                self.current_tool_block["operations"].append(result_summary)
+            # Replace any streaming chunks with the final complete summary
+            self.current_tool_block["operations"] = [result_summary]
         
         # Store completed tool for display and modal
         completed_tool = self.current_tool_block.copy()

@@ -155,6 +155,9 @@ Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {truncated_result}"""
                 
+                logger.info(f"EXEC-SUMMARIZER: Prompt length: {len(prompt)} chars")
+                logger.info(f"EXEC-SUMMARIZER: Truncated result length: {len(truncated_result)} chars")
+                
                 # Use modern google-genai SDK format
                 config = gemini_types.GenerateContentConfig(
                     temperature=self.temperature,
@@ -166,60 +169,100 @@ Result JSON: {truncated_result}"""
                     narrative_chunks = []
                     
                     def stream_response():
-                        return gemini_client.models.generate_content_stream(
-                            model=self.model_name,
-                            contents=prompt,
-                            config=config
-                        )
+                        try:
+                            logger.info(f"EXEC-SUMMARIZER: Calling Gemini API with model={self.model_name}")
+                            return gemini_client.models.generate_content_stream(
+                                model=self.model_name,
+                                contents=prompt,
+                                config=config
+                            )
+                        except Exception as e:
+                            logger.error(f"EXEC-SUMMARIZER: Gemini API call failed: {e}")
+                            logger.error(f"EXEC-SUMMARIZER: Exception type: {type(e)}")
+                            raise
                     
                     logger.info(f"EXEC-SUMMARIZER: About to call stream_response...")
-                    response_stream = await asyncio.to_thread(stream_response)
-                    logger.info(f"EXEC-SUMMARIZER: Stream response type: {type(response_stream)}")
+                    try:
+                        response_stream = await asyncio.to_thread(stream_response)
+                        logger.info(f"EXEC-SUMMARIZER: Stream response type: {type(response_stream)}")
+                    except Exception as stream_error:
+                        logger.error(f"EXEC-SUMMARIZER: Failed to get stream response: {stream_error}")
+                        logger.error(f"EXEC-SUMMARIZER: Stream error type: {type(stream_error)}")
+                        
+                        # Check for specific error types
+                        error_str = str(stream_error).lower()
+                        if 'rate limit' in error_str or 'quota' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: RATE LIMIT detected in Gemini API")
+                        elif 'timeout' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: TIMEOUT detected in Gemini API")
+                        elif '429' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: HTTP 429 (Rate Limit) from Gemini API")
+                        elif '403' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: HTTP 403 (Forbidden) from Gemini API - check API key")
+                        elif '401' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: HTTP 401 (Unauthorized) from Gemini API - invalid API key")
+                        
+                        # Fallback to empty summary
+                        return "⚡️"
                     
                     chunk_count = 0
                     # Process stream directly without nested async
-                    for chunk in response_stream:
-                        chunk_count += 1
-                        logger.info(f"EXEC-SUMMARIZER: Streaming chunk #{chunk_count}, type: {type(chunk)}")
-                        logger.info(f"EXEC-SUMMARIZER: Chunk attributes: {dir(chunk)}")
-                        
-                        # Try different ways to access text content based on new API
-                        chunk_text = None
-                        if hasattr(chunk, 'text') and chunk.text:
-                            chunk_text = chunk.text
-                        elif hasattr(chunk, 'content') and chunk.content:
-                            # Some versions use .content instead of .text
-                            chunk_text = chunk.content
-                        elif hasattr(chunk, 'parts') and chunk.parts:
-                            # Some versions have parts array
-                            for part in chunk.parts:
-                                if hasattr(part, 'text') and part.text:
-                                    chunk_text = part.text
-                                    break
-                        elif hasattr(chunk, 'candidates') and chunk.candidates:
-                            # Try candidates structure
-                            for candidate in chunk.candidates:
-                                if hasattr(candidate, 'content') and candidate.content:
-                                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
-                                        for part in candidate.content.parts:
-                                            if hasattr(part, 'text') and part.text:
-                                                chunk_text = part.text
-                                                break
-                                    elif hasattr(candidate.content, 'text') and candidate.content.text:
-                                        chunk_text = candidate.content.text
-                                        break
-                                if chunk_text:
-                                    break
-                        
-                        if chunk_text:
-                            logger.info(f"EXEC-SUMMARIZER: Streaming chunk text: {chunk_text[:50]}...")
-                            narrative_chunks.append(chunk_text)
+                    try:
+                        for chunk in response_stream:
+                            chunk_count += 1
+                            logger.info(f"EXEC-SUMMARIZER: Streaming chunk #{chunk_count}, type: {type(chunk)}")
+                            logger.info(f"EXEC-SUMMARIZER: Chunk attributes: {dir(chunk)}")
                             
-                            # Stream each chunk immediately to UI
-                            await streaming_callback(chunk_text, "tool_summary_chunk")
-                        else:
-                            logger.warning(f"EXEC-SUMMARIZER: Chunk has no text content: {str(chunk)[:100]}...")
-                            logger.warning(f"EXEC-SUMMARIZER: Full chunk structure: {chunk}")
+                            # Try different ways to access text content based on new API
+                            chunk_text = None
+                            if hasattr(chunk, 'text') and chunk.text:
+                                chunk_text = chunk.text
+                            elif hasattr(chunk, 'content') and chunk.content:
+                                # Some versions use .content instead of .text
+                                chunk_text = chunk.content
+                            elif hasattr(chunk, 'parts') and chunk.parts:
+                                # Some versions have parts array
+                                for part in chunk.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        chunk_text = part.text
+                                        break
+                            elif hasattr(chunk, 'candidates') and chunk.candidates:
+                                # Try candidates structure
+                                for candidate in chunk.candidates:
+                                    if hasattr(candidate, 'content') and candidate.content:
+                                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                            for part in candidate.content.parts:
+                                                if hasattr(part, 'text') and part.text:
+                                                    chunk_text = part.text
+                                                    break
+                                        elif hasattr(candidate.content, 'text') and candidate.content.text:
+                                            chunk_text = candidate.content.text
+                                            break
+                                    if chunk_text:
+                                        break
+                            
+                            if chunk_text:
+                                logger.info(f"EXEC-SUMMARIZER: Streaming chunk text: {chunk_text[:50]}...")
+                                narrative_chunks.append(chunk_text)
+                                
+                                # Stream each chunk immediately to UI
+                                await streaming_callback(chunk_text, "tool_summary_chunk")
+                            else:
+                                logger.warning(f"EXEC-SUMMARIZER: Chunk has no text content: {str(chunk)[:100]}...")
+                                logger.warning(f"EXEC-SUMMARIZER: Full chunk structure: {chunk}")
+                    
+                    except Exception as chunk_error:
+                        logger.error(f"EXEC-SUMMARIZER: Error processing stream chunks: {chunk_error}")
+                        logger.error(f"EXEC-SUMMARIZER: Chunk error type: {type(chunk_error)}")
+                        
+                        # Check for specific streaming errors
+                        error_str = str(chunk_error).lower()
+                        if 'rate limit' in error_str or 'quota' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: RATE LIMIT during streaming")
+                        elif 'timeout' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: TIMEOUT during streaming")
+                        elif 'connection' in error_str:
+                            logger.error(f"EXEC-SUMMARIZER: CONNECTION ERROR during streaming")
                     
                     logger.info(f"EXEC-SUMMARIZER: Finished iterating, received {chunk_count} chunks")
                     # Combine all chunks for final return
