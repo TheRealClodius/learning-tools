@@ -3,25 +3,15 @@
 
 # System prompt for tool execution summarization
 system_prompt: |
-  Create a single-line narrative summary of this tool execution using the template format.
+  Create a concise, single-line narrative summary of this tool execution:
 
-  Template format: ⚡️Used *[tool_name]* to/for [purpose extracted from args]. [Result summary from JSON]
+  Format: ⚡️Used *[tool_name]* to [action]. [Brief result from JSON]
 
   Examples:
-  - Tool: weather.current, Args: {"q": "London", "units": "metric"}, Result: {"success": true, "message": "Current weather data retrieved successfully", "data": {"coord": {"lon": -0.1257, "lat": 51.5085}, "weather": [{"id": 803, "main": "Clouds", "description": "broken clouds", "icon": "04d"}], "base": "stations", "main": {"temp": 18.5, "feels_like": 17.8, "temp_min": 16.2, "temp_max": 20.1, "pressure": 1013, "humidity": 72}, "visibility": 10000, "wind": {"speed": 3.6, "deg": 240}, "clouds": {"all": 75}, "dt": 1704902400, "sys": {"type": 2, "id": 2019646, "country": "GB", "sunrise": 1704875123, "sunset": 1704905456}, "timezone": 0, "id": 2643743, "name": "London", "cod": 200}}
-    Output: ⚡️Used *weather* *current* to get weather for London. Currently 18.5°C with broken clouds, humidity 72%, wind 3.6 m/s
-    
-  - Tool: slack.vector_search, Args: {"query": "project status", "limit": 5}, Result: {"success": true, "message": "Vector search completed", "data": {"query": "project status", "total_results": 12, "messages": [{"text": "Backend API development is 85% complete, expect deployment by Friday", "user": "john.doe", "channel": "dev-team", "timestamp": "2024-01-15T14:30:00Z", "relevance_score": 0.92}, {"text": "Frontend dashboard redesign finished, pending review from design team", "user": "sarah.smith", "channel": "general", "timestamp": "2024-01-15T11:45:00Z", "relevance_score": 0.87}, {"text": "Database migration completed successfully, performance improved by 40%", "user": "mike.wilson", "channel": "dev-team", "timestamp": "2024-01-14T16:20:00Z", "relevance_score": 0.83}], "channels": ["dev-team", "general"], "search_time_ms": 45}}
-    Output: ⚡️Used *slack* *vector_search* to search for 'project status'. Found 12 results: Backend API 85% complete (john.doe), Frontend dashboard finished (sarah.smith), Database migration completed with 40% performance boost (mike.wilson)
-
-  - Tool: perplexity.search, Args: {"query": "Gemini 2.5 Flash capabilities", "focus": "academic"}, Result: {"success": true, "message": "Search completed successfully", "data": {"query": "Gemini 2.5 Flash capabilities", "sources": 8, "articles": [{"title": "Google's Gemini 2.5 Flash: Speed Meets Intelligence", "url": "https://example.com/gemini-review", "summary": "Gemini 2.5 Flash offers 2x faster processing than previous versions while maintaining accuracy", "published": "2024-01-10", "relevance": 0.94}, {"title": "Comparative Analysis: Gemini vs GPT-4 Turbo", "url": "https://example.com/comparison", "summary": "Benchmark tests show Gemini 2.5 Flash excels in reasoning tasks and multimodal processing", "published": "2024-01-08", "relevance": 0.89}], "search_time": 1.2, "total_tokens": 1547}}
-    Output: ⚡️Used *perplexity* *search* to research 'Gemini 2.5 Flash capabilities'. Found 8 sources: 2x faster processing than previous versions, excels in reasoning tasks and multimodal processing vs GPT-4 Turbo
-
-  - Tool: memory.retrieve, Args: {"query": "user communication preferences", "relationship": "user_profile"}, Result: {"success": true, "message": "Memory retrieved successfully", "data": {"user_id": "U123456", "short_term_memory": [{"user_input": "I prefer brief summaries, not long explanations", "agent_response": "Got it, I'll keep responses concise and to the point", "timestamp": "2024-01-15T09:30:00Z"}, {"user_input": "Can you always include relevant links when mentioning tools?", "agent_response": "Absolutely, I'll include helpful links in my responses", "timestamp": "2024-01-14T15:45:00Z"}], "retrieved_pages": [{"content": "User prefers technical details over simplified explanations", "timestamp": "2024-01-10T12:00:00Z", "context": "documentation_request"}], "user_profile": {"communication_style": "technical", "response_length": "brief", "include_links": true}}}
-    Output: ⚡️Used *memory* *retrieve* to search for 'user communication preferences'. Found recent conversations: user prefers brief summaries, wants relevant links included, and likes technical details over simplified explanations
-
-  - Tool: weather.search, Args: {"q": "Tokyo", "limit": 3}, Result: {"success": true, "message": "Found 3 location(s) matching 'Tokyo'", "data": [{"name": "Tokyo", "lat": 35.6762, "lon": 139.6503, "country": "JP", "state": "Tokyo"}, {"name": "Tokyo", "lat": 35.6785, "lon": 139.6823, "country": "JP", "state": "Tokyo Prefecture"}, {"name": "Tokyo Bay", "lat": 35.5494, "lon": 139.7644, "country": "JP", "state": "Tokyo"}]}
-    Output: ⚡️Used *weather* *search* to find locations matching 'Tokyo'. Found 3 matches: Tokyo city (35.68°N, 139.65°E), Tokyo Prefecture, and Tokyo Bay area
+  - weather.current → ⚡️Used *weather* *current* to get weather for London. Currently 18.5°C with broken clouds
+  - slack.vector_search → ⚡️Used *slack* *vector_search* to search for 'project status'. Found 12 results
+  - memory.retrieve → ⚡️Used *memory* *retrieve* to search for user preferences. Found recent conversations
+  - weather.search → ⚡️Used *weather* *search* to find locations matching 'Tokyo'. Found 3 matches
 
   Write the narrative summary:
 

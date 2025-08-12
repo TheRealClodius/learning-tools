@@ -93,7 +93,7 @@ class ModelRoutingAgent:
             }
         }
     
-    async def route_query(self, user_message: str) -> RouteDecision:
+    async def route_query(self, user_message: str) -> tuple[RouteDecision, str]:
         """
         Route a user query to the appropriate model
         
@@ -101,7 +101,7 @@ class ModelRoutingAgent:
             user_message: The user's query to route
             
         Returns:
-            RouteDecision indicating which model to use
+            Tuple of (RouteDecision, reasoning_string) indicating which model to use and why
         """
         try:
             start_time = time.time()
@@ -111,7 +111,9 @@ class ModelRoutingAgent:
             
             if not api_key:
                 logger.warning("ROUTING-AGENT: GEMINI_API_KEY not set, using fallback")
-                return self._fallback_routing(user_message)
+                decision = self._fallback_routing(user_message)
+                reasoning = "Used fallback pattern matching (GEMINI_API_KEY not available)"
+                return decision, reasoning
             
             try:
                 from google import genai
@@ -160,39 +162,48 @@ class ModelRoutingAgent:
                         # Log the reasoning for debugging
                         if reasoning:
                             logger.info(f"ROUTING-AGENT: Reasoning - {reasoning}")
+                        else:
+                            reasoning = "No reasoning provided in JSON response"
                     else:
                         # Fallback to simple text parsing
                         logger.warning("ROUTING-AGENT: No JSON found, trying text parsing")
                         decision_text = response_text.lower()
                         if "tier_1" in decision_text:
                             decision = RouteDecision.TIER_1
+                            reasoning = "Text parsing found TIER_1 in response"
                         elif "tier_2" in decision_text:
                             decision = RouteDecision.TIER_2
+                            reasoning = "Text parsing found TIER_2 in response"
                         else:
                             logger.warning(f"ROUTING-AGENT: Unexpected response format, defaulting to TIER_2")
                             decision = RouteDecision.TIER_2
+                            reasoning = "Defaulted to TIER_2 due to unexpected response format"
                             
                 except json.JSONDecodeError:
                     logger.warning("ROUTING-AGENT: Failed to parse JSON, using fallback parsing")
                     decision_text = response_text.lower()
                     if "tier_1" in decision_text:
                         decision = RouteDecision.TIER_1
+                        reasoning = "JSON parsing failed, found TIER_1 in text"
                     else:
                         decision = RouteDecision.TIER_2
+                        reasoning = "JSON parsing failed, defaulted to TIER_2"
                 
                 duration_ms = int((time.time() - start_time) * 1000)
                 logger.info(f"ROUTING-AGENT: Routed to {decision.value} in {duration_ms}ms - '{user_message[:50]}...'")
                 
-                return decision
+                return decision, reasoning
                 
             except Exception as gemini_error:
                 logger.warning(f"ROUTING-AGENT: Gemini API failed ({gemini_error}), using fallback")
-                return self._fallback_routing(user_message)
+                decision = self._fallback_routing(user_message)
+                reasoning = f"Gemini API failed ({str(gemini_error)}), used fallback patterns"
+                return decision, reasoning
             
         except Exception as e:
             logger.error(f"ROUTING-AGENT: Failed to route query: {e}")
             # Default to TIER_2 route when in doubt
-            return RouteDecision.TIER_2
+            return RouteDecision.TIER_2, f"Error in routing: {str(e)}, defaulted to TIER_2"
     
     def _fallback_routing(self, user_message: str) -> RouteDecision:
         """

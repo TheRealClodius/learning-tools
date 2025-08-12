@@ -1,0 +1,62 @@
+{
+  "test_metadata": {
+    "test_type": "agent_thinking_process_test",
+    "user_id": "slack_thinking_1754983662448_95959_0e62bdd9",
+    "total_tests": 3,
+    "successful_tests": 0,
+    "timestamp": "2025-08-12T09:27:48.762856"
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "user_message": "Search for all recent messages from Andrei Clodius about autopilot design patterns and show me what he's been working on",
+      "description": "Complex user query requiring agent to reason about search strategy, identify relevant channels, and format results",
+      "execution_time_ms": 0.06,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": {
+        "success": false,
+        "response": "I encountered an error while processing your request: SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given",
+        "message": "Processing failed",
+        "agent": "client_agent",
+        "error": "SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given"
+      },
+      "timestamp": "2025-08-12T09:27:42.757482"
+    },
+    {
+      "test_num": 2,
+      "user_message": "Give me a comprehensive summary of the engineering discussions in the autopilot-one-engineering channel, particularly around framework development and team coordination",
+      "description": "Multi-faceted query requiring analysis of engineering discussions and synthesis of information",
+      "execution_time_ms": 0.16,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": {
+        "success": false,
+        "response": "I encountered an error while processing your request: SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given",
+        "message": "Processing failed",
+        "agent": "client_agent",
+        "error": "SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given"
+      },
+      "timestamp": "2025-08-12T09:27:44.758820"
+    },
+    {
+      "test_num": 3,
+      "user_message": "What channels are available in our Slack workspace and what are the current search statistics? I want to understand the scope of our indexed content.",
+      "description": "Information gathering query requiring multiple tool calls and data synthesis",
+      "execution_time_ms": 0.14,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": {
+        "success": false,
+        "response": "I encountered an error while processing your request: SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given",
+        "message": "Processing failed",
+        "agent": "client_agent",
+        "error": "SlackAgentThinkingTest.test_single_agent_thinking.<locals>.stream_callback() takes 1 positional argument but 2 were given"
+      },
+      "timestamp": "2025-08-12T09:27:46.760090"
+    }
+  ]
+}

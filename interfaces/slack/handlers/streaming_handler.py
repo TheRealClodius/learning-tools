@@ -81,8 +81,10 @@ class SlackStreamingHandler:
         # End any current thinking block by moving it to completed blocks
         if self.all_thinking:
             thinking_text = "\n".join(self.all_thinking)
+            # Add to both content_blocks (for real-time display) and execution_summary (for modal)
+            self.content_blocks.append(("thinking", thinking_text))
             self.execution_summary.append(("thinking", thinking_text))
-            logger.info(f"DEBUG-THINKING: Tool start - stored {len(self.all_thinking)} thinking lines in execution_summary")
+            logger.info(f"DEBUG-THINKING: Tool start - stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
             self.all_thinking = []
         
         # Store any previous tool in execution summary
@@ -249,11 +251,13 @@ class SlackStreamingHandler:
         if not self.message_ts:
             return
         
-        # Store any remaining thinking in execution summary
+        # Store any remaining thinking in both content_blocks and execution summary
         if self.all_thinking:
             thinking_text = "\n".join(self.all_thinking)
+            # Add to both for consistency (though final response replaces the display anyway)
+            self.content_blocks.append(("thinking", thinking_text))
             self.execution_summary.append(("thinking", thinking_text))
-            logger.info(f"DEBUG-THINKING: Stored {len(self.all_thinking)} thinking lines in execution_summary")
+            logger.info(f"DEBUG-THINKING: Stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
         
         # Store any current tool in execution summary
         if self.current_tool_block:

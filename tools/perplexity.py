@@ -41,7 +41,7 @@ class PerplexityAuthError(Exception):
 PERPLEXITY_BASE_URL = "https://api.perplexity.ai"
 PERPLEXITY_CHAT_ENDPOINT = f"{PERPLEXITY_BASE_URL}/chat/completions"
 
-async def perplexity_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
+async def perplexity_search(input_data: Dict[str, Any], stream_callback: Optional[Callable] = None) -> Dict[str, Any]:
     """
     Execute a quick search query using Perplexity's Sonar models
     
@@ -83,6 +83,10 @@ async def perplexity_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
             "max_tokens": input_data.get("max_tokens", 1000),
         }
         
+        # Enable streaming if callback provided
+        if stream_callback:
+            payload["stream"] = True
+        
         # Add optional search parameters
         if input_data.get('search_domain_filter'):
             payload["search_domain_filter"] = input_data.get('search_domain_filter')
@@ -105,25 +109,68 @@ async def perplexity_search(input_data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Make the API request
         async with httpx.AsyncClient(timeout=300.0) as client:  # 5 min timeout for search
-            response = await client.post(
-                PERPLEXITY_CHAT_ENDPOINT,
-                headers=headers,
-                json=payload
-            )
-            
-            # Check for authentication errors
-            if response.status_code == 401:
-                raise PerplexityAuthError("Invalid API key")
-            
-            # Check for other API errors
-            if response.status_code != 200:
-                error_msg = f"Perplexity API error {response.status_code}: {response.text}"
-                logger.error(error_msg)
-                raise PerplexityAPIError(error_msg)
-            
-            # Parse response
-            api_response = response.json()
-            logger.debug(f"Perplexity API response: {api_response}")
+            if stream_callback:
+                # Streaming mode
+                full_response = []
+                async with client.stream("POST", PERPLEXITY_CHAT_ENDPOINT, headers=headers, json=payload) as response:
+                    if response.status_code == 401:
+                        raise PerplexityAuthError("Invalid API key")
+                    if response.status_code != 200:
+                        error_msg = f"Perplexity API error {response.status_code}: {await response.aread()}"
+                        logger.error(error_msg)
+                        raise PerplexityAPIError(error_msg)
+                    
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[len("data: "):]
+                            if data.strip() == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                await stream_callback(chunk)
+                                full_response.append(chunk)
+                            except json.JSONDecodeError:
+                                continue
+                
+                # Build final response from accumulated chunks
+                if full_response:
+                    answer = ""
+                    for chunk in full_response:
+                        if "choices" in chunk and chunk["choices"]:
+                            delta = chunk["choices"][0].get("delta", {})
+                            if "content" in delta:
+                                answer += delta["content"]
+                    
+                    # Use the last chunk for metadata
+                    last_chunk = full_response[-1] if full_response else {}
+                    api_response = {
+                        "choices": [{"message": {"content": answer}}],
+                        "model": last_chunk.get("model", input_data.get("model", "sonar")),
+                        "usage": last_chunk.get("usage", {})
+                    }
+                else:
+                    raise PerplexityAPIError("No response chunks received")
+            else:
+                # Non-streaming mode
+                response = await client.post(
+                    PERPLEXITY_CHAT_ENDPOINT,
+                    headers=headers,
+                    json=payload
+                )
+                
+                # Check for authentication errors
+                if response.status_code == 401:
+                    raise PerplexityAuthError("Invalid API key")
+                
+                # Check for other API errors
+                if response.status_code != 200:
+                    error_msg = f"Perplexity API error {response.status_code}: {response.text}"
+                    logger.error(error_msg)
+                    raise PerplexityAPIError(error_msg)
+                
+                # Parse response
+                api_response = response.json()
+                logger.debug(f"Perplexity API response: {api_response}")
             
             # Extract the answer and metadata
             answer = api_response["choices"][0]["message"]["content"]
@@ -241,6 +288,10 @@ async def perplexity_research(input_data: Dict[str, Any], stream_callback: Optio
             "temperature": input_data.get("temperature", 0.1),
             "max_tokens": input_data.get("max_tokens", 4000),
         }
+        
+        # Enable streaming if callback provided
+        if stream_callback:
+            payload["stream"] = True
         
         # Add optional research parameters
         if input_data.get('search_domain_filter'):

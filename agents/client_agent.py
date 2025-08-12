@@ -251,35 +251,45 @@ class ClientAgent:
         """Initialize summarization client based on configuration"""
         model_name = self.summarization_config.get('model', 'gemini-2.5-flash')
         
+        logger.info(f"CLIENT-AGENT-INIT: Attempting to initialize summarization client with model: {model_name}")
+        logger.info(f"CLIENT-AGENT-INIT: summarization_enabled={self.summarization_enabled}")
+        
         try:
             if model_name.startswith('gemini'):
                 # Initialize Gemini client (using google-genai package)
+                logger.info("CLIENT-AGENT-INIT: Attempting to import google.genai...")
                 from google import genai
                 from google.genai import types
+                logger.info("CLIENT-AGENT-INIT: Successfully imported google.genai")
+                
                 api_key = os.environ.get("GEMINI_API_KEY")
                 if api_key:
+                    logger.info("CLIENT-AGENT-INIT: GEMINI_API_KEY found, creating client...")
                     self.gemini_client = genai.Client(api_key=api_key)
                     self.gemini_types = types
                     self.summarizer_model = model_name
-                    logger.info(f"Initialized {model_name} for tool summarization")
+                    logger.info(f"✅ CLIENT-AGENT-INIT: Successfully initialized {model_name} for tool summarization")
                 else:
-                    logger.warning("GEMINI_API_KEY not found - tool summarization disabled")
+                    logger.warning("❌ CLIENT-AGENT-INIT: GEMINI_API_KEY not found - tool summarization disabled")
                     self.summarization_enabled = False
             elif model_name.startswith('claude'):
                 # Future: Initialize Claude client for summarization
                 # For now, use existing self.client
                 self.summarizer_model = model_name
-                logger.info(f"Configured {model_name} for tool summarization (using existing Claude client)")
+                logger.info(f"✅ CLIENT-AGENT-INIT: Configured {model_name} for tool summarization (using existing Claude client)")
             else:
-                logger.warning(f"Unknown summarization model: {model_name} - tool summarization disabled")
+                logger.warning(f"❌ CLIENT-AGENT-INIT: Unknown summarization model: {model_name} - tool summarization disabled")
                 self.summarization_enabled = False
                 
         except ImportError as e:
-            logger.warning(f"Failed to import summarization dependencies: {e} - tool summarization disabled")
+            logger.warning(f"❌ CLIENT-AGENT-INIT: Failed to import summarization dependencies: {e} - tool summarization disabled")
             self.summarization_enabled = False
         except Exception as e:
-            logger.warning(f"Failed to initialize summarization client: {e} - tool summarization disabled")
+            logger.warning(f"❌ CLIENT-AGENT-INIT: Failed to initialize summarization client: {e} - tool summarization disabled")
             self.summarization_enabled = False
+        
+        # Final status log
+        logger.info(f"CLIENT-AGENT-INIT: Final summarization_enabled={self.summarization_enabled}")
     
     def _generate_tool_start_message(self, tool_name: str, tool_args: Dict) -> str:
         """Generate a 'working' message from tool name and arguments"""
@@ -329,8 +339,12 @@ class ClientAgent:
 
     async def _generate_tool_summary_streaming(self, tool_name: str, tool_args: Dict, result: Any, streaming_callback) -> str:
         """Generate tool summary with real-time streaming to UI"""
+        logger.info(f"TOOL-SUMMARY: Starting streaming summary for {tool_name}")
+        logger.info(f"TOOL-SUMMARY: summarization_enabled={self.summarization_enabled}, execution_summarizer={self.execution_summarizer is not None}")
+        
         if not self.summarization_enabled or not self.execution_summarizer:
             fallback = f"⚡️Used *{tool_name}* - summarization disabled"
+            logger.warning(f"TOOL-SUMMARY: Using fallback for {tool_name}: {fallback}")
             await streaming_callback(fallback, "tool_result")
             return fallback
         
@@ -341,6 +355,10 @@ class ClientAgent:
             result_data = str(result) if result is not None else "No result returned"
         
         try:
+            logger.info(f"TOOL-SUMMARY: Calling ExecutionSummarizer for {tool_name}")
+            logger.info(f"TOOL-SUMMARY: gemini_client available: {hasattr(self, 'gemini_client')}")
+            logger.info(f"TOOL-SUMMARY: gemini_types available: {hasattr(self, 'gemini_types')}")
+            
             # Use ExecutionSummarizer with streaming callback
             summary = await self.execution_summarizer.create_narrative_summary(
                 tool_name=tool_name,
@@ -352,11 +370,12 @@ class ClientAgent:
                 claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
                 streaming_callback=streaming_callback  # Pass streaming callback to Gemini
             )
+            logger.info(f"TOOL-SUMMARY: Generated summary for {tool_name}: {summary[:50]}...")
             # Send the final complete summary as tool_result for execution details
             await streaming_callback(summary, "tool_result")
             return summary
         except Exception as e:
-            logger.warning(f"Tool summarization failed: {e}")
+            logger.warning(f"TOOL-SUMMARY: Tool summarization failed for {tool_name}: {e}")
             # Fallback to simple summary
             fallback = f"⚡️Used *{tool_name}* - completed successfully"
             await streaming_callback(fallback, "tool_result")
@@ -491,10 +510,10 @@ class ClientAgent:
             
             # Get routing decision
             t_routing = time.time()
-            route_decision = await self.routing_agent.route_query(message)
+            route_decision, routing_reasoning = await self.routing_agent.route_query(message)
             routing_time_ms = int((time.time() - t_routing) * 1000)
             
-            logger.info(f"MODEL-ROUTING: Routed to {route_decision.value} in {routing_time_ms}ms")
+            logger.info(f"MODEL-ROUTING: Routed to {route_decision.value} in {routing_time_ms}ms - {routing_reasoning}")
             
             if route_decision in [RouteDecision.SIMPLE, RouteDecision.TIER_1]:
                 # Route to Gemini Flash for simple queries
@@ -502,7 +521,7 @@ class ClientAgent:
                     await streaming_callback("⚡ Processing with fast conversational agent...", "operation")
                 
                 # Get conversation history for context
-                conversation_history = await self._get_formatted_conversation_history(user_id, streaming_callback)
+                conversation_history, memory_retrieval_info = await self._get_formatted_conversation_history(user_id, streaming_callback)
                 
                 # Process with Gemini Simple Agent
                 t_gemini = time.time()
@@ -515,6 +534,8 @@ class ClientAgent:
                 result["routing_time_ms"] = routing_time_ms
                 result["processing_time_ms"] = gemini_time_ms
                 result["total_time_ms"] = int((time.time() - t_overall) * 1000)
+                result["routing_reasoning"] = routing_reasoning
+                result["memory_retrieval_info"] = memory_retrieval_info
                 
                 # Store in memory if successful
                 if result.get("success") and user_id:
@@ -530,7 +551,7 @@ class ClientAgent:
                 # Run the Claude agent loop with iterative tool calling
                 logger.info(f"CLAUDE-ROUTING: Calling run_agent_loop with user_id='{user_id}'")
                 t_loop = time.time()
-                response = await self.run_agent_loop(full_message, streaming_callback, user_id)
+                response, claude_memory_retrieval_info = await self.run_agent_loop(full_message, streaming_callback, user_id)
                 claude_time_ms = int((time.time() - t_loop) * 1000)
                 
                 return {
@@ -541,7 +562,9 @@ class ClientAgent:
                     "model": "claude-3-5-sonnet",
                     "routing_time_ms": routing_time_ms,
                     "processing_time_ms": claude_time_ms,
-                    "total_time_ms": int((time.time() - t_overall) * 1000)
+                    "total_time_ms": int((time.time() - t_overall) * 1000),
+                    "routing_reasoning": routing_reasoning,
+                    "memory_retrieval_info": claude_memory_retrieval_info
                 }
             
         except Exception as e:
@@ -639,7 +662,7 @@ class ClientAgent:
         # Default to no reasoning for simple responses
         return False  # False = doesn't need reasoning
     
-    async def run_agent_loop(self, user_message: str, streaming_callback=None, user_id: Optional[str] = None) -> str:
+    async def run_agent_loop(self, user_message: str, streaming_callback=None, user_id: Optional[str] = None) -> tuple[str, str]:
         """Run the agent loop with improved prompt assembly structure"""
         if not user_id:
             raise ValueError("user_id is required for agent processing - cannot proceed without user identification")
@@ -657,12 +680,15 @@ class ClientAgent:
             logger.info(f"COMPLEXITY-ROUTING: Complex message - full reasoning: '{user_message[:50]}...'")
         
         # 2. RETRIEVE CONVERSATION HISTORY
-        conversation_history = await self._get_formatted_conversation_history(user_id, streaming_callback)
+        conversation_history, memory_retrieval_info = await self._get_formatted_conversation_history(user_id, streaming_callback)
         
         # 3. ASSEMBLE STRUCTURED PROMPT
         enriched_message = await self._assemble_structured_prompt(
             user_message, user_id, conversation_history, streaming_callback
         )
+        
+        # Log memory retrieval information for CLI display
+        logger.info(f"MEMORY-COMPILATION: {memory_retrieval_info}")
         
         # DEBUG: Log enriched message structure
         logger.info(f"STRUCTURED-PROMPT: Assembled prompt for user {user_id}")
@@ -919,7 +945,7 @@ class ClientAgent:
         # ))
         # self._track_background_task(insights_task)
         
-        return final_response
+        return final_response, memory_retrieval_info
     
 
     
@@ -1177,10 +1203,13 @@ class ClientAgent:
     # STRUCTURED PROMPT ASSEMBLY - Following improved schema
     # =============================================================================
     
-    async def _get_formatted_conversation_history(self, user_id: str, streaming_callback=None) -> str:
+    async def _get_formatted_conversation_history(self, user_id: str, streaming_callback=None) -> tuple[str, str]:
         """
         Retrieve and format conversation history in proper chronological order
         Following schema: newest conversations first, clear structure
+        
+        Returns:
+            Tuple of (conversation_history, memory_retrieval_info)
         """
         try:
             if streaming_callback:
@@ -1196,15 +1225,20 @@ class ClientAgent:
             logger.info(f"CONVERSATION-HISTORY: Retrieving for user {user_id}")
             memory_result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
             
+            # Track memory retrieval information
+            memory_retrieval_info = f"Retrieved memory for user {user_id} with query 'recent history', max_results=10"
+            
             if not isinstance(memory_result, dict) or memory_result.get("status") == "error":
                 logger.info(f"CONVERSATION-HISTORY: No memory retrieved for user {user_id}")
-                return ""
+                memory_retrieval_info += " - No memory found"
+                return "", memory_retrieval_info
             
             short_term = memory_result.get("short_term_memory", [])
             retrieved_pages = memory_result.get("retrieved_pages", [])
             
             if not short_term and not retrieved_pages:
-                return ""
+                memory_retrieval_info += " - No conversation history available"
+                return "", memory_retrieval_info
             
             history_parts = ["CONVERSATION HISTORY"]
             
@@ -1244,12 +1278,15 @@ class ClientAgent:
             
             conversation_history = "\n".join(history_parts)
             
+            # Update memory retrieval info with detailed results
+            memory_retrieval_info += f" - Found {len(short_term)} recent conversations + {len(retrieved_pages)} historical entries"
+            
             logger.info(f"CONVERSATION-HISTORY: Formatted {len(short_term)} recent + {len(retrieved_pages)} historical entries")
-            return conversation_history
+            return conversation_history, memory_retrieval_info
             
         except Exception as e:
             logger.warning(f"CONVERSATION-HISTORY: Failed to retrieve: {e}")
-            return ""
+            return "", f"Memory retrieval failed: {str(e)}"
     
     async def _assemble_structured_prompt(self, user_message: str, user_id: str, 
                                         conversation_history: str, streaming_callback=None) -> str:
@@ -1592,7 +1629,8 @@ class ClientAgent:
                 thinking_summary = " ".join(key_thoughts)
             
             # Generate updated insights using stateful Conversation Insights Agent
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
             api_key = os.getenv("GEMINI_API_KEY")
             
             if not api_key:
@@ -1601,8 +1639,8 @@ class ClientAgent:
                     user_message, agent_response, tool_usage_log, thinking_content, existing_insights, user_id
                 )
             else:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                # Create client (new google.genai API)
+                client = genai.Client(api_key=api_key)
                 
                 prompt = f"""You are the Conversation Insights Agent. Your job is to maintain an evolving understanding of this user across two key dimensions.
 
@@ -1648,7 +1686,14 @@ RECOMMENDATIONS:
 Generate updated insights:"""
 
                 try:
-                    response = model.generate_content(prompt)
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=0.3,
+                            max_output_tokens=1000
+                        )
+                    )
                     updated_insights = response.text.strip()
                     logger.info(f"INSIGHTS-AGENT: Generated stateful insights for user {user_id}")
                 except Exception as gemini_error:

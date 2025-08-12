@@ -1,0 +1,47 @@
+{
+  "test_metadata": {
+    "test_type": "agent_thinking_process_test",
+    "user_id": "slack_thinking_1754983634896_44707_7471587e",
+    "total_tests": 3,
+    "successful_tests": 0,
+    "timestamp": "2025-08-12T09:27:21.204512"
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "user_message": "Search for all recent messages from Andrei Clodius about autopilot design patterns and show me what he's been working on",
+      "description": "Complex user query requiring agent to reason about search strategy, identify relevant channels, and format results",
+      "execution_time_ms": 0.0,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": null,
+      "error": "ClientAgent.process_request() got an unexpected keyword argument 'user_id'",
+      "timestamp": "2025-08-12T09:27:15.202059"
+    },
+    {
+      "test_num": 2,
+      "user_message": "Give me a comprehensive summary of the engineering discussions in the autopilot-one-engineering channel, particularly around framework development and team coordination",
+      "description": "Multi-faceted query requiring analysis of engineering discussions and synthesis of information",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": null,
+      "error": "ClientAgent.process_request() got an unexpected keyword argument 'user_id'",
+      "timestamp": "2025-08-12T09:27:17.202833"
+    },
+    {
+      "test_num": 3,
+      "user_message": "What channels are available in our Slack workspace and what are the current search statistics? I want to understand the scope of our indexed content.",
+      "description": "Information gathering query requiring multiple tool calls and data synthesis",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "thinking_content": "No thinking content captured",
+      "tool_usage_log": [],
+      "final_result": null,
+      "error": "ClientAgent.process_request() got an unexpected keyword argument 'user_id'",
+      "timestamp": "2025-08-12T09:27:19.203678"
+    }
+  ]
+}

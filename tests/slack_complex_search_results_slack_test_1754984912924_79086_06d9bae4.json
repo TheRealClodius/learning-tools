@@ -1,0 +1,84 @@
+{
+  "test_metadata": {
+    "test_type": "complex_slack_search_test",
+    "user_id": "slack_test_1754984912924_79086_06d9bae4",
+    "total_tests": 4,
+    "successful_tests": 0,
+    "test_duration_ms": 13689.46,
+    "timestamp": "2025-08-12T09:48:50.930841"
+  },
+  "summary": {
+    "success_rate": 0.0,
+    "avg_execution_time_ms": 3422.365
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "tool_name": "slack.vector_search",
+      "description": "Search for Andrei Clodius messages from the past 1 month",
+      "query": "Andrei Clodius messages from the past 1 month",
+      "execution_time_ms": 4430.19,
+      "success": false,
+      "analysis": "Tool returned error: Processing failed",
+      "result_type": "dict",
+      "result_size": 72,
+      "raw_result": {
+        "success": false,
+        "error": "Processing failed",
+        "thinking_content": ""
+      },
+      "timestamp": "2025-08-12T09:48:37.666261"
+    },
+    {
+      "test_num": 2,
+      "tool_name": "slack.vector_search",
+      "description": "Comprehensive summary of #autopilot-one-engineering discussions",
+      "query": "a comprehensive summary of the subjects discussed in the #autopilot-one-engineering group",
+      "execution_time_ms": 2833.68,
+      "success": false,
+      "analysis": "Tool returned error: Processing failed",
+      "result_type": "dict",
+      "result_size": 72,
+      "raw_result": {
+        "success": false,
+        "error": "Processing failed",
+        "thinking_content": ""
+      },
+      "timestamp": "2025-08-12T09:48:41.501013"
+    },
+    {
+      "test_num": 3,
+      "tool_name": "slack.get_channels",
+      "description": "Get channels list to understand workspace structure",
+      "query": "N/A",
+      "execution_time_ms": 3315.81,
+      "success": false,
+      "analysis": "Tool returned error: Processing failed",
+      "result_type": "dict",
+      "result_size": 72,
+      "raw_result": {
+        "success": false,
+        "error": "Processing failed",
+        "thinking_content": ""
+      },
+      "timestamp": "2025-08-12T09:48:45.818116"
+    },
+    {
+      "test_num": 4,
+      "tool_name": "slack.get_search_stats",
+      "description": "Get search statistics for performance analysis",
+      "query": "N/A",
+      "execution_time_ms": 3109.78,
+      "success": false,
+      "analysis": "Tool returned error: Processing failed",
+      "result_type": "dict",
+      "result_size": 72,
+      "raw_result": {
+        "success": false,
+        "error": "Processing failed",
+        "thinking_content": ""
+      },
+      "timestamp": "2025-08-12T09:48:49.929252"
+    }
+  ]
+}

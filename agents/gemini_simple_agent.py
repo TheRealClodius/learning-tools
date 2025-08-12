@@ -105,10 +105,11 @@ class GeminiSimpleAgent:
                 }
             
             try:
-                import google.generativeai as genai
+                from google import genai
+                from google.genai import types
                 
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(self.model)
+                # Create client (new google.genai API)
+                client = genai.Client(api_key=api_key)
                 
                 # Assemble the prompt using the same structure as Claude
                 prompt_parts = []
@@ -140,14 +141,15 @@ class GeminiSimpleAgent:
                 
                 full_prompt = "\n".join(prompt_parts)
                 
-                # Generate response
-                response = model.generate_content(
-                    [
+                # Generate response using new google.genai API
+                response = client.models.generate_content(
+                    model=self.model,
+                    contents=[
                         {"role": "user", "parts": [{"text": self.system_prompt}]},
                         {"role": "model", "parts": [{"text": self.response_acknowledgment}]},
                         {"role": "user", "parts": [{"text": full_prompt}]}
                     ],
-                    generation_config=genai.types.GenerationConfig(
+                    config=types.GenerateContentConfig(
                         max_output_tokens=self.max_tokens,
                         temperature=self.temperature,
                     )

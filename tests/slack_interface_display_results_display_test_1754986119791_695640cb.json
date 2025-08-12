@@ -1,0 +1,303 @@
+{
+  "test_metadata": {
+    "test_type": "slack_interface_display_test",
+    "user_id": "display_test_1754986119791_695640cb",
+    "total_tests": 22,
+    "successful_tests": 14,
+    "test_duration_ms": 2.02,
+    "timestamp": "2025-08-12T10:08:39.795032"
+  },
+  "categories": {
+    "markdown_conversion": 0,
+    "streaming_display": 1,
+    "error_handling": 4,
+    "modal_formatting": 0,
+    "mention_resolution": 4
+  },
+  "summary": {
+    "success_rate": 0.6363636363636364,
+    "avg_execution_time_ms": 0.09181818181818181,
+    "display_quality_score": 0.47500000000000003
+  },
+  "detailed_results": [
+    {
+      "test_name": "Simple text",
+      "input_length": 12,
+      "output_blocks": 1,
+      "execution_time_ms": 0.31,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_structure": [
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.792966"
+    },
+    {
+      "test_name": "Headers",
+      "input_length": 35,
+      "output_blocks": 3,
+      "execution_time_ms": 0.01,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_structure": [
+        {
+          "type": "header",
+          "has_text": true
+        },
+        {
+          "type": "section",
+          "has_text": true
+        },
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.792993"
+    },
+    {
+      "test_name": "Code blocks",
+      "input_length": 28,
+      "output_blocks": 1,
+      "execution_time_ms": 0.0,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_structure": [
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.793015"
+    },
+    {
+      "test_name": "Lists and formatting",
+      "input_length": 40,
+      "output_blocks": 1,
+      "execution_time_ms": 0.02,
+      "success": false,
+      "analysis": "Expected content '*Bold text*' not found",
+      "blocks_structure": [
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.793043"
+    },
+    {
+      "test_name": "Long content splitting",
+      "input_length": 4000,
+      "output_blocks": 1,
+      "execution_time_ms": 0.08,
+      "success": false,
+      "analysis": "Block count mismatch: expected 2, got 1",
+      "blocks_structure": [
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.793125"
+    },
+    {
+      "test_name": "Mixed complex content",
+      "input_length": 92,
+      "output_blocks": 4,
+      "execution_time_ms": 0.02,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_structure": [
+        {
+          "type": "header",
+          "has_text": true
+        },
+        {
+          "type": "section",
+          "has_text": true
+        },
+        {
+          "type": "section",
+          "has_text": true
+        },
+        {
+          "type": "section",
+          "has_text": true
+        }
+      ],
+      "timestamp": "2025-08-12T10:08:39.793155"
+    },
+    {
+      "test_name": "Initial streaming start",
+      "execution_time_ms": 0.06,
+      "success": true,
+      "analysis": "SUCCESS",
+      "api_calls_made": {
+        "chat_postMessage": 1,
+        "chat_update": 0
+      },
+      "timestamp": "2025-08-12T10:08:39.793242"
+    },
+    {
+      "test_name": "Thinking updates",
+      "execution_time_ms": 0.09,
+      "success": true,
+      "analysis": "SUCCESS",
+      "api_calls_made": {
+        "chat_postMessage": 0,
+        "chat_update": 1
+      },
+      "timestamp": "2025-08-12T10:08:39.793355"
+    },
+    {
+      "test_name": "Tool execution start",
+      "execution_time_ms": 0.05,
+      "success": false,
+      "analysis": "Expected content 'memory.search' not found in call",
+      "api_calls_made": {
+        "chat_postMessage": 0,
+        "chat_update": 1
+      },
+      "timestamp": "2025-08-12T10:08:39.793421"
+    },
+    {
+      "test_name": "Tool completion with result",
+      "execution_time_ms": 0.03,
+      "success": true,
+      "analysis": "SUCCESS",
+      "api_calls_made": {
+        "chat_postMessage": 0,
+        "chat_update": 1
+      },
+      "timestamp": "2025-08-12T10:08:39.793464"
+    },
+    {
+      "test_name": "Multiple thinking blocks",
+      "execution_time_ms": 0.19,
+      "success": true,
+      "analysis": "SUCCESS",
+      "api_calls_made": {
+        "chat_postMessage": 0,
+        "chat_update": 3
+      },
+      "timestamp": "2025-08-12T10:08:39.793662"
+    },
+    {
+      "test_name": "Rate limit error",
+      "error_type": "rate_limit",
+      "execution_time_ms": 0.04,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_generated": 1,
+      "has_error_formatting": false,
+      "timestamp": "2025-08-12T10:08:39.793718"
+    },
+    {
+      "test_name": "Authentication error",
+      "error_type": "auth",
+      "execution_time_ms": 0.02,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_generated": 1,
+      "has_error_formatting": false,
+      "timestamp": "2025-08-12T10:08:39.793744"
+    },
+    {
+      "test_name": "Tool execution error",
+      "error_type": "tool",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "analysis": "Expected error type 'Tool' not found",
+      "blocks_generated": 1,
+      "has_error_formatting": false,
+      "timestamp": "2025-08-12T10:08:39.793768"
+    },
+    {
+      "test_name": "Parsing error",
+      "error_type": "parsing",
+      "execution_time_ms": 0.01,
+      "success": true,
+      "analysis": "SUCCESS",
+      "blocks_generated": 1,
+      "has_error_formatting": false,
+      "timestamp": "2025-08-12T10:08:39.793791"
+    },
+    {
+      "test_name": "Simple execution flow",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "analysis": "Expected content 'thinking' not found",
+      "pages_generated": 1,
+      "total_blocks": 3,
+      "avg_blocks_per_page": 3.0,
+      "timestamp": "2025-08-12T10:08:39.793819"
+    },
+    {
+      "test_name": "Complex multi-tool execution",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "analysis": "Expected content 'memory.search' not found",
+      "pages_generated": 1,
+      "total_blocks": 7,
+      "avg_blocks_per_page": 7.0,
+      "timestamp": "2025-08-12T10:08:39.793840"
+    },
+    {
+      "test_name": "Long content requiring pagination",
+      "execution_time_ms": 0.01,
+      "success": false,
+      "analysis": "Expected pagination but only one page generated",
+      "pages_generated": 1,
+      "total_blocks": 3,
+      "avg_blocks_per_page": 3.0,
+      "timestamp": "2025-08-12T10:08:39.793856"
+    },
+    {
+      "test_name": "User mention",
+      "input_text": "Hey <@U123456789> how are you?",
+      "parsed_text": "Hey @Test User how are you?",
+      "execution_time_ms": 0.72,
+      "success": true,
+      "analysis": "SUCCESS",
+      "users_found": 1,
+      "channels_found": 0,
+      "timestamp": "2025-08-12T10:08:39.794593"
+    },
+    {
+      "test_name": "Channel mention",
+      "input_text": "Check <#C123456789|general> for updates",
+      "parsed_text": "Check #general for updates",
+      "execution_time_ms": 0.11,
+      "success": true,
+      "analysis": "SUCCESS",
+      "users_found": 0,
+      "channels_found": 1,
+      "timestamp": "2025-08-12T10:08:39.794710"
+    },
+    {
+      "test_name": "Multiple mentions",
+      "input_text": "CC: <@U111111111> <@U222222222> please review <#C123456789|engineering>",
+      "parsed_text": "CC: @Test User @Test User please review #engineering",
+      "execution_time_ms": 0.16,
+      "success": false,
+      "analysis": "User mentions mismatch: expected 2, found 1",
+      "users_found": 1,
+      "channels_found": 1,
+      "timestamp": "2025-08-12T10:08:39.794872"
+    },
+    {
+      "test_name": "No mentions",
+      "input_text": "Regular message with no mentions",
+      "parsed_text": "Regular message with no mentions",
+      "execution_time_ms": 0.06,
+      "success": true,
+      "analysis": "SUCCESS",
+      "users_found": 0,
+      "channels_found": 0,
+      "timestamp": "2025-08-12T10:08:39.794934"
+    }
+  ]
+}

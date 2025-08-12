@@ -45,7 +45,7 @@ class ExecutionSummarizer:
         model_config = self.config.get('model_config', {})
         self.model_name = model_config.get('model', 'gemini-2.5-flash')
         self.temperature = model_config.get('temperature', 0.1)
-        self.max_tokens = model_config.get('max_tokens', 150)
+        self.max_tokens = model_config.get('max_tokens', 500)
         
         # Extract other configurations
         self.fallback_config = self.config.get('fallback_config', {})
@@ -136,8 +136,13 @@ class ExecutionSummarizer:
             Complete narrative with result summary
         """
         # Try the configured model with provided clients
+        logger.info(f"EXEC-SUMMARIZER: Starting summary for {tool_name}, model={self.model_name}")
+        logger.info(f"EXEC-SUMMARIZER: gemini_client provided: {gemini_client is not None}")
+        logger.info(f"EXEC-SUMMARIZER: gemini_types provided: {gemini_types is not None}")
+        
         if self.model_name.startswith('gemini') and gemini_client and gemini_types:
             try:
+                logger.info(f"EXEC-SUMMARIZER: Using Gemini path for {tool_name}")
                 # Truncate result data based on token estimate for Gemini processing
                 max_tokens = self.max_result_tokens
                 truncated_result = self._truncate_to_tokens(result_data, max_tokens)
@@ -166,16 +171,29 @@ Result JSON: {truncated_result}"""
                             config=config
                         )
                     
+                    logger.info(f"EXEC-SUMMARIZER: About to call stream_response...")
                     response_stream = await asyncio.to_thread(stream_response)
+                    logger.info(f"EXEC-SUMMARIZER: Stream response type: {type(response_stream)}")
+                    logger.info(f"EXEC-SUMMARIZER: Stream response attributes: {dir(response_stream)}")
                     
+                    chunk_count = 0
                     for chunk in response_stream:
+                        chunk_count += 1
+                        logger.info(f"EXEC-SUMMARIZER: Streaming chunk #{chunk_count}, type: {type(chunk)}")
+                        logger.info(f"EXEC-SUMMARIZER: Chunk attributes: {dir(chunk)}")
+                        logger.info(f"EXEC-SUMMARIZER: Chunk repr: {repr(chunk)}")
+                        
                         if hasattr(chunk, 'text') and chunk.text:
                             chunk_text = chunk.text
+                            logger.info(f"EXEC-SUMMARIZER: Streaming chunk text: {chunk_text[:50]}...")
                             narrative_chunks.append(chunk_text)
                             
                             # Stream each chunk immediately to UI
                             await streaming_callback(chunk_text, "tool_summary_chunk")
+                        else:
+                            logger.warning(f"EXEC-SUMMARIZER: Chunk has no text attribute or empty text: {str(chunk)[:100]}...")
                     
+                    logger.info(f"EXEC-SUMMARIZER: Finished iterating, received {chunk_count} chunks")
                     # Combine all chunks for final return
                     narrative = "".join(narrative_chunks).strip()
                 else:
@@ -188,7 +206,23 @@ Result JSON: {truncated_result}"""
                         )
                     
                     response = await asyncio.to_thread(generate_response)
-                    narrative = response.text.strip() if hasattr(response, 'text') and response.text else str(response).strip()
+                    logger.info(f"EXEC-SUMMARIZER: Gemini response type: {type(response)}")
+                    
+                    # Check for text in response
+                    if hasattr(response, 'text') and response.text:
+                        narrative = response.text.strip()
+                        logger.info(f"EXEC-SUMMARIZER: Extracted text from response: {narrative[:100]}...")
+                    else:
+                        # Handle common issues with Gemini responses
+                        error_reason = "unknown"
+                        if hasattr(response, 'candidates') and response.candidates:
+                            candidate = response.candidates[0]
+                            if hasattr(candidate, 'finish_reason'):
+                                error_reason = str(candidate.finish_reason)
+                                
+                        logger.warning(f"EXEC-SUMMARIZER: No text from Gemini (reason: {error_reason}), using fallback")
+                        # Use fallback instead of trying to parse the response object
+                        raise Exception(f"Gemini returned no text (finish_reason: {error_reason})")
                 
                 # Ensure it starts with the emoji if not present
                 if not narrative.startswith("⚡️"):
@@ -197,13 +231,16 @@ Result JSON: {truncated_result}"""
                 return narrative
                 
             except Exception as e:
-                logger.warning(f"{self.model_name} narrative generation failed: {e}")
+                logger.warning(f"EXEC-SUMMARIZER: {self.model_name} narrative generation failed: {e}")
         
         elif self.model_name.startswith('claude') and claude_client:
             # Future: Implement Claude-based summarization
-            logger.info(f"Claude summarization not yet implemented, using fallback")
+            logger.info(f"EXEC-SUMMARIZER: Claude summarization not yet implemented, using fallback")
+        else:
+            logger.warning(f"EXEC-SUMMARIZER: No compatible client found for model {self.model_name}, using fallback")
         
         # Fallback using the initial narrative or generate fallback
+        logger.info(f"EXEC-SUMMARIZER: Using fallback narrative for {tool_name}")
         return self._fallback_narrative(initial_narrative, tool_name, result_data)
     
     def _fallback_narrative(self, initial_narrative: str, tool_name: str, result_data: str) -> str:

@@ -220,10 +220,11 @@ class ConvoInsightsAgent:
             )
         
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
             
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(self.model)
+            # Create client (new google.genai API)
+            client = genai.Client(api_key=api_key)
             
             # Use template from config
             prompt_template = self.prompt_templates.get('main_analysis', '')
@@ -244,7 +245,14 @@ class ConvoInsightsAgent:
             if self.logging_config.get('debug_prompts', False):
                 logger.debug(f"{self._log_prefix()}: Prompt: {prompt}")
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.3,
+                    max_output_tokens=1000
+                )
+            )
             updated_insights = response.text.strip()
             
             if self.logging_config.get('debug_responses', True):

@@ -1,0 +1,90 @@
+{
+  "test_metadata": {
+    "test_type": "complex_slack_search_test",
+    "user_id": "slack_test_1754984156083_99341_a7a3c1d0",
+    "total_tests": 4,
+    "successful_tests": 3,
+    "test_duration_ms": 70566.95999999999,
+    "timestamp": "2025-08-12T09:37:10.970376"
+  },
+  "summary": {
+    "success_rate": 0.75,
+    "avg_execution_time_ms": 17641.739999999998
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "tool_name": "slack.vector_search",
+      "description": "Search for Andrei Clodius messages from the past 1 month",
+      "query": "Andrei Clodius messages from the past 1 month",
+      "execution_time_ms": 11312.3,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['results']",
+      "result_type": "dict",
+      "result_size": 960,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the memory search results, I can see some system activity records from August 10th, 2025, but I don't see any specific messages from Andrei Clodius in the past month. The search returned system logs and assistant actions rather than actual message content.\n\nWould you like me to:\n1. Try a different search query that might be more effective\n2. Search for a broader time range\n3. Look for messages using different search criteria\n\nPlease let me know how you'd like to proceed and I'll adjust the search accordingly.",
+        "thinking_content": "",
+        "routing_info": "The query explicitly asks to 'search for' information, which requires the use of an external search tool. According to Priority Rule 1, any query requiring an external tool is TIER_2.",
+        "memory_info": "Retrieved memory for user slack_test_1754984156083_99341_a7a3c1d0 with query 'recent history', max_results=10 - No conversation history available"
+      },
+      "timestamp": "2025-08-12T09:36:07.709900"
+    },
+    {
+      "test_num": 2,
+      "tool_name": "slack.vector_search",
+      "description": "Comprehensive summary of #autopilot-one-engineering discussions",
+      "query": "a comprehensive summary of the subjects discussed in the #autopilot-one-engineering group",
+      "execution_time_ms": 14039.84,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['results']",
+      "result_type": "dict",
+      "result_size": 1249,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the memory search results, I can see system logs and activity records, but I'm not able to access the actual content of discussions from the #autopilot-one-engineering channel. The search returned primarily system activity records from August 10th, 2025, showing that while the channel exists, I don't have direct access to the message content.\n\nTo get a comprehensive summary of the discussions, you might want to:\n\n1. Access the channel directly through Slack\n2. Use Slack's built-in search functionality\n3. Contact channel administrators or members for access to the discussion history\n\nWould you like me to try a different search approach or would you prefer to access the channel information through one of these alternative methods?",
+        "thinking_content": "",
+        "routing_info": "The query asks for a comprehensive summary of discussions from a specific group, which requires accessing external data via an external tool (e.g., a search or API call to a discussion platform). This falls under Priority Rule 1.",
+        "memory_info": "Retrieved memory for user slack_test_1754984156083_99341_a7a3c1d0 with query 'recent history', max_results=10 - Found 1 recent conversations + 0 historical entries"
+      },
+      "timestamp": "2025-08-12T09:36:22.751256"
+    },
+    {
+      "test_num": 3,
+      "tool_name": "slack.get_channels",
+      "description": "Get channels list to understand workspace structure",
+      "query": "N/A",
+      "execution_time_ms": 20217.73,
+      "success": false,
+      "analysis": "Tool returned error: Processing failed",
+      "result_type": "dict",
+      "result_size": 72,
+      "raw_result": {
+        "success": false,
+        "error": "Processing failed",
+        "thinking_content": ""
+      },
+      "timestamp": "2025-08-12T09:36:43.970423"
+    },
+    {
+      "test_num": 4,
+      "tool_name": "slack.get_search_stats",
+      "description": "Get search statistics for performance analysis",
+      "query": "N/A",
+      "execution_time_ms": 24997.09,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['stats']",
+      "result_type": "dict",
+      "result_size": 1910,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the memory search results, I can provide the following search statistics and performance analysis:\n\nRecent Activity (August 10-12, 2025):\n1. Search Operations:\n   - Two recent searches conducted (August 12, 2025)\n   - Multiple search operations recorded on August 10, 2025\n\n2. System Performance:\n   - All searches executed successfully\n   - Average response time: Near real-time (timestamps show immediate responses)\n\n3. Search Types:\n   - Channel content search (#autopilot-one-engineering)\n   - User-specific search (Andrei Clodius messages)\n   - Context-based searches\n\n4. Search Results:\n   - System logs and activity records were accessible\n   - Message content access was limited\n   - User context information was successfully retrieved\n\n5. System Activity Metrics:\n   - Total assistant knowledge entries found: 13\n   - Short-term memory entries: 2\n   - Total pages found: 0\n   - Total user knowledge entries: 0\n\nLimitations Identified:\n- Direct message content access appears restricted\n- Channel content access shows limited permissions\n- Search functionality is primarily returning system-level data\n\nWould you like me to:\n1. Perform additional searches with different parameters?\n2. Analyze specific aspects of the search performance in more detail?\n3. Look for alternative data sources for performance metrics?\n\nPlease let me know how you'd like to proceed with the analysis.",
+        "thinking_content": "",
+        "routing_info": "The query explicitly asks to 'get search statistics', which requires an external tool (Rule 1), and mentions 'performance analysis', which involves analysis (Rule 3). Both indicate a need for TIER_2 capabilities.",
+        "memory_info": "Retrieved memory for user slack_test_1754984156083_99341_a7a3c1d0 with query 'recent history', max_results=10 - Found 2 recent conversations + 0 historical entries"
+      },
+      "timestamp": "2025-08-12T09:37:09.968849"
+    }
+  ]
+}

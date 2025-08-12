@@ -186,14 +186,25 @@ class CLIInterface:
             
             # Show routing information
             agent_used = response.get("agent", "unknown")
+            routing_reasoning = response.get("routing_reasoning", "")
+            memory_retrieval_info = response.get("memory_retrieval_info", "")
+            
             if not self.verbose:
                 # Prettier, simpler output for non-verbose mode
                 if agent_used.startswith("gemini"):
                     print(f"\n🟢 Gemini • {total_time/1000:.1f}s")
+                    if routing_reasoning:
+                        print(f"   📍 Routing: {routing_reasoning[:80]}{'...' if len(routing_reasoning) > 80 else ''}")
                 elif agent_used.startswith("claude"):
                     print(f"\n🔵 Claude • {total_time/1000:.1f}s")
+                    if routing_reasoning:
+                        print(f"   📍 Routing: {routing_reasoning[:80]}{'...' if len(routing_reasoning) > 80 else ''}")
                 else:
                     print(f"\n✨ Complete • {total_time/1000:.1f}s")
+                
+                # Show memory retrieval info if available
+                if memory_retrieval_info:
+                    print(f"   🧠 Memory: {memory_retrieval_info[:80]}{'...' if len(memory_retrieval_info) > 80 else ''}")
             else:
                 # Detailed output for verbose mode
                 if agent_used.startswith("gemini"):
@@ -202,6 +213,12 @@ class CLIInterface:
                     print(f"\n🔵 Processed by Claude (Complex) in {total_time}ms")
                 else:
                     print(f"\n✨ Ready to respond! (Total processing: {total_time}ms)")
+                
+                # Show detailed routing and memory info in verbose mode
+                if routing_reasoning:
+                    print(f"   📍 Routing Decision: {routing_reasoning}")
+                if memory_retrieval_info:
+                    print(f"   🧠 Memory Compilation: {memory_retrieval_info}")
             
             # Display response
             self._display_response(response)

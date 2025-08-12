@@ -1,0 +1,92 @@
+{
+  "test_metadata": {
+    "test_type": "complex_slack_search_test",
+    "user_id": "slack_test_1754983831378_13243_22b601fd",
+    "total_tests": 4,
+    "successful_tests": 4,
+    "test_duration_ms": 99571.12,
+    "timestamp": "2025-08-12T09:32:15.270748"
+  },
+  "summary": {
+    "success_rate": 1.0,
+    "avg_execution_time_ms": 24892.78
+  },
+  "detailed_results": [
+    {
+      "test_num": 1,
+      "tool_name": "slack.vector_search",
+      "description": "Search for Andrei Clodius messages from the past 1 month",
+      "query": "Andrei Clodius messages from the past 1 month",
+      "execution_time_ms": 12007.73,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['results']",
+      "result_type": "dict",
+      "result_size": 982,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the memory search results, I can see some system interactions from August 10th, 2025, but I don't see any specific messages from Andrei Clodius in the retrieved data. The search returned system logs and assistant actions, but no direct messages from the user you're looking for.\n\nWould you like me to:\n1. Try a different search query that might be more effective\n2. Search with a broader timeframe\n3. Look for messages using different search criteria\n\nPlease let me know how you'd like to proceed and I'll adjust the search accordingly.",
+        "thinking_content": "",
+        "routing_info": "The query explicitly asks to 'search for' information, which requires the use of an external search tool. According to Priority Rule 1, any query requiring an external tool is TIER_2.",
+        "memory_info": "Retrieved memory for user slack_test_1754983831378_13243_22b601fd with query 'recent history', max_results=10 - No conversation history available"
+      },
+      "timestamp": "2025-08-12T09:30:43.701679"
+    },
+    {
+      "test_num": 2,
+      "tool_name": "slack.vector_search",
+      "description": "Comprehensive summary of #autopilot-one-engineering discussions",
+      "query": "a comprehensive summary of the subjects discussed in the #autopilot-one-engineering group",
+      "execution_time_ms": 13035.27,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['results']",
+      "result_type": "dict",
+      "result_size": 1297,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the memory search results, I can see that while the #autopilot-one-engineering channel exists, I don't have direct access to comprehensive message content from this channel. The search only returned system logs and assistant interactions from August 10th, 2025, but no actual discussion content from the channel.\n\nTo be fully transparent, I can see:\n1. There were some system interactions on August 10th, 2025\n2. The channel exists in the system\n3. No actual discussion content or messages are accessible in the retrieved data\n\nWould you like me to:\n1. Try a different search query that might be more effective\n2. Search with different parameters or keywords\n3. Look for specific topics or timeframes within the channel\n\nPlease let me know how you'd like to proceed, and I'll adjust the search accordingly to better meet your needs.",
+        "thinking_content": "",
+        "routing_info": "The query asks for a comprehensive summary of specific discussions, which requires accessing external data (the discussions themselves) via a tool or API. This falls under Rule 1.",
+        "memory_info": "Retrieved memory for user slack_test_1754983831378_13243_22b601fd with query 'recent history', max_results=10 - Found 1 recent conversations + 0 historical entries"
+      },
+      "timestamp": "2025-08-12T09:30:57.738293"
+    },
+    {
+      "test_num": 3,
+      "tool_name": "slack.get_channels",
+      "description": "Get channels list to understand workspace structure",
+      "query": "N/A",
+      "execution_time_ms": 30426.29,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['channels']",
+      "result_type": "dict",
+      "result_size": 1179,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the results, here are the available channels in the workspace:\n\n1. #autopilot-design-patterns\n2. #autopilot-one-engineering\n3. #conversational-agents-dev\n4. #maestro-dev-autopilot\n5. #team-product-design\n6. #team-product-design-random\n\nThe workspace appears to be organized around different aspects of product development, with channels dedicated to:\n- Engineering discussions (#autopilot-one-engineering)\n- Design patterns (#autopilot-design-patterns)\n- Development teams (#maestro-dev-autopilot, #conversational-agents-dev)\n- Product design (#team-product-design and its casual counterpart #team-product-design-random)\n\nWould you like to know more about any specific channel or would you like to search for specific content within these channels?",
+        "thinking_content": "",
+        "routing_info": "The query 'Please get channels list' implies the need to access an external system or API to retrieve data, which falls under Priority Rule 1.",
+        "memory_info": "Retrieved memory for user slack_test_1754983831378_13243_22b601fd with query 'recent history', max_results=10 - Found 2 recent conversations + 0 historical entries"
+      },
+      "timestamp": "2025-08-12T09:31:29.165967"
+    },
+    {
+      "test_num": 4,
+      "tool_name": "slack.get_search_stats",
+      "description": "Get search statistics for performance analysis",
+      "query": "N/A",
+      "execution_time_ms": 44101.83,
+      "success": true,
+      "analysis": "Partial success: found ['success'], missing ['stats']",
+      "result_type": "dict",
+      "result_size": 1425,
+      "raw_result": {
+        "success": true,
+        "agent_response": "Based on the search statistics retrieved, here's the current performance analysis:\n\n1. Message Volume:\n   - Total Messages Indexed: 3,604\n   - Number of Channels Indexed: 6 (which matches the channel list we saw earlier)\n\n2. System Status:\n   - Index Status: Operational\n   - Last Index Refresh: July 19, 2025, 16:51:54 UTC\n\n3. Coverage:\n   - The statistics cover all 6 channels we identified earlier in the workspace\n   - This indicates complete workspace coverage\n\nThe system appears to be functioning properly with an operational status, though it's worth noting that the last refresh was about 24 days ago (comparing to current date of August 12, 2025).\n\nWould you like me to:\n1. Look for more detailed statistics about specific channels?\n2. Analyze any specific aspects of these statistics?\n3. Compare these numbers with any previous periods?\n\nPlease let me know how you'd like to proceed with this information.",
+        "thinking_content": "",
+        "routing_info": "The query explicitly asks to 'get search statistics' for 'performance analysis', which necessitates the use of an external tool to retrieve data. According to Priority Rule 1, any query requiring an external tool is TIER_2.",
+        "memory_info": "Retrieved memory for user slack_test_1754983831378_13243_22b601fd with query 'recent history', max_results=10 - Found 3 recent conversations + 0 historical entries"
+      },
+      "timestamp": "2025-08-12T09:32:14.269133"
+    }
+  ]
+}
