@@ -245,17 +245,23 @@ class SlackInterface:
             await streaming_handler.start_streaming()
             logger.info(f"SLACK-TIMING: start_streaming took {int((time.time()-t_stream_start)*1000)} ms user={user_id}")
             
-            # Create simple streaming callback
+            # Create simple streaming callback with enhanced debugging
             async def slack_streaming_callback(content: str, content_type: str):
+                # 🔍 PRODUCTION DEBUG: Log all streaming callback events
+                logger.info(f"🔄 SLACK-CALLBACK: type='{content_type}' content_len={len(str(content))} content_preview='{str(content)[:80]}...'")
+                
                 if content_type == "thinking" and content.strip():
+                    logger.info(f"🧠 SLACK-THINKING: Processing thinking content ({len(content)} chars)")
                     await streaming_handler.update_thinking(content.strip())
                 elif content_type == "tool_start":
                     # Check if content includes tool args (for execute_tool)
                     if isinstance(content, dict):
                         tool_name = content.get("name", "unknown")
                         tool_args = content.get("args", {})
+                        logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={list(tool_args.keys()) if tool_args else []}")
                         await streaming_handler.start_tool(tool_name, tool_args, self)
                     else:
+                        logger.info(f"🚀 SLACK-TOOL-START: string format tool='{content}'")
                         await streaming_handler.start_tool(content, None, self)
                 elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
                     # DEBUG: These intermediate operations are now only logged for debugging
@@ -263,10 +269,20 @@ class SlackInterface:
                     logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100]}...")
                 elif content_type == "tool_result":
                     # Complete tool with final summary (content is already the complete summary)
+                    logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
                     await streaming_handler.complete_tool(content.strip(), self)
                 elif content_type == "tool_summary_chunk":
-                    # Stream Gemini summary chunks as they arrive for progressive updates
-                    await streaming_handler.append_to_current_tool(content)
+                    # 🔍 CRITICAL PATH: Stream Gemini summary chunks as they arrive for progressive updates
+                    logger.info(f"📡 SLACK-CHUNK: Received streaming chunk ({len(content)} chars): '{content[:80]}...'")
+                    try:
+                        await streaming_handler.append_to_current_tool(content)
+                        logger.info(f"📡 SLACK-CHUNK: Successfully appended chunk to current tool")
+                    except Exception as e:
+                        logger.error(f"📡 SLACK-CHUNK ERROR: Failed to append chunk: {e}")
+                        import traceback
+                        logger.error(f"📡 SLACK-CHUNK TRACEBACK: {traceback.format_exc()}")
+                else:
+                    logger.warning(f"🔍 SLACK-UNKNOWN: Unhandled callback type='{content_type}' content='{str(content)[:80]}...')")
 
             
             # Process through agent with streaming

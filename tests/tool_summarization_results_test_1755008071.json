@@ -1,0 +1,173 @@
+{
+  "test_id": "1755008071",
+  "timestamp": 1755008071.66908,
+  "tests": {
+    "execution_summarizer_direct": {
+      "test_name": "execution_summarizer_direct",
+      "success": true,
+      "summaries": {
+        "registry_tool": {
+          "tool_name": "registry.search",
+          "summary": "\u26a1\ufe0fSearching for tools for \"weather\" in the registry",
+          "has_emoji": true,
+          "summary_length": 51
+        },
+        "weather_tool": {
+          "tool_name": "weather.current",
+          "summary": "\u26a1\ufe0fUsed *weather.current* to get weather for Prague. Currently 20\u00b0C, clear sky",
+          "has_emoji": true,
+          "summary_length": 77
+        },
+        "perplexity_tool": {
+          "tool_name": "perplexity.search",
+          "summary": "\u26a1\ufe0fUsed *perplexity.search* successfully. Retrieved requested data",
+          "has_emoji": true,
+          "summary_length": 65
+        }
+      },
+      "errors": []
+    },
+    "execution_summarizer_streaming": {
+      "test_name": "execution_summarizer_streaming",
+      "success": true,
+      "streaming_tests": {
+        "gemini_streaming": {
+          "summary": "\u26a1\ufe0fUsed *weather current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+          "chunks_received": 1,
+          "events_received": 1,
+          "event_types": [
+            "tool_summary_chunk"
+          ],
+          "streaming_worked": true
+        }
+      },
+      "errors": [],
+      "gemini_available": true
+    },
+    "client_agent_summarization": {
+      "test_name": "client_agent_summarization",
+      "success": true,
+      "summarization_tests": {
+        "weather_tool": {
+          "tool_name": "weather.current",
+          "summary": "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+          "chunks_received": 1,
+          "tool_results_received": 1,
+          "total_events": 2,
+          "summarization_enabled": true
+        },
+        "registry_search": {
+          "tool_name": "registry.search",
+          "summary": "\u26a1\ufe0fSearching for tools for \"weather\" in the registry",
+          "chunks_received": 0,
+          "tool_results_received": 1,
+          "total_events": 1,
+          "summarization_enabled": true
+        }
+      },
+      "errors": []
+    },
+    "full_tool_flow": {
+      "test_name": "full_tool_flow",
+      "success": true,
+      "tool_executions": {
+        "registry_search": {
+          "tool_name": "reg_search",
+          "result_type": "dict",
+          "result_success": true,
+          "events_captured": 2,
+          "chunks_received": 0,
+          "tool_results_received": 1
+        }
+      },
+      "errors": []
+    },
+    "different_tool_types": {
+      "test_name": "different_tool_types",
+      "success": true,
+      "tool_type_tests": {
+        "registry_tools": {
+          "reg.search": {
+            "summary": "\u26a1\ufe0fSearching for tools for \"weather\" in the registry",
+            "has_emoji": true,
+            "length": 51,
+            "success": true
+          },
+          "reg.describe": {
+            "summary": "\u26a1\ufe0fVerifying weather.current tool description",
+            "has_emoji": true,
+            "length": 44,
+            "success": true
+          },
+          "reg.list": {
+            "summary": "\u26a1\ufe0fListing all tools in the registry",
+            "has_emoji": true,
+            "length": 35,
+            "success": true
+          },
+          "reg.categories": {
+            "summary": "\u26a1\ufe0fGetting tool categories from registry",
+            "has_emoji": true,
+            "length": 39,
+            "success": true
+          }
+        },
+        "weather_tools": {
+          "weather.current": {
+            "summary": "\u26a1\ufe0fUsed *weather.current* - completed successfully",
+            "has_emoji": true,
+            "length": 49,
+            "success": true
+          },
+          "weather.search": {
+            "summary": "\u26a1\ufe0fUsed *weather.search* to search locations. Found Prague, CZ",
+            "has_emoji": true,
+            "length": 61,
+            "success": true
+          },
+          "weather.forecast": {
+            "summary": "\u26a1\ufe0fUsed *weather.forecast* - completed successfully",
+            "has_emoji": true,
+            "length": 50,
+            "success": true
+          }
+        },
+        "search_tools": {
+          "perplexity.search": {
+            "summary": "\u26a1\ufe0fUsed *perplexity.search* successfully. Retrieved requested data",
+            "has_emoji": true,
+            "length": 65,
+            "success": true
+          },
+          "perplexity.research": {
+            "summary": "\u26a1\ufe0fUsed *perplexity.research* successfully. Retrieved requested data",
+            "has_emoji": true,
+            "length": 67,
+            "success": true
+          }
+        },
+        "memory_tools": {
+          "memory.add": {
+            "summary": "\u26a1\ufe0fUsed *memory.add* successfully. Retrieved requested data",
+            "has_emoji": true,
+            "length": 58,
+            "success": true
+          },
+          "memory.retrieve": {
+            "summary": "\u26a1\ufe0fUsed *memory.retrieve* successfully. Retrieved requested data",
+            "has_emoji": true,
+            "length": 63,
+            "success": true
+          }
+        }
+      },
+      "errors": []
+    }
+  },
+  "summary": {
+    "total_tests": 5,
+    "successful_tests": 5,
+    "failed_tests": 0,
+    "success_rate": 100.0
+  }
+}

@@ -339,13 +339,18 @@ class ClientAgent:
 
     async def _generate_tool_summary_streaming(self, tool_name: str, tool_args: Dict, result: Any, streaming_callback) -> str:
         """Generate tool summary with real-time streaming to UI"""
-        logger.info(f"TOOL-SUMMARY: Starting streaming summary for {tool_name}")
-        logger.info(f"TOOL-SUMMARY: summarization_enabled={self.summarization_enabled}, execution_summarizer={self.execution_summarizer is not None}")
+        logger.info(f"🔥 TOOL-SUMMARY: Starting streaming summary for {tool_name}")
+        logger.info(f"🔥 TOOL-SUMMARY: summarization_enabled={self.summarization_enabled}, execution_summarizer={self.execution_summarizer is not None}")
+        logger.info(f"🔥 TOOL-SUMMARY: streaming_callback provided={streaming_callback is not None}")
         
         if not self.summarization_enabled or not self.execution_summarizer:
             fallback = f"⚡️Used *{tool_name}* - summarization disabled"
-            logger.warning(f"TOOL-SUMMARY: Using fallback for {tool_name}: {fallback}")
-            await streaming_callback(fallback, "tool_result")
+            logger.warning(f"🔥 TOOL-SUMMARY: Using fallback for {tool_name}: {fallback}")
+            try:
+                await streaming_callback(fallback, "tool_result")
+                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent fallback callback")
+            except Exception as e:
+                logger.error(f"🔥 TOOL-SUMMARY: Failed to send fallback callback: {e}")
             return fallback
         
         # Convert result to string for summarization
@@ -355,11 +360,22 @@ class ClientAgent:
             result_data = str(result) if result is not None else "No result returned"
         
         try:
-            logger.info(f"TOOL-SUMMARY: Calling ExecutionSummarizer for {tool_name}")
-            logger.info(f"TOOL-SUMMARY: gemini_client available: {hasattr(self, 'gemini_client')}")
-            logger.info(f"TOOL-SUMMARY: gemini_types available: {hasattr(self, 'gemini_types')}")
+            logger.info(f"🔥 TOOL-SUMMARY: Calling ExecutionSummarizer for {tool_name}")
+            logger.info(f"🔥 TOOL-SUMMARY: gemini_client available: {hasattr(self, 'gemini_client')}")
+            logger.info(f"🔥 TOOL-SUMMARY: gemini_types available: {hasattr(self, 'gemini_types')}")
+            logger.info(f"🔥 TOOL-SUMMARY: result_data length: {len(result_data)}")
             
-            # Use ExecutionSummarizer with streaming callback
+            # Create a debug wrapper for the streaming callback
+            async def debug_streaming_callback(content: str, content_type: str):
+                logger.info(f"🔥 TOOL-SUMMARY-CALLBACK: type='{content_type}' content_len={len(content)} content='{content[:80]}...'")
+                try:
+                    await streaming_callback(content, content_type)
+                    logger.info(f"🔥 TOOL-SUMMARY-CALLBACK: Successfully forwarded {content_type}")
+                except Exception as e:
+                    logger.error(f"🔥 TOOL-SUMMARY-CALLBACK ERROR: Failed to forward {content_type}: {e}")
+                    raise
+            
+            # Use ExecutionSummarizer with debug streaming callback
             summary = await self.execution_summarizer.create_narrative_summary(
                 tool_name=tool_name,
                 tool_args=tool_args,
@@ -368,17 +384,27 @@ class ClientAgent:
                 gemini_client=getattr(self, 'gemini_client', None),
                 gemini_types=getattr(self, 'gemini_types', None),
                 claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
-                streaming_callback=streaming_callback  # Pass streaming callback to Gemini
+                streaming_callback=debug_streaming_callback  # Pass debug streaming callback
             )
-            logger.info(f"TOOL-SUMMARY: Generated summary for {tool_name}: {summary[:50]}...")
+            logger.info(f"🔥 TOOL-SUMMARY: Generated summary for {tool_name}: {summary[:50]}...")
             # Send the final complete summary as tool_result for execution details
-            await streaming_callback(summary, "tool_result")
+            try:
+                await streaming_callback(summary, "tool_result")
+                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent final tool_result")
+            except Exception as e:
+                logger.error(f"🔥 TOOL-SUMMARY: Failed to send final tool_result: {e}")
             return summary
         except Exception as e:
-            logger.warning(f"TOOL-SUMMARY: Tool summarization failed for {tool_name}: {e}")
+            logger.error(f"🔥 TOOL-SUMMARY ERROR: Tool summarization failed for {tool_name}: {e}")
+            import traceback
+            logger.error(f"🔥 TOOL-SUMMARY TRACEBACK: {traceback.format_exc()}")
             # Fallback to simple summary
             fallback = f"⚡️Used *{tool_name}* - completed successfully"
-            await streaming_callback(fallback, "tool_result")
+            try:
+                await streaming_callback(fallback, "tool_result")
+                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent fallback tool_result")
+            except Exception as e:
+                logger.error(f"🔥 TOOL-SUMMARY: Failed to send fallback tool_result: {e}")
             return fallback
 
     async def _generate_tool_summary(self, tool_name: str, tool_args: Dict, result: Any) -> str:
@@ -1083,15 +1109,10 @@ class ClientAgent:
                 tool_name = args["tool_name"]
                 tool_args = args.get("tool_args", {})
                 
-                # Phase 1: Send working message immediately
-                if streaming_callback:
-                    start_message = self._generate_tool_start_message(tool_name, tool_args)
-                    await streaming_callback(start_message, "operation")
-                
-                # Execute tool
+                # Execute tool (no additional start message - already sent by tool_start callback)
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
                 
-                # Phase 2: Generate and stream tool summary with real-time chunks
+                # Generate and stream tool summary with real-time chunks
                 if streaming_callback and self.summarization_enabled:
                     try:
                         # Use streaming version that sends chunks as they arrive

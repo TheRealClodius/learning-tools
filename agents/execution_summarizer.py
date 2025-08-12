@@ -11,10 +11,6 @@ import logging
 import yaml
 import os
 from typing import Dict, Any, Optional, Union
-from dotenv import load_dotenv
-
-# Load environment variables from .env.local
-load_dotenv('.env.local', override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +155,7 @@ Tool executed: {tool_name}
 Arguments: {json.dumps(tool_args, indent=2) if tool_args else "none"}
 Result JSON: {truncated_result}"""
                 
-                # Use google-genai SDK format
+                # Use modern google-genai SDK format
                 config = gemini_types.GenerateContentConfig(
                     temperature=self.temperature,
                     max_output_tokens=self.max_tokens,
@@ -179,24 +175,51 @@ Result JSON: {truncated_result}"""
                     logger.info(f"EXEC-SUMMARIZER: About to call stream_response...")
                     response_stream = await asyncio.to_thread(stream_response)
                     logger.info(f"EXEC-SUMMARIZER: Stream response type: {type(response_stream)}")
-                    logger.info(f"EXEC-SUMMARIZER: Stream response attributes: {dir(response_stream)}")
                     
                     chunk_count = 0
+                    # Process stream directly without nested async
                     for chunk in response_stream:
                         chunk_count += 1
                         logger.info(f"EXEC-SUMMARIZER: Streaming chunk #{chunk_count}, type: {type(chunk)}")
                         logger.info(f"EXEC-SUMMARIZER: Chunk attributes: {dir(chunk)}")
-                        logger.info(f"EXEC-SUMMARIZER: Chunk repr: {repr(chunk)}")
                         
+                        # Try different ways to access text content based on new API
+                        chunk_text = None
                         if hasattr(chunk, 'text') and chunk.text:
                             chunk_text = chunk.text
+                        elif hasattr(chunk, 'content') and chunk.content:
+                            # Some versions use .content instead of .text
+                            chunk_text = chunk.content
+                        elif hasattr(chunk, 'parts') and chunk.parts:
+                            # Some versions have parts array
+                            for part in chunk.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    chunk_text = part.text
+                                    break
+                        elif hasattr(chunk, 'candidates') and chunk.candidates:
+                            # Try candidates structure
+                            for candidate in chunk.candidates:
+                                if hasattr(candidate, 'content') and candidate.content:
+                                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                        for part in candidate.content.parts:
+                                            if hasattr(part, 'text') and part.text:
+                                                chunk_text = part.text
+                                                break
+                                    elif hasattr(candidate.content, 'text') and candidate.content.text:
+                                        chunk_text = candidate.content.text
+                                        break
+                                if chunk_text:
+                                    break
+                        
+                        if chunk_text:
                             logger.info(f"EXEC-SUMMARIZER: Streaming chunk text: {chunk_text[:50]}...")
                             narrative_chunks.append(chunk_text)
                             
                             # Stream each chunk immediately to UI
                             await streaming_callback(chunk_text, "tool_summary_chunk")
                         else:
-                            logger.warning(f"EXEC-SUMMARIZER: Chunk has no text attribute or empty text: {str(chunk)[:100]}...")
+                            logger.warning(f"EXEC-SUMMARIZER: Chunk has no text content: {str(chunk)[:100]}...")
+                            logger.warning(f"EXEC-SUMMARIZER: Full chunk structure: {chunk}")
                     
                     logger.info(f"EXEC-SUMMARIZER: Finished iterating, received {chunk_count} chunks")
                     # Combine all chunks for final return

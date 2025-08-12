@@ -116,10 +116,23 @@ class SlackStreamingHandler:
         
     async def append_to_current_tool(self, chunk: str):
         """Append a chunk to the current tool's operations (for streaming summaries)"""
+        logger.info(f"📡 HANDLER-CHUNK: Received chunk for appending ({len(chunk)} chars): '{chunk[:80]}...'")
+        
         if self.current_tool_block:
+            logger.info(f"📡 HANDLER-CHUNK: Current tool block exists, tool='{self.current_tool_block.get('name')}' operations_count={len(self.current_tool_block.get('operations', []))}")
             # Always append each chunk as a separate operation entry
             self.current_tool_block["operations"].append(chunk)
-            await self._update_display()
+            logger.info(f"📡 HANDLER-CHUNK: Appended chunk, new operations_count={len(self.current_tool_block.get('operations', []))}")
+            
+            try:
+                await self._update_display()
+                logger.info(f"📡 HANDLER-CHUNK: Display update completed successfully")
+            except Exception as e:
+                logger.error(f"📡 HANDLER-CHUNK ERROR: Display update failed: {e}")
+                import traceback
+                logger.error(f"📡 HANDLER-CHUNK TRACEBACK: {traceback.format_exc()}")
+        else:
+            logger.warning(f"📡 HANDLER-CHUNK WARNING: No current tool block - chunk ignored: '{chunk[:80]}...'")
         
     async def complete_tool(self, result_summary: str, slack_interface=None):
         """Complete current tool with pre-generated summary from ClientAgent"""
@@ -158,7 +171,10 @@ class SlackStreamingHandler:
     
     async def _update_display(self):
         """Update the streaming message display with chronological thinking and tool blocks"""
+        logger.info(f"🎨 DISPLAY-UPDATE: Starting display update, message_ts={self.message_ts}")
+        
         if not self.message_ts:
+            logger.warning(f"🎨 DISPLAY-UPDATE: No message_ts - skipping update")
             return
             
         blocks = []
@@ -194,7 +210,8 @@ class SlackStreamingHandler:
                 tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
                 # Ensure text is never empty (Slack requires at least 1 character)
                 if not tool_formatted:
-                    tool_formatted = "_Tool executed_"
+                    tool_name = tool_info.get('name', 'Unknown tool')
+                    tool_formatted = f"_Tool {tool_name} executed_"
                 
                 blocks.append({
                     "type": "context",
@@ -236,7 +253,8 @@ class SlackStreamingHandler:
             tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
             # Ensure text is never empty (Slack requires at least 1 character)
             if not tool_formatted:
-                tool_formatted = "_Tool executing..._"
+                tool_name = tool_info.get('name', 'Unknown tool')
+                tool_formatted = f"_Tool {tool_name} executing..._"
             
             blocks.append({
                 "type": "context", 
@@ -260,12 +278,27 @@ class SlackStreamingHandler:
                 ]
             }]
         
-        await self.app_client.chat_update(
-            channel=self.channel_id,
-            ts=self.message_ts,
-            blocks=blocks,
-            text="Agent working..."
-        )
+        # 🔍 PRODUCTION DEBUG: Log what's being sent to Slack
+        logger.info(f"🎨 DISPLAY-UPDATE: Sending to Slack - blocks_count={len(blocks)} content_blocks={len(self.content_blocks)} current_tool_operations={len(self.current_tool_block.get('operations', []) if self.current_tool_block else [])}")
+        
+        # Log block content for debugging
+        for i, block in enumerate(blocks):
+            if block.get("type") == "context" and block.get("elements"):
+                text_content = block["elements"][0].get("text", "")[:100]
+                logger.info(f"🎨 DISPLAY-UPDATE: Block {i}: {text_content}...")
+        
+        try:
+            await self.app_client.chat_update(
+                channel=self.channel_id,
+                ts=self.message_ts,
+                blocks=blocks,
+                text="Agent working..."
+            )
+            logger.info(f"🎨 DISPLAY-UPDATE: Successfully updated Slack message")
+        except Exception as e:
+            logger.error(f"🎨 DISPLAY-UPDATE ERROR: Failed to update Slack message: {e}")
+            import traceback
+            logger.error(f"🎨 DISPLAY-UPDATE TRACEBACK: {traceback.format_exc()}")
         
     async def finish_with_response(self, final_response: str, slack_interface=None):
         """Replace thinking message with final response and add execution details button"""

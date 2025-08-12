@@ -1,0 +1,333 @@
+{
+  "test_id": "1755008335",
+  "timestamp": 1755008335.3730292,
+  "tests": {
+    "streaming_handler_direct": {
+      "test_name": "streaming_handler_direct",
+      "success": true,
+      "streaming_events": [
+        {
+          "action": "start_streaming",
+          "message_ts": "mock_ts_1755008335373",
+          "content_blocks_count": 1
+        },
+        {
+          "action": "start_tool",
+          "current_tool_name": null,
+          "current_tool_operations": []
+        },
+        {
+          "action": "append_chunks",
+          "execution_summary_count": 1
+        },
+        {
+          "action": "complete_tool",
+          "final_content_blocks": 1,
+          "final_execution_summary": 1
+        }
+      ],
+      "slack_api_calls": [
+        {
+          "timestamp": 1755008335.373131,
+          "kwargs": {
+            "channel": "C123456789",
+            "ts": "mock_ts_1755008335373",
+            "blocks": [
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "_Tool weather.current executing..._"
+                  }
+                ]
+              }
+            ],
+            "text": "Agent working..."
+          },
+          "method": "chat_update"
+        },
+        {
+          "timestamp": 1755008335.3731499,
+          "kwargs": {
+            "channel": "C123456789",
+            "ts": "mock_ts_1755008335373",
+            "blocks": [
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "_\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C, clear sky_"
+                  }
+                ]
+              }
+            ],
+            "text": "Agent working..."
+          },
+          "method": "chat_update"
+        },
+        {
+          "timestamp": 1755008335.37316,
+          "kwargs": {
+            "channel": "C123456789",
+            "ts": "mock_ts_1755008335373",
+            "blocks": [
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "_\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C, clear sky_\n_Additional detail: Humidity 60%, Wind 5 km/h_"
+                  }
+                ]
+              }
+            ],
+            "text": "Agent working..."
+          },
+          "method": "chat_update"
+        },
+        {
+          "timestamp": 1755008335.373177,
+          "kwargs": {
+            "channel": "C123456789",
+            "ts": "mock_ts_1755008335373",
+            "blocks": [
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "_\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C, clear sky_\n_Additional detail: Humidity 60%, Wind 5 km/h_\n_\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C, clear sky_"
+                  }
+                ]
+              }
+            ],
+            "text": "Agent working..."
+          },
+          "method": "chat_update"
+        },
+        {
+          "timestamp": 1755008335.37311,
+          "kwargs": {
+            "channel": "C123456789",
+            "blocks": [
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "_Reasoning..._"
+                  }
+                ]
+              }
+            ],
+            "text": "Reasoning...",
+            "thread_ts": "1234567890.123456"
+          },
+          "method": "chat_postMessage"
+        }
+      ],
+      "errors": [],
+      "content_analysis": {
+        "has_tool_content": true,
+        "content_blocks_count": 1,
+        "execution_summary_count": 1,
+        "slack_updates_count": 4,
+        "slack_posts_count": 1
+      }
+    },
+    "orchestration_callback_routing": {
+      "test_name": "orchestration_callback_routing",
+      "success": true,
+      "callback_events": [
+        [
+          "callback",
+          "tool_start",
+          {
+            "name": "\u26a1\ufe0fweather.current",
+            "args": {
+              "location": "Prague"
+            }
+          }
+        ],
+        [
+          "start_tool",
+          "\u26a1\ufe0fweather.current",
+          {
+            "location": "Prague"
+          }
+        ],
+        [
+          "callback",
+          "tool_summary_chunk",
+          "\u26a1\ufe0fUsed *weather* *current* to get weather for"
+        ],
+        [
+          "append_to_current_tool",
+          "\u26a1\ufe0fUsed *weather* *current* to get weather for",
+          null
+        ],
+        [
+          "callback",
+          "tool_summary_chunk",
+          " Prague. Currently 20\u00b0C with clear sky"
+        ],
+        [
+          "append_to_current_tool",
+          " Prague. Currently 20\u00b0C with clear sky",
+          null
+        ],
+        [
+          "callback",
+          "tool_result",
+          "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky"
+        ],
+        [
+          "complete_tool",
+          "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+          null
+        ]
+      ],
+      "errors": [],
+      "handler_state": {
+        "content_blocks": 1,
+        "execution_summary": 1,
+        "current_tool_operations": []
+      },
+      "analysis": {
+        "total_callbacks": 8,
+        "chunk_events_received": 2,
+        "append_events_called": 2,
+        "chunk_content_routing_works": true
+      }
+    },
+    "end_to_end_simulation": {
+      "test_name": "end_to_end_simulation",
+      "success": true,
+      "execution_flow": [
+        {
+          "timestamp": 1755008337.653413,
+          "content_type": "tool_summary_chunk",
+          "content": "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+          "content_length": 83
+        },
+        {
+          "timestamp": 1755008337.6537018,
+          "content_type": "tool_result",
+          "content": "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+          "content_length": 83
+        }
+      ],
+      "errors": [],
+      "final_summary": "\u26a1\ufe0fUsed *weather* *current* to get weather for Prague. Currently 20\u00b0C with clear sky",
+      "handler_final_state": {
+        "content_blocks": 0,
+        "execution_summary": 0,
+        "slack_api_calls": 1
+      },
+      "flow_analysis": {
+        "total_events": 2,
+        "chunk_events": 1,
+        "result_events": 1,
+        "streaming_worked": true,
+        "final_result_received": true
+      }
+    },
+    "content_display_blocks": {
+      "test_name": "content_display_blocks",
+      "success": true,
+      "display_tests": {
+        "empty_tool_start": {
+          "content_blocks_count": 0,
+          "execution_summary_count": 0,
+          "current_tool_operations": [],
+          "slack_update_calls": 1,
+          "last_slack_call": {
+            "timestamp": 1755008337.6571789,
+            "kwargs": {
+              "channel": "C123456789",
+              "ts": "mock_ts_1755008337657",
+              "blocks": [
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "_Tool weather.current executing..._"
+                    }
+                  ]
+                }
+              ],
+              "text": "Agent working..."
+            },
+            "method": "chat_update"
+          }
+        },
+        "tool_with_chunks": {
+          "content_blocks_count": 0,
+          "execution_summary_count": 0,
+          "current_tool_operations": [
+            "\u26a1\ufe0fUsed *weather* to get",
+            " weather for Prague",
+            ". Currently 20\u00b0C"
+          ],
+          "slack_update_calls": 4,
+          "last_slack_call": {
+            "timestamp": 1755008337.6572669,
+            "kwargs": {
+              "channel": "C123456789",
+              "ts": "mock_ts_1755008337657",
+              "blocks": [
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "_\u26a1\ufe0fUsed *weather* to get_\n_weather for Prague_\n_. Currently 20\u00b0C_"
+                    }
+                  ]
+                }
+              ],
+              "text": "Agent working..."
+            },
+            "method": "chat_update"
+          }
+        },
+        "completed_tool": {
+          "content_blocks_count": 1,
+          "execution_summary_count": 1,
+          "current_tool_operations": [],
+          "slack_update_calls": 3,
+          "last_slack_call": {
+            "timestamp": 1755008337.657407,
+            "kwargs": {
+              "channel": "C123456789",
+              "ts": "mock_ts_1755008337657",
+              "blocks": [
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "_\u26a1\ufe0fUsed *weather* to get weather for Prague. Currently 20\u00b0C_\n_\u26a1\ufe0fUsed *weather* to get weather for Prague. Currently 20\u00b0C, clear sky_"
+                    }
+                  ]
+                }
+              ],
+              "text": "Agent working..."
+            },
+            "method": "chat_update"
+          }
+        }
+      },
+      "errors": []
+    }
+  },
+  "summary": {
+    "total_tests": 4,
+    "successful_tests": 4,
+    "failed_tests": 0,
+    "success_rate": 100.0
+  }
+}
