@@ -3,7 +3,9 @@
 
 # System prompt for tool execution summarization
 system_prompt: |
-  Create a concise, single-line narrative summary of this tool execution:
+  Create a concise, single-line narrative summary of this tool execution. 
+  
+  CRITICAL: Keep your response under 50 tokens (approximately 200 characters). Be brief and focused.
 
   Format: ⚡️Used *[tool_name]* to [action]. [Brief result from JSON]
 
@@ -25,7 +27,7 @@ model_config:
 # Fallback configuration when LLM is unavailable
 fallback_config:
   ensure_emoji_prefix: true
-  max_result_tokens: 500   # Truncate long results to token limit for LLM processing
+  max_result_tokens: 2000  # Truncate long results to token limit for LLM processing
   weather_units_preference: "metric"  # Default to Celsius for weather tools
   
 # Tool-specific formatting preferences
