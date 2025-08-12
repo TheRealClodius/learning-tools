@@ -155,6 +155,16 @@ class GeminiSimpleAgent:
                     )
                 )
                 
+                # Handle None response from Gemini
+                if response.text is None:
+                    logger.warning(f"GEMINI-SIMPLE: Received None response from Gemini")
+                    return {
+                        "success": False,
+                        "response": "I'm having trouble right now. Could you try asking for more complex assistance?",
+                        "message": "Gemini returned empty response",
+                        "agent": "gemini_simple_none"
+                    }
+                
                 response_text = response.text.strip()
                 
                 duration_ms = int((time.time() - start_time) * 1000)

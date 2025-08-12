@@ -215,7 +215,7 @@ Result JSON: {truncated_result}"""
                             
                             # Try different ways to access text content based on new API
                             chunk_text = None
-                            if hasattr(chunk, 'text') and chunk.text:
+                            if hasattr(chunk, 'text') and chunk.text is not None:
                                 chunk_text = chunk.text
                             elif hasattr(chunk, 'content') and chunk.content:
                                 # Some versions use .content instead of .text
@@ -248,7 +248,11 @@ Result JSON: {truncated_result}"""
                                 # Stream each chunk immediately to UI
                                 await streaming_callback(chunk_text, "tool_summary_chunk")
                             else:
-                                logger.warning(f"EXEC-SUMMARIZER: Chunk has no text content: {str(chunk)[:100]}...")
+                                # Check if Gemini explicitly returned None
+                                if hasattr(chunk, 'text') and chunk.text is None:
+                                    logger.warning(f"EXEC-SUMMARIZER: Gemini returned None text content - possible content filtering")
+                                else:
+                                    logger.warning(f"EXEC-SUMMARIZER: Chunk has no text content: {str(chunk)[:100]}...")
                                 logger.warning(f"EXEC-SUMMARIZER: Full chunk structure: {chunk}")
                     
                     except Exception as chunk_error:
