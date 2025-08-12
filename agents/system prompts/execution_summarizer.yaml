@@ -11,9 +11,11 @@ system_prompt: |
 
   Examples:
   - weather.current → ⚡️Used *weather* *current* to get weather for London. Currently 18.5°C with broken clouds
-  - slack.vector_search → ⚡️Used *slack* *vector_search* to search for 'project status'. Found 12 results
+  - slack.vector_search → ⚡️Used *slack* *vector* *search* to search for 'project status'. Found 12 results
   - memory.retrieve → ⚡️Used *memory* *retrieve* to search for user preferences. Found recent conversations
   - weather.search → ⚡️Used *weather* *search* to find locations matching 'Tokyo'. Found 3 matches
+  
+  Note: Registry tools (reg.*) use predefined summaries and skip LLM processing for efficiency.
 
   Write the narrative summary:
 

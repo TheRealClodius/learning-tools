@@ -140,6 +140,11 @@ class ExecutionSummarizer:
         logger.info(f"EXEC-SUMMARIZER: gemini_client provided: {gemini_client is not None}")
         logger.info(f"EXEC-SUMMARIZER: gemini_types provided: {gemini_types is not None}")
         
+        # Special handling for registry tools - no need for expensive Gemini calls
+        if tool_name.startswith('reg.') or tool_name.startswith('registry.'):
+            logger.info(f"EXEC-SUMMARIZER: Using predefined summary for registry tool {tool_name}")
+            return self._generate_registry_summary(tool_name, tool_args, result_data)
+        
         if self.model_name.startswith('gemini') and gemini_client and gemini_types:
             try:
                 logger.info(f"EXEC-SUMMARIZER: Using Gemini path for {tool_name}")
@@ -242,6 +247,48 @@ Result JSON: {truncated_result}"""
         # Fallback using the initial narrative or generate fallback
         logger.info(f"EXEC-SUMMARIZER: Using fallback narrative for {tool_name}")
         return self._fallback_narrative(initial_narrative, tool_name, result_data)
+    
+    def _generate_registry_summary(self, tool_name: str, tool_args: Dict, result_data: str) -> str:
+        """Generate predefined summaries for registry tools - no LLM needed"""
+        try:
+            # Parse result data to extract useful info
+            if result_data.strip().startswith("{") or result_data.strip().startswith("["):
+                data = json.loads(result_data)
+            else:
+                data = {}
+            
+            # Get query from tool arguments
+            query = tool_args.get('query', tool_args.get('tool_name', ''))
+            
+            if tool_name in ['reg.search', 'registry.search']:
+                if query:
+                    return f"⚡️Searching for tools for \"{query}\" in the registry"
+                else:
+                    return f"⚡️Searching for tools in the registry"
+                    
+            elif tool_name in ['reg.describe', 'registry.describe']:
+                tool_to_describe = tool_args.get('tool_name', query)
+                if tool_to_describe:
+                    return f"⚡️Verifying {tool_to_describe} tool description"
+                else:
+                    return f"⚡️Verifying tool description"
+                    
+            elif tool_name in ['reg.list', 'registry.list']:
+                return f"⚡️Listing all tools in the registry"
+                
+            elif tool_name in ['reg.categories', 'registry.categories']:
+                return f"⚡️Getting tool categories from registry"
+                
+            else:
+                # Fallback for other registry operations
+                operation = tool_name.split('.')[-1] if '.' in tool_name else tool_name
+                return f"⚡️Performing {operation} operation on registry"
+                
+        except Exception as e:
+            logger.debug(f"Registry summary generation failed: {e}")
+            # Simple fallback
+            operation = tool_name.split('.')[-1] if '.' in tool_name else 'registry'
+            return f"⚡️Used *{tool_name}* for {operation} operation"
     
     def _fallback_narrative(self, initial_narrative: str, tool_name: str, result_data: str) -> str:
         """Fallback narrative completion when LLM is not available"""
