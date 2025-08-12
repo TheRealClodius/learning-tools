@@ -254,16 +254,16 @@ class SlackInterface:
                     if isinstance(content, dict):
                         tool_name = content.get("name", "unknown")
                         tool_args = content.get("args", {})
-                        await streaming_handler.start_tool(tool_name, tool_args)
+                        await streaming_handler.start_tool(tool_name, tool_args, self)
                     else:
-                        await streaming_handler.start_tool(content)
+                        await streaming_handler.start_tool(content, None, self)
                 elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
                     # DEBUG: These intermediate operations are now only logged for debugging
                     # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
                     logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100]}...")
                 elif content_type == "tool_result":
                     # Complete tool with final summary (content is already the complete summary)
-                    await streaming_handler.complete_tool(content.strip())
+                    await streaming_handler.complete_tool(content.strip(), self)
                 elif content_type == "tool_summary_chunk":
                     # Stream Gemini summary chunks as they arrive for progressive updates
                     await streaming_handler.append_to_current_tool(content)

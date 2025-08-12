@@ -76,7 +76,7 @@ class SlackStreamingHandler:
         
         await self._update_display()
     
-    async def start_tool(self, tool_name: str, tool_args: Dict = None):
+    async def start_tool(self, tool_name: str, tool_args: Dict = None, slack_interface=None):
         """Start a new tool execution block"""
         # End any current thinking block by moving it to completed blocks
         if self.all_thinking:
@@ -86,6 +86,16 @@ class SlackStreamingHandler:
             self.execution_summary.append(("thinking", thinking_text))
             logger.info(f"DEBUG-THINKING: Tool start - stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
             self.all_thinking = []
+            
+            # 🔧 FIX: Update cache immediately when thinking is committed
+            if slack_interface and self.execution_summary and self.message_ts:
+                try:
+                    await slack_interface.cache_service.store_execution_details(
+                        self.message_ts, self.channel_id, self.user_id or 'unknown', self.execution_summary.copy()
+                    )
+                    logger.info(f"🔄 Updated execution cache after thinking commit - {len(self.execution_summary)} items")
+                except Exception as e:
+                    logger.warning(f"Failed to update execution cache after thinking commit: {e}")
         
         # Store any previous tool in execution summary
         if self.current_tool_block:
@@ -111,7 +121,7 @@ class SlackStreamingHandler:
             self.current_tool_block["operations"].append(chunk)
             await self._update_display()
         
-    async def complete_tool(self, result_summary: str):
+    async def complete_tool(self, result_summary: str, slack_interface=None):
         """Complete current tool with pre-generated summary from ClientAgent"""
         if not self.current_tool_block:
             return
@@ -130,6 +140,17 @@ class SlackStreamingHandler:
         completed_tool = self.current_tool_block.copy()
         self.content_blocks.append(("tool", completed_tool))
         self.execution_summary.append(("tool", completed_tool))
+        
+        # 🔧 FIX: Update cache immediately so modal shows current state
+        # This prevents race condition where user clicks modal button before finish_with_response()
+        if slack_interface and self.execution_summary and self.message_ts:
+            try:
+                await slack_interface.cache_service.store_execution_details(
+                    self.message_ts, self.channel_id, self.user_id or 'unknown', self.execution_summary.copy()
+                )
+                logger.info(f"🔄 Updated execution cache after tool completion - {len(self.execution_summary)} items")
+            except Exception as e:
+                logger.warning(f"Failed to update execution cache after tool completion: {e}")
         
         # Reset for next tool
         self.current_tool_block = None
@@ -257,7 +278,8 @@ class SlackStreamingHandler:
             # Add to both for consistency (though final response replaces the display anyway)
             self.content_blocks.append(("thinking", thinking_text))
             self.execution_summary.append(("thinking", thinking_text))
-            logger.info(f"DEBUG-THINKING: Stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
+            logger.info(f"DEBUG-THINKING: finish_with_response - stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
+            self.all_thinking = []
         
         # Store any current tool in execution summary
         if self.current_tool_block:
