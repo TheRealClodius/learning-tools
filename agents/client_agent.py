@@ -337,75 +337,7 @@ class ClientAgent:
                 service = tool_name.split(".")[0] if "." in tool_name else tool_name
                 return f"🔄 Running {service}..."
 
-    async def _generate_tool_summary_streaming(self, tool_name: str, tool_args: Dict, result: Any, streaming_callback) -> str:
-        """Generate tool summary with real-time streaming to UI"""
-        logger.info(f"🔥 TOOL-SUMMARY: Starting streaming summary for {tool_name}")
-        logger.info(f"🔥 TOOL-SUMMARY: summarization_enabled={self.summarization_enabled}, execution_summarizer={self.execution_summarizer is not None}")
-        logger.info(f"🔥 TOOL-SUMMARY: streaming_callback provided={streaming_callback is not None}")
-        
-        if not self.summarization_enabled or not self.execution_summarizer:
-            fallback = f"⚡️Used *{tool_name}* - summarization disabled"
-            logger.warning(f"🔥 TOOL-SUMMARY: Using fallback for {tool_name}: {fallback}")
-            try:
-                await streaming_callback(fallback, "tool_result")
-                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent fallback callback")
-            except Exception as e:
-                logger.error(f"🔥 TOOL-SUMMARY: Failed to send fallback callback: {e}")
-            return fallback
-        
-        # Convert result to string for summarization
-        if isinstance(result, dict):
-            result_data = json.dumps(result, indent=2)
-        else:
-            result_data = str(result) if result is not None else "No result returned"
-        
-        try:
-            logger.info(f"🔥 TOOL-SUMMARY: Calling ExecutionSummarizer for {tool_name}")
-            logger.info(f"🔥 TOOL-SUMMARY: gemini_client available: {hasattr(self, 'gemini_client')}")
-            logger.info(f"🔥 TOOL-SUMMARY: gemini_types available: {hasattr(self, 'gemini_types')}")
-            logger.info(f"🔥 TOOL-SUMMARY: result_data length: {len(result_data)}")
-            
-            # Create a debug wrapper for the streaming callback
-            async def debug_streaming_callback(content: str, content_type: str):
-                logger.info(f"🔥 TOOL-SUMMARY-CALLBACK: type='{content_type}' content_len={len(content)} content='{content[:80]}...'")
-                try:
-                    await streaming_callback(content, content_type)
-                    logger.info(f"🔥 TOOL-SUMMARY-CALLBACK: Successfully forwarded {content_type}")
-                except Exception as e:
-                    logger.error(f"🔥 TOOL-SUMMARY-CALLBACK ERROR: Failed to forward {content_type}: {e}")
-                    raise
-            
-            # Use ExecutionSummarizer with debug streaming callback
-            summary = await self.execution_summarizer.create_narrative_summary(
-                tool_name=tool_name,
-                tool_args=tool_args,
-                result_data=result_data,
-                initial_narrative="",
-                gemini_client=getattr(self, 'gemini_client', None),
-                gemini_types=getattr(self, 'gemini_types', None),
-                claude_client=getattr(self, 'client', None) if self.summarizer_model.startswith('claude') else None,
-                streaming_callback=debug_streaming_callback  # Pass debug streaming callback
-            )
-            logger.info(f"🔥 TOOL-SUMMARY: Generated summary for {tool_name}: {summary[:50]}...")
-            # Send the final complete summary as tool_result for execution details
-            try:
-                await streaming_callback(summary, "tool_result")
-                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent final tool_result")
-            except Exception as e:
-                logger.error(f"🔥 TOOL-SUMMARY: Failed to send final tool_result: {e}")
-            return summary
-        except Exception as e:
-            logger.error(f"🔥 TOOL-SUMMARY ERROR: Tool summarization failed for {tool_name}: {e}")
-            import traceback
-            logger.error(f"🔥 TOOL-SUMMARY TRACEBACK: {traceback.format_exc()}")
-            # Fallback to simple summary
-            fallback = f"⚡️Used *{tool_name}* - completed successfully"
-            try:
-                await streaming_callback(fallback, "tool_result")
-                logger.info(f"🔥 TOOL-SUMMARY: Successfully sent fallback tool_result")
-            except Exception as e:
-                logger.error(f"🔥 TOOL-SUMMARY: Failed to send fallback tool_result: {e}")
-            return fallback
+    # Removed _generate_tool_summary_streaming - now using structured data approach instead of summaries
 
     async def _generate_tool_summary(self, tool_name: str, tool_args: Dict, result: Any) -> str:
         """Generate tool summary using configured LLM client"""
@@ -878,6 +810,21 @@ class ClientAgent:
                 if tool_call.name in ["memory_retrieve", "memory_add"]:
                     logger.info(f"MEMORY-DEBUG tool={tool_call.name} result_type={type(result)} result_preview={str(result)[:500]}")
                 
+                # Send structured completion data to streaming handler
+                if streaming_callback:
+                    # Check if result indicates an error
+                    error_msg = None
+                    if isinstance(result, dict) and result.get("status") == "error":
+                        error_msg = result.get("message", "Unknown error")
+                    elif isinstance(result, str) and "Error:" in result:
+                        error_msg = result
+                    
+                    # Send completion with structured data
+                    await streaming_callback({
+                        "result_data": result,
+                        "error": error_msg
+                    }, "tool_complete")
+                
                 # For any dict result, format as JSON so the model can parse it reliably
                 if isinstance(result, dict):
                     import json
@@ -1030,78 +977,19 @@ class ClientAgent:
             
             # Handle registry tools directly, then try dynamic execution for others
             if function_name == "reg_search":
-                # Phase 1: Send working message immediately
-                if streaming_callback:
-                    start_message = self._generate_tool_start_message("reg_search", args)
-                    await streaming_callback(start_message, "operation")
-                
-                # Execute tool
+                # Execute tool (no summary callbacks needed - handled by main loop now)
                 args.setdefault("search_type", "description")
                 args.setdefault("limit", 10)
                 result = await self.tool_executor.execute_command("reg.search", args, user_id=user_id)
-                
-                # Phase 2: Generate and stream comprehensive Gemini summary
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("reg.search", args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for reg.search: {e}")
-                        # Fallback summary
-                        if isinstance(result, dict) and result.get("status") == "success":
-                            tools = result.get("data", {}).get("tools", [])
-                            count = len(tools) if tools else 0
-                            query = args.get('query', 'tools')
-                            await streaming_callback(f"⚡️Used *registry* *search* for '{query}' and found {count} results", "tool_result")
-                        else:
-                            await streaming_callback(f"⚡️Used *registry* *search* - completed", "tool_result")
             elif function_name == "reg_describe":
-                # Phase 1: Send working message immediately
-                if streaming_callback:
-                    start_message = self._generate_tool_start_message("reg_describe", args)
-                    await streaming_callback(start_message, "operation")
-                
-                # Execute tool
+                # Execute tool (no summary callbacks needed - handled by main loop now)
                 args.setdefault("include_schema", True)
                 result = await self.tool_executor.execute_command("reg.describe", args, user_id=user_id)
-                
-                # Phase 2: Generate and stream comprehensive Gemini summary
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("reg.describe", args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for reg.describe: {e}")
-                        # Fallback summary
-                        tool_name = args.get('tool_name', 'tool')
-                        await streaming_callback(f"⚡️Used *registry* *describe* to get details for {tool_name}", "tool_result")
             elif function_name == "reg_list":
                 args.setdefault("limit", 50)
                 result = await self.tool_executor.execute_command("reg.list", args, user_id=user_id)
-                
-                # Generate and stream Gemini summary for registry list
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("reg.list", args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for reg.list: {e}")
-                        # Fallback with basic info
-                        explanation = args.get('explanation', 'list all available tools')
-                        await streaming_callback(f"⚡️Used *registry* *list* to {explanation.lower()}", "tool_result")
             elif function_name == "reg_categories":
                 result = await self.tool_executor.execute_command("reg.categories", args, user_id=user_id)
-                
-                # Generate and stream Gemini summary for registry categories
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("reg.categories", args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for reg.categories: {e}")
-                        # Fallback with basic info
-                        explanation = args.get('explanation', 'get tool categories')
-                        await streaming_callback(f"⚡️Used *registry* *categories* to {explanation.lower()}", "tool_result")
 
 
             elif function_name == "execute_tool":
@@ -1109,18 +997,8 @@ class ClientAgent:
                 tool_name = args["tool_name"]
                 tool_args = args.get("tool_args", {})
                 
-                # Execute tool (no additional start message - already sent by tool_start callback)
+                # Execute tool (no summary callbacks needed - handled by main loop now)
                 result = await self.tool_executor.execute_command(tool_name, tool_args, user_id=user_id)
-                
-                # Generate and stream tool summary with real-time chunks
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        # Use streaming version that sends chunks as they arrive
-                        await self._generate_tool_summary_streaming(tool_name, tool_args, result, streaming_callback)
-                    except Exception as e:
-                        logger.warning(f"Failed to generate streaming tool summary for {tool_name}: {e}")
-                        # Fall back to simple completion message
-                        await streaming_callback(f"⚡️Used *{tool_name}* - completed", "tool_result")
                 
             elif function_name == "memory_add":
                 # Add user_id to args for memory operations
@@ -1128,33 +1006,12 @@ class ClientAgent:
                 memory_args["user_id"] = user_id
                 
                 result = await self.tool_executor.execute_command("memory.add", memory_args, user_id=user_id)
-                
-                # Generate and stream Gemini summary for memory add
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("memory.add", memory_args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for memory.add: {e}")
-                        # Fallback with basic info
-                        await streaming_callback("⚡️Used *memory* *add* to store conversation in memory", "tool_result")
             elif function_name == "memory_retrieve":
                 # Add user_id to args for memory operations
                 memory_args = dict(args)
                 memory_args["user_id"] = user_id
                 
                 result = await self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id)
-                
-                # Generate and stream Gemini summary for memory retrieve
-                if streaming_callback and self.summarization_enabled:
-                    try:
-                        summary = await self._generate_tool_summary("memory.retrieve", memory_args, result)
-                        await streaming_callback(summary, "tool_result")
-                    except Exception as e:
-                        logger.warning(f"Failed to generate tool summary for memory.retrieve: {e}")
-                        # Fallback with basic info
-                        query = args.get('query', 'recent context')
-                        await streaming_callback(f"⚡️Used *memory* *retrieve* to search for \"{query}\"", "tool_result")
             else:
                 # SECURITY CHECK: Prevent direct execution of discovered tools
                 # Claude should only use execute_tool for weather, perplexity, etc.

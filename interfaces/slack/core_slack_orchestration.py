@@ -268,19 +268,22 @@ class SlackInterface:
                     # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
                     logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100]}...")
                 elif content_type == "tool_result":
-                    # Complete tool with final summary (content is already the complete summary)
+                    # DEPRECATED: Old summary-based approach - keeping for backward compatibility
                     logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
-                    await streaming_handler.complete_tool(content.strip(), self)
+                    await streaming_handler.complete_tool(content.strip(), None, self)
+                elif content_type == "tool_complete":
+                    # NEW: Structured completion data with result and error information
+                    if isinstance(content, dict):
+                        result_data = content.get("result_data")
+                        error = content.get("error")
+                        logger.info(f"✅ SLACK-TOOL-COMPLETE: Structured completion result_len={len(str(result_data)) if result_data else 0} error={error is not None}")
+                        await streaming_handler.complete_tool(result_data, error, self)
+                    else:
+                        logger.warning(f"SLACK-TOOL-COMPLETE: Expected dict but got {type(content)}")
+                        await streaming_handler.complete_tool(content, None, self)
                 elif content_type == "tool_summary_chunk":
-                    # 🔍 CRITICAL PATH: Stream Gemini summary chunks as they arrive for progressive updates
-                    logger.info(f"📡 SLACK-CHUNK: Received streaming chunk ({len(content)} chars): '{content[:80]}...'")
-                    try:
-                        await streaming_handler.append_to_current_tool(content)
-                        logger.info(f"📡 SLACK-CHUNK: Successfully appended chunk to current tool")
-                    except Exception as e:
-                        logger.error(f"📡 SLACK-CHUNK ERROR: Failed to append chunk: {e}")
-                        import traceback
-                        logger.error(f"📡 SLACK-CHUNK TRACEBACK: {traceback.format_exc()}")
+                    # DEPRECATED: Old streaming chunk approach - no longer used with structured data
+                    logger.debug(f"DEPRECATED-CHUNK: Ignoring old-style tool_summary_chunk: {content[:50]}...")
                 else:
                     logger.warning(f"🔍 SLACK-UNKNOWN: Unhandled callback type='{content_type}' content='{str(content)[:80]}...')")
 
