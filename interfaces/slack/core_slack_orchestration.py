@@ -262,9 +262,8 @@ class SlackInterface:
                     # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
                     logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100]}...")
                 elif content_type == "tool_result":
-                    # Complete tool with final summary
-                    tool_name, result_preview = content.split(":", 1) if ":" in content else (content, "")
-                    await streaming_handler.complete_tool(result_preview.strip())
+                    # Complete tool with final summary (content is already the complete summary)
+                    await streaming_handler.complete_tool(content.strip())
                 elif content_type == "tool_summary_chunk":
                     # Stream Gemini summary chunks as they arrive for progressive updates
                     await streaming_handler.append_to_current_tool(content)
