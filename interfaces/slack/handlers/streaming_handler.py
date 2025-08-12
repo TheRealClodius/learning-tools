@@ -206,8 +206,9 @@ class SlackStreamingHandler:
                 for operation in tool_info['operations']:
                     tool_lines.append(operation.strip())
                 
-                # Format each line with italics (no bold names, no status indicators)
-                tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+                # Format the entire block with italics (no bold names, no status indicators)
+                tool_content = '\n'.join([line for line in tool_lines if line])
+                tool_formatted = f"_{tool_content}_" if tool_content else ""
                 # Ensure text is never empty (Slack requires at least 1 character)
                 if not tool_formatted:
                     tool_name = tool_info.get('name', 'Unknown tool')
@@ -249,8 +250,9 @@ class SlackStreamingHandler:
             for operation in tool_info['operations']:
                 tool_lines.append(operation.strip())
             
-            # Format each line with italics (no bold names, no status indicators)
-            tool_formatted = '\n'.join([f"_{line}_" for line in tool_lines if line])
+            # Format the entire block with italics (no bold names, no status indicators)
+            tool_content = '\n'.join([line for line in tool_lines if line])
+            tool_formatted = f"_{tool_content}_" if tool_content else ""
             # Ensure text is never empty (Slack requires at least 1 character)
             if not tool_formatted:
                 tool_name = tool_info.get('name', 'Unknown tool')
