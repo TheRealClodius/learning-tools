@@ -259,10 +259,10 @@ class SlackInterface:
                         tool_name = content.get("name", "unknown")
                         tool_args = content.get("args", {})
                         logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={list(tool_args.keys()) if tool_args else []}")
-                        await streaming_handler.start_tool(tool_name, tool_args, self)
+                        await streaming_handler.start_tool(tool_name, tool_args)
                     else:
                         logger.info(f"🚀 SLACK-TOOL-START: string format tool='{content}'")
-                        await streaming_handler.start_tool(content, None, self)
+                        await streaming_handler.start_tool(content, None)
                 elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
                     # DEBUG: These intermediate operations are now only logged for debugging
                     # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
@@ -270,17 +270,17 @@ class SlackInterface:
                 elif content_type == "tool_result":
                     # DEPRECATED: Old summary-based approach - keeping for backward compatibility
                     logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
-                    await streaming_handler.complete_tool(content.strip(), None, self)
+                    await streaming_handler.complete_tool(content.strip(), None)
                 elif content_type == "tool_complete":
                     # NEW: Structured completion data with result and error information
                     if isinstance(content, dict):
                         result_data = content.get("result_data")
                         error = content.get("error")
                         logger.info(f"✅ SLACK-TOOL-COMPLETE: Structured completion result_len={len(str(result_data)) if result_data else 0} error={error is not None}")
-                        await streaming_handler.complete_tool(result_data, error, self)
+                        await streaming_handler.complete_tool(result_data, error)
                     else:
                         logger.warning(f"SLACK-TOOL-COMPLETE: Expected dict but got {type(content)}")
-                        await streaming_handler.complete_tool(content, None, self)
+                        await streaming_handler.complete_tool(content, None)
                 elif content_type == "tool_summary_chunk":
                     # DEPRECATED: Old streaming chunk approach - no longer used with structured data
                     logger.debug(f"DEPRECATED-CHUNK: Ignoring old-style tool_summary_chunk: {content[:50]}...")

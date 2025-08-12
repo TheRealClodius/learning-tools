@@ -76,7 +76,7 @@ class SlackStreamingHandler:
         
         await self._update_display()
     
-    async def start_tool(self, tool_name: str, tool_args: Dict = None, slack_interface=None):
+    async def start_tool(self, tool_name: str, tool_args: Dict = None):
         """Start a new tool execution block"""
         # End any current thinking block by moving it to completed blocks
         if self.all_thinking:
@@ -87,15 +87,7 @@ class SlackStreamingHandler:
             logger.info(f"DEBUG-THINKING: Tool start - stored {len(self.all_thinking)} thinking lines in both content_blocks and execution_summary")
             self.all_thinking = []
             
-            # 🔧 FIX: Update cache immediately when thinking is committed
-            if slack_interface and self.execution_summary and self.message_ts:
-                try:
-                    await slack_interface.cache_service.store_execution_details(
-                        self.message_ts, self.channel_id, self.user_id or 'unknown', self.execution_summary.copy()
-                    )
-                    logger.info(f"🔄 Updated execution cache after thinking commit - {len(self.execution_summary)} items")
-                except Exception as e:
-                    logger.warning(f"Failed to update execution cache after thinking commit: {e}")
+            # Note: Cache updates are handled by finish_with_response() method
         
         # Store any previous tool in execution summary
         if self.current_tool_block:
@@ -104,67 +96,163 @@ class SlackStreamingHandler:
         # DEBUG: Log tool start
         logger.debug(f"DEBUG: Starting tool {tool_name}, execution_summary now has {len(self.execution_summary)} items")
         
-        # Tool args are now handled by ClientAgent for summarization
+        # Extract clean tool name for display
+        display_name = tool_name
+        if isinstance(tool_name, dict) and "name" in tool_name:
+            display_name = tool_name["name"]
+        elif isinstance(tool_name, str) and tool_name.startswith("⚡️"):
+            display_name = tool_name[2:]  # Remove ⚡️ prefix
         
-        # Start new tool block
+        # Start new tool block with structured data
         self.current_tool_block = {
-            "name": tool_name,
+            "name": display_name,
+            "args": tool_args or {},
+            "status": "running",
             "operations": [],
-            "status": "running"
+            "error": None,
+            "result": None
         }
         await self._update_display()
         
-    async def append_to_current_tool(self, chunk: str):
-        """Append a chunk to the current tool's operations (for streaming summaries)"""
-        logger.info(f"📡 HANDLER-CHUNK: Received chunk for appending ({len(chunk)} chars): '{chunk[:80]}...'")
-        
-        if self.current_tool_block:
-            logger.info(f"📡 HANDLER-CHUNK: Current tool block exists, tool='{self.current_tool_block.get('name')}' operations_count={len(self.current_tool_block.get('operations', []))}")
-            # Always append each chunk as a separate operation entry
-            self.current_tool_block["operations"].append(chunk)
-            logger.info(f"📡 HANDLER-CHUNK: Appended chunk, new operations_count={len(self.current_tool_block.get('operations', []))}")
-            
-            try:
-                await self._update_display()
-                logger.info(f"📡 HANDLER-CHUNK: Display update completed successfully")
-            except Exception as e:
-                logger.error(f"📡 HANDLER-CHUNK ERROR: Display update failed: {e}")
-                import traceback
-                logger.error(f"📡 HANDLER-CHUNK TRACEBACK: {traceback.format_exc()}")
-        else:
-            logger.warning(f"📡 HANDLER-CHUNK WARNING: No current tool block - chunk ignored: '{chunk[:80]}...'")
-        
-    async def complete_tool(self, result_summary: str, slack_interface=None):
-        """Complete current tool with pre-generated summary from ClientAgent"""
+    # Removed append_to_current_tool - we now use structured data instead of streaming chunks
+    async def complete_tool(self, result_data: any = None, error: str = None):
+        """Complete current tool with structured result data and error information"""
         if not self.current_tool_block:
             return
             
-        self.current_tool_block["status"] = "completed"
+        self.current_tool_block["status"] = "completed" if not error else "failed"
         
-        if result_summary:
-            # All tools now get complete summaries from ClientAgent (Gemini)
-            # Replace any streaming chunks with the final complete summary
-            self.current_tool_block["operations"] = [result_summary]
+        # Store structured result data instead of Gemini summary
+        if result_data:
+            self.current_tool_block["result"] = result_data
+        if error:
+            self.current_tool_block["error"] = error
         
         # Store completed tool for display and modal
         completed_tool = self.current_tool_block.copy()
         self.content_blocks.append(("tool", completed_tool))
         self.execution_summary.append(("tool", completed_tool))
         
-        # 🔧 FIX: Update cache immediately so modal shows current state
-        # This prevents race condition where user clicks modal button before finish_with_response()
-        if slack_interface and self.execution_summary and self.message_ts:
-            try:
-                await slack_interface.cache_service.store_execution_details(
-                    self.message_ts, self.channel_id, self.user_id or 'unknown', self.execution_summary.copy()
-                )
-                logger.info(f"🔄 Updated execution cache after tool completion - {len(self.execution_summary)} items")
-            except Exception as e:
-                logger.warning(f"Failed to update execution cache after tool completion: {e}")
+        # Note: Cache updates are handled by finish_with_response() method
         
         # Reset for next tool
         self.current_tool_block = None
         await self._update_display()
+    
+    def _format_tool_block(self, tool_info: Dict) -> str:
+        """Format tool information programmatically for clean display"""
+        tool_name = tool_info.get('name', 'Unknown tool')
+        status = tool_info.get('status', 'running')
+        error = tool_info.get('error')
+        result = tool_info.get('result')
+        tool_args = tool_info.get('args', {})
+        
+        # Start with tool name and operation
+        parts = []
+        
+        if status == "running":
+            parts.append(f"⚡️ *{tool_name}* executing...")
+        elif status == "failed" and error:
+            parts.append(f"⚡️ *{tool_name}* failed: {error}")
+        elif status == "completed":
+            # Format success message based on tool type and result
+            success_msg = self._format_tool_success(tool_name, tool_args, result)
+            parts.append(success_msg)
+        else:
+            parts.append(f"⚡️ *{tool_name}* completed")
+        
+        # Combine all parts and italicize the entire block
+        tool_content = '\n'.join(parts)
+        return f"_{tool_content}_"
+    
+    def _format_tool_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format successful tool execution message based on tool type and result data"""
+        try:
+            # Handle different tool types with specific formatting
+            if "weather" in tool_name.lower():
+                return self._format_weather_success(tool_name, tool_args, result)
+            elif "perplexity" in tool_name.lower():
+                return self._format_perplexity_success(tool_name, tool_args, result)
+            elif "registry" in tool_name.lower() or "reg." in tool_name.lower():
+                return self._format_registry_success(tool_name, tool_args, result)
+            elif "slack" in tool_name.lower():
+                return self._format_slack_success(tool_name, tool_args, result)
+            elif "memory" in tool_name.lower():
+                return self._format_memory_success(tool_name, tool_args, result)
+            else:
+                # Generic success format
+                return f"⚡️ *{tool_name}* completed successfully"
+        except Exception as e:
+            logger.warning(f"Tool formatting error for {tool_name}: {e}")
+            return f"⚡️ *{tool_name}* completed"
+    
+    def _format_weather_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format weather tool success messages"""
+        if isinstance(result, dict) and result.get("success"):
+            data = result.get("data", {})
+            if "current" in tool_name:
+                # Current weather
+                temp = data.get("main", {}).get("temp")
+                weather_desc = data.get("weather", [{}])[0].get("description", "")
+                city = data.get("name", tool_args.get("location", "location"))
+                if temp and weather_desc:
+                    return f"⚡️ *{tool_name}* got weather for {city}. Currently {temp}°C, {weather_desc}"
+                elif temp:
+                    return f"⚡️ *{tool_name}* got weather for {city}. Currently {temp}°C"
+            elif "search" in tool_name:
+                # Location search
+                if isinstance(data, list) and data:
+                    location = data[0]
+                    name = location.get("name", "location")
+                    country = location.get("country", "")
+                    return f"⚡️ *{tool_name}* found location: {name}, {country}"
+        return f"⚡️ *{tool_name}* retrieved weather data"
+    
+    def _format_perplexity_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format Perplexity tool success messages"""
+        query = tool_args.get("query", "query")
+        if isinstance(result, dict):
+            if result.get("success"):
+                return f"⚡️ *{tool_name}* researched: {query}"
+            else:
+                error_msg = result.get("message", "API error")
+                return f"⚡️ *{tool_name}* failed: {error_msg}"
+        return f"⚡️ *{tool_name}* completed research"
+    
+    def _format_registry_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format registry tool success messages"""
+        if "search" in tool_name:
+            query = tool_args.get("query", "tools")
+            return f"⚡️ *{tool_name}* searched for \"{query}\" in registry"
+        elif "describe" in tool_name:
+            tool_to_describe = tool_args.get("tool_name", "tool")
+            return f"⚡️ *{tool_name}* verified {tool_to_describe} description"
+        elif "list" in tool_name:
+            return f"⚡️ *{tool_name}* listed available tools"
+        elif "categories" in tool_name:
+            return f"⚡️ *{tool_name}* retrieved tool categories"
+        return f"⚡️ *{tool_name}* completed registry operation"
+    
+    def _format_slack_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format Slack tool success messages"""
+        if isinstance(result, dict) and result.get("success"):
+            data = result.get("data", {})
+            if "search" in tool_name:
+                count = len(data.get("messages", []))
+                return f"⚡️ *{tool_name}* found {count} messages"
+            elif "channels" in tool_name:
+                count = len(data.get("channels", []))
+                return f"⚡️ *{tool_name}* retrieved {count} channels"
+        return f"⚡️ *{tool_name}* completed Slack operation"
+    
+    def _format_memory_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format memory tool success messages"""
+        if "retrieve" in tool_name:
+            query = tool_args.get("query", "information")
+            return f"⚡️ *{tool_name}* searched for \"{query}\""
+        elif "add" in tool_name:
+            return f"⚡️ *{tool_name}* stored information"
+        return f"⚡️ *{tool_name}* completed memory operation"
     
     async def _update_display(self):
         """Update the streaming message display with chronological thinking and tool blocks"""
@@ -195,21 +283,9 @@ class SlackStreamingHandler:
                     ]
                 })
             elif block_type == "tool":
-                # Tool block: Just italicize the Gemini-generated summary content
+                # Tool block: Format structured tool information programmatically
                 tool_info = content
-                tool_lines = []
-                
-                # Add operations directly (they're already Gemini-formatted summaries)
-                for operation in tool_info['operations']:
-                    tool_lines.append(operation.strip())
-                
-                # Format the entire block with italics (no bold names, no status indicators)
-                tool_content = '\n'.join([line for line in tool_lines if line])
-                tool_formatted = f"_{tool_content}_" if tool_content else ""
-                # Ensure text is never empty (Slack requires at least 1 character)
-                if not tool_formatted:
-                    tool_name = tool_info.get('name', 'Unknown tool')
-                    tool_formatted = f"_Tool {tool_name} executed_"
+                tool_formatted = self._format_tool_block(tool_info)
                 
                 blocks.append({
                     "type": "context",
@@ -240,20 +316,7 @@ class SlackStreamingHandler:
         
         # Add current tool block if we have one running
         if self.current_tool_block:
-            tool_info = self.current_tool_block
-            tool_lines = []
-            
-            # Add operations directly (they're Gemini summaries or start messages)
-            for operation in tool_info['operations']:
-                tool_lines.append(operation.strip())
-            
-            # Format the entire block with italics (no bold names, no status indicators)
-            tool_content = '\n'.join([line for line in tool_lines if line])
-            tool_formatted = f"_{tool_content}_" if tool_content else ""
-            # Ensure text is never empty (Slack requires at least 1 character)
-            if not tool_formatted:
-                tool_name = tool_info.get('name', 'Unknown tool')
-                tool_formatted = f"_Tool {tool_name} executing..._"
+            tool_formatted = self._format_tool_block(self.current_tool_block)
             
             blocks.append({
                 "type": "context", 
