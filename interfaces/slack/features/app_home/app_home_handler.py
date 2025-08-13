@@ -73,7 +73,7 @@ class AppHomeHandler:
         else:
             greeting = "Good evening"
         
-        # Build header section
+        # Build header section with integrated buttons
         header_blocks = [
             {
                 "type": "header",
@@ -88,20 +88,15 @@ class AppHomeHandler:
                 "text": {
                     "type": "mrkdwn",
                     "text": "Welcome to your personal AI agent dashboard. Here you can view your activity, manage preferences, and quickly access common features."
-                }
-            },
-            {
-                "type": "divider"
-            }
-        ]
-        
-        # Quick Actions section
-        quick_actions_blocks = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*🚀 Quick Actions*\nGet started with these common tasks:"
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "⚙️ Preferences",
+                        "emoji": True
+                    },
+                    "action_id": "open_preferences"
                 }
             },
             {
@@ -121,24 +116,12 @@ class AppHomeHandler:
                         "type": "button",
                         "text": {
                             "type": "plain_text",
-                            "text": "🔍 Search Tools",
+                            "text": "What I can do",
                             "emoji": True
                         },
                         "action_id": "show_available_tools"
-                    },
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "⚙️ Preferences",
-                            "emoji": True
-                        },
-                        "action_id": "open_preferences"
                     }
                 ]
-            },
-            {
-                "type": "divider"
             }
         ]
         
@@ -148,25 +131,22 @@ class AppHomeHandler:
         # Help & Support section
         help_blocks = [
             {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*💡 Tips & Support*"
-                }
+                "type": "divider"
             },
             {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "• *Message me directly* in any channel by mentioning @signal\n• *Use natural language* - I understand context and can help with complex tasks\n• *View execution details* by clicking the 'view flow' button after responses\n• For bug reports or feature requests, send a DM to <@U123456789> *@Andrei Clodius*"
-                }
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "For bug reports or feature requests, send a DM to *@Andrei Clodius*"
+                    }
+                ]
             }
         ]
         
         # Combine all blocks
         all_blocks = (
             header_blocks + 
-            quick_actions_blocks + 
             action_points_blocks + 
             help_blocks
         )
@@ -181,66 +161,80 @@ class AppHomeHandler:
         
         blocks = [
             {
-                "type": "section",
+                "type": "divider"
+            },
+            {
+                "type": "header",
                 "text": {
-                    "type": "mrkdwn",
-                    "text": "*📋 Action Points & Follow-ups*"
+                    "type": "plain_text",
+                    "text": "📋 Action Points & Follow-ups",
+                    "emoji": True
                 }
             }
         ]
         
         if not action_points:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "_No recent action points found. Start chatting with me to see your personalized action items here!_"
+            blocks.extend([
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "_No recent action points found. Start chatting with me to see your personalized action items here!_"
+                    }
                 }
-            })
+            ])
         else:
-            # Show up to 5 action points
-            for point in action_points[:5]:
+            # Create card-like sections for each action point
+            for point in action_points[:3]:  # Show top 3 action points
                 timestamp = point.get('timestamp', 'Recent')
                 action = point.get('action', 'No action specified')
                 context = point.get('context', '')
                 priority = point.get('priority', 'normal')
                 
-                # Add priority emoji
-                priority_emoji = {
-                    'high': '🔴',
-                    'medium': '🟡', 
-                    'normal': '🔵',
-                    'low': '⚪'
-                }.get(priority, '🔵')
+                # Add priority emoji and styling
+                priority_info = {
+                    'high': {'emoji': '🔴', 'text': 'High Priority'},
+                    'medium': {'emoji': '🟡', 'text': 'Medium Priority'}, 
+                    'normal': {'emoji': '🔵', 'text': 'Normal Priority'},
+                    'low': {'emoji': '⚪', 'text': 'Low Priority'}
+                }.get(priority, {'emoji': '🔵', 'text': 'Normal Priority'})
                 
-                blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"{priority_emoji} *{action}*\n_{context}_ • _{timestamp}_"
+                blocks.extend([
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"{priority_info['emoji']} *{action}*\n{context}\n\n_{priority_info['text']} • {timestamp}_"
+                        }
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": " "
+                            }
+                        ]
                     }
-                })
+                ])
             
             # Add "View All" button if there are more action points
-            if len(action_points) > 5:
+            if len(action_points) > 3:
                 blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"_And {len(action_points) - 5} more action points..._"
-                    },
-                    "accessory": {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "View All",
-                            "emoji": True
-                        },
-                        "action_id": "view_all_action_points"
-                    }
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": f"View All {len(action_points)} Action Points",
+                                "emoji": True
+                            },
+                            "action_id": "view_all_action_points"
+                        }
+                    ]
                 })
         
-        blocks.append({"type": "divider"})
         return blocks
     
     async def _get_action_points(self, user_id: str) -> List[Dict]:
@@ -372,15 +366,15 @@ class AppHomeHandler:
             logger.error(f"Error opening start chat modal: {e}")
     
     async def _handle_show_tools(self, body, client, user_id: str):
-        """Handle showing available tools"""
+        """Handle showing what I can do in a narrative format"""
         try:
-            # Create a modal showing available tools
-            tools_modal = {
+            # Create a modal with narrative examples and capabilities
+            capabilities_modal = {
                 "type": "modal",
-                "callback_id": "tools_info_modal",
+                "callback_id": "capabilities_info_modal",
                 "title": {
                     "type": "plain_text",
-                    "text": "Available Tools"
+                    "text": "What I can do"
                 },
                 "close": {
                     "type": "plain_text",
@@ -391,42 +385,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*🔧 Available Tools & Capabilities*\n\nHere's what I can help you with:"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*🔍 Research & Search*\n• Web search with Perplexity\n• Information lookup and analysis\n• Real-time data retrieval"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*🌤️ Weather*\n• Current weather conditions\n• Weather forecasts\n• Location-based weather data"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*💾 Memory*\n• Remember important information\n• Retrieve past conversations\n• Personal knowledge base"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*📊 Slack Integration*\n• Channel search and information\n• Message history access\n• Team collaboration tools"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*🗂️ Registry*\n• Service discovery\n• Tool categorization\n• Capability exploration"
+                            "text": "I'm your AI assistant that can help with research, analysis, and information management. Here are some things you can ask me:"
                         }
                     },
                     {
@@ -436,7 +395,45 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*How to use:* Just mention me (@signal) in any channel or DM, and describe what you need help with in natural language!"
+                            "text": "*🌤️ Live weather conditions for any location*\n• \"What's the weather in Tokyo right now?\"\n• \"Will it rain in London tomorrow?\"\n• \"Show me the 5-day forecast for San Francisco\""
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*🔍 Real-time web research and analysis*\n• \"Find the latest news about renewable energy\"\n• \"Research competitor pricing for SaaS tools\"\n• \"What are the current trends in AI development?\""
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*💾 Personal knowledge base*\n• \"Remember that John prefers morning meetings\"\n• \"What did we discuss about the Q4 budget?\"\n• \"Save this document for future reference\""
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*📊 Retrieve Slack message history*\n• \"Find messages about the product launch\"\n• \"Show me conversations from last week about pricing\"\n• \"Search for files shared in #marketing channel\""
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*🤝 Team collaboration and analysis*\n• \"Summarize the key points from yesterday's meeting\"\n• \"Help me draft a project proposal\"\n• \"Analyze the feedback from our user survey\""
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "_Just mention me (@signal) in any channel or send me a DM with your request in natural language._"
                         }
                     }
                 ]
@@ -444,11 +441,11 @@ class AppHomeHandler:
             
             await client.views_open(
                 trigger_id=body["trigger_id"],
-                view=tools_modal
+                view=capabilities_modal
             )
             
         except Exception as e:
-            logger.error(f"Error showing tools modal: {e}")
+            logger.error(f"Error showing capabilities modal: {e}")
     
     async def _handle_open_preferences(self, body, client, user_id: str):
         """Handle opening user preferences"""

@@ -184,7 +184,7 @@ class SlackInterface:
             await self.app_home_handler.handle_app_home_action(ack, body, client, "start_new_chat")
         
         @self.app.action("show_available_tools")
-        async def handle_show_tools(ack, body, client):
+        async def handle_show_capabilities(ack, body, client):
             await self.app_home_handler.handle_app_home_action(ack, body, client, "show_available_tools")
         
         @self.app.action("open_preferences")
