@@ -106,7 +106,7 @@ class AppHomeHandler:
                         "type": "button",
                         "text": {
                             "type": "plain_text",
-                            "text": "What I can do",
+                            "text": "Things you can ask me...",
                             "emoji": True
                         },
                         "action_id": "show_available_tools"
@@ -275,6 +275,8 @@ class AppHomeHandler:
                 await self._handle_open_preferences(body, client, user_id)
             elif action_id == "view_all_action_points":
                 await self._handle_view_all_action_points(body, client, user_id)
+            elif action_id == "send_prompt":
+                await self._handle_send_prompt(body, client, user_id)
             else:
                 logger.warning(f"Unknown App Home action: {action_id}")
                 
@@ -292,7 +294,7 @@ class AppHomeHandler:
                 "callback_id": "capabilities_info_modal",
                 "title": {
                     "type": "plain_text",
-                    "text": "What I can do"
+                    "text": "Things you can ask me..."
                 },
                 "close": {
                     "type": "plain_text",
@@ -303,56 +305,178 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "I'm your AI assistant that can help with research, analysis, and information management. Here are some things you can ask me:"
+                            "text": "I'm your AI assistant that can help with research, analysis, and information management. Click any example below to try it:"
                         }
                     },
                     {
                         "type": "divider"
                     },
                     {
-                        "type": "section",
+                        "type": "header",
                         "text": {
-                            "type": "mrkdwn",
-                            "text": "*🌤️ Live weather conditions for any location*\n• \"What's the weather in Tokyo right now?\"\n• \"Will it rain in London tomorrow?\"\n• \"Show me the 5-day forecast for San Francisco\""
+                            "type": "plain_text",
+                            "text": "🌤️ Live weather conditions for any location",
+                            "emoji": True
                         }
                     },
                     {
-                        "type": "section",
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "What's the weather in Tokyo right now?",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "What's the weather in Tokyo right now?"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Will it rain in London tomorrow?",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Will it rain in London tomorrow?"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Show me the 5-day forecast for San Francisco",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Show me the 5-day forecast for San Francisco"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "header",
                         "text": {
-                            "type": "mrkdwn",
-                            "text": "*🔍 Real-time web research and analysis*\n• \"Find the latest news about renewable energy\"\n• \"Research competitor pricing for SaaS tools\"\n• \"What are the current trends in AI development?\""
+                            "type": "plain_text",
+                            "text": "🔍 Real-time web research and analysis",
+                            "emoji": True
                         }
                     },
                     {
-                        "type": "section",
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Find the latest news about renewable energy",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Find the latest news about renewable energy"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Research competitor pricing for SaaS tools",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Research competitor pricing for SaaS tools"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "header",
                         "text": {
-                            "type": "mrkdwn",
-                            "text": "*💾 Personal knowledge base*\n• \"Remember that John prefers morning meetings\"\n• \"What did we discuss about the Q4 budget?\"\n• \"Save this document for future reference\""
+                            "type": "plain_text",
+                            "text": "💾 Personal knowledge base",
+                            "emoji": True
                         }
                     },
                     {
-                        "type": "section",
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Remember that John prefers morning meetings",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Remember that John prefers morning meetings"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "What did we discuss about the Q4 budget?",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "What did we discuss about the Q4 budget?"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "header",
                         "text": {
-                            "type": "mrkdwn",
-                            "text": "*📊 Retrieve Slack message history*\n• \"Find messages about the product launch\"\n• \"Show me conversations from last week about pricing\"\n• \"Search for files shared in #marketing channel\""
+                            "type": "plain_text",
+                            "text": "📊 Retrieve Slack message history",
+                            "emoji": True
                         }
                     },
                     {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*🤝 Team collaboration and analysis*\n• \"Summarize the key points from yesterday's meeting\"\n• \"Help me draft a project proposal\"\n• \"Analyze the feedback from our user survey\""
-                        }
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Find messages about the product launch",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Find messages about the product launch"
+                            }
+                        ]
                     },
                     {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "_Just mention me (@signal) in any channel or send me a DM with your request in natural language._"
-                        }
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Search for files shared in #marketing channel",
+                                    "emoji": True
+                                },
+                                "action_id": "send_prompt",
+                                "value": "Search for files shared in #marketing channel"
+                            }
+                        ]
                     }
                 ]
             }
@@ -539,6 +663,36 @@ class AppHomeHandler:
             
         except Exception as e:
             logger.error(f"Error showing all action points: {e}")
+    
+    async def _handle_send_prompt(self, body, client, user_id: str):
+        """Handle sending a prompt by opening DM and auto-sending the message"""
+        try:
+            # Get the prompt text from the button value
+            prompt_text = body.get("actions", [{}])[0].get("value", "")
+            
+            if not prompt_text:
+                logger.error("No prompt text found in button action")
+                return
+            
+            # Open a DM with the user
+            dm_response = await client.conversations_open(users=[user_id])
+            if not dm_response.get("ok"):
+                logger.error(f"Failed to open DM for user {user_id}: {dm_response.get('error')}")
+                return
+            
+            channel_id = dm_response["channel"]["id"]
+            
+            # Send the prompt message with user mention to trigger the agent
+            await client.chat_postMessage(
+                channel=channel_id,
+                text=f"<@{user_id}> {prompt_text}",  # Mention user so agent responds
+                mrkdwn=True
+            )
+            
+            logger.info(f"Auto-sent prompt to DM for user {user_id}: {prompt_text}")
+            
+        except Exception as e:
+            logger.error(f"Error sending prompt: {e}")
     
     async def _publish_error_view(self, client, user_id: str):
         """Publish a fallback error view when the main view fails"""

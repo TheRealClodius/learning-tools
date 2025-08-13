@@ -191,6 +191,10 @@ class SlackInterface:
         async def handle_view_all_action_points(ack, body, client):
             await self.app_home_handler.handle_app_home_action(ack, body, client, "view_all_action_points")
         
+        @self.app.action("send_prompt")
+        async def handle_send_prompt(ack, body, client):
+            await self.app_home_handler.handle_app_home_action(ack, body, client, "send_prompt")
+        
         @self.app.action("refresh_home_view")
         async def handle_refresh_home_view(ack, body, client):
             await ack()
