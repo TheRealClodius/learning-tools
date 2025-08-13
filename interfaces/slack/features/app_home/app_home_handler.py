@@ -324,8 +324,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "What's the weather in Tokyo right now?",
-                                    "emoji": True
+                                    "text": "What's the weather in Tokyo right now?"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "What's the weather in Tokyo right now?"
@@ -339,8 +338,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Will it rain in London tomorrow?",
-                                    "emoji": True
+                                    "text": "Will it rain in London tomorrow?"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Will it rain in London tomorrow?"
@@ -354,8 +352,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Show me the 5-day forecast for San Francisco",
-                                    "emoji": True
+                                    "text": "Show me the 5-day forecast for San Francisco"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Show me the 5-day forecast for San Francisco"
@@ -377,8 +374,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Find the latest news about renewable energy",
-                                    "emoji": True
+                                    "text": "Find the latest news about renewable energy"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Find the latest news about renewable energy"
@@ -392,8 +388,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Research competitor pricing for SaaS tools",
-                                    "emoji": True
+                                    "text": "Research competitor pricing for SaaS tools"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Research competitor pricing for SaaS tools"
@@ -415,8 +410,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Remember that John prefers morning meetings",
-                                    "emoji": True
+                                    "text": "Remember that John prefers morning meetings"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Remember that John prefers morning meetings"
@@ -430,8 +424,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "What did we discuss about the Q4 budget?",
-                                    "emoji": True
+                                    "text": "What did we discuss about the Q4 budget?"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "What did we discuss about the Q4 budget?"
@@ -453,8 +446,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Find messages about the product launch",
-                                    "emoji": True
+                                    "text": "Find messages about the product launch"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Find messages about the product launch"
@@ -468,8 +460,7 @@ class AppHomeHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Search for files shared in #marketing channel",
-                                    "emoji": True
+                                    "text": "Search for files shared in #marketing channel"
                                 },
                                 "action_id": "send_prompt",
                                 "value": "Search for files shared in #marketing channel"
