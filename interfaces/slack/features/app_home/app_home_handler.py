@@ -10,6 +10,7 @@ Provides a personalized home tab experience for users including:
 
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import json
@@ -23,9 +24,10 @@ logger = logging.getLogger(__name__)
 class AppHomeHandler:
     """Handles App Home tab functionality for personalized user experiences"""
     
-    def __init__(self, cache_service, user_service):
+    def __init__(self, cache_service, user_service, slack_interface=None):
         self.cache_service = cache_service
         self.user_service = user_service
+        self.slack_interface = slack_interface
     
     async def publish_home_view(self, client, user_id: str, event: Optional[Dict] = None):
         """
@@ -320,7 +322,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *What's the weather in Tokyo right now?*"
+                            "text": "• What's the weather in Tokyo right now?"
                         },
                         "accessory": {
                             "type": "button",
@@ -336,7 +338,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Will it rain in London tomorrow?*"
+                            "text": "• Will it rain in London tomorrow?"
                         },
                         "accessory": {
                             "type": "button",
@@ -352,7 +354,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Show me the 5-day forecast for San Francisco*"
+                            "text": "• Show me the 5-day forecast for San Francisco"
                         },
                         "accessory": {
                             "type": "button",
@@ -379,7 +381,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Find the latest news about renewable energy*"
+                            "text": "• Find the latest news about renewable energy"
                         },
                         "accessory": {
                             "type": "button",
@@ -395,7 +397,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Research competitor pricing for SaaS tools*"
+                            "text": "• Research competitor pricing for SaaS tools"
                         },
                         "accessory": {
                             "type": "button",
@@ -422,7 +424,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Remember that John prefers morning meetings*"
+                            "text": "• Remember that John prefers morning meetings"
                         },
                         "accessory": {
                             "type": "button",
@@ -438,7 +440,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *What did we discuss about the Q4 budget?*"
+                            "text": "• What did we discuss about the Q4 budget?"
                         },
                         "accessory": {
                             "type": "button",
@@ -465,7 +467,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Find messages about the product launch*"
+                            "text": "• Find messages about the product launch"
                         },
                         "accessory": {
                             "type": "button",
@@ -481,7 +483,7 @@ class AppHomeHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "• *Search for files shared in #marketing channel*"
+                            "text": "• Search for files shared in #marketing channel"
                         },
                         "accessory": {
                             "type": "button",
@@ -698,12 +700,41 @@ class AppHomeHandler:
             
             channel_id = dm_response["channel"]["id"]
             
-            # Send the prompt message directly (without mention to avoid bot ignoring it)
-            await client.chat_postMessage(
+            # Get user info for proper context
+            user_info = await self.slack_interface._get_user_info(user_id) if self.slack_interface else {}
+            
+            # Parse mentions (empty in this case, but needed for the interface)
+            mention_context = {'users': {}, 'channels': {}}
+            
+            # Post an initial message to show we're processing
+            initial_message = await client.chat_postMessage(
                 channel=channel_id,
-                text=prompt_text,  # Send the prompt directly to trigger agent processing
+                text=f"💭 *You asked:* {prompt_text}",
                 mrkdwn=True
             )
+            
+            # Get the timestamp for threading
+            thread_ts = initial_message["ts"]
+            
+            # Now directly call the agent processing with proper user context
+            if self.slack_interface:
+                # This will trigger the full agent flow with proper user context, history, etc.
+                await self.slack_interface._process_and_respond(
+                    user_id=user_id,
+                    channel_id=channel_id,
+                    message_text=prompt_text,
+                    thread_ts=thread_ts,
+                    mention_context=mention_context,
+                    user_info=user_info
+                )
+            else:
+                # Fallback if no interface reference
+                await client.chat_postMessage(
+                    channel=channel_id,
+                    text="🤖 Processing your request...",
+                    thread_ts=thread_ts,
+                    mrkdwn=True
+                )
             
             logger.info(f"Auto-sent prompt to DM for user {user_id}: {prompt_text}")
             

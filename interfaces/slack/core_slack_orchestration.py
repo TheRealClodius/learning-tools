@@ -59,7 +59,7 @@ class SlackInterface:
         self.user_service = SlackUserService(self.app.client)
         self.modal_handler = SlackModalHandler(self.cache_service)
         self.mention_resolver = SlackMentionResolver(self.cache_service, self.user_service)
-        self.app_home_handler = AppHomeHandler(self.cache_service, self.user_service)
+        self.app_home_handler = AppHomeHandler(self.cache_service, self.user_service, self)
         
         # Setup handlers
         self._setup_handlers()
