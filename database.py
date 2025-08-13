@@ -6,7 +6,7 @@ import os
 import sqlite3
 import asyncio
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 import json
 
@@ -77,6 +77,19 @@ class UserDatabase:
             )
         """)
         
+        # Create user preferences table for App Home settings
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                user_id TEXT PRIMARY KEY,
+                tone_of_voice TEXT DEFAULT 'Professional',
+                preferred_city TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+
+        
         # Create index for cleanup queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_execution_details_expires 
@@ -121,6 +134,19 @@ class UserDatabase:
                     expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days')
                 )
             """)
+            
+            # Create user preferences table for App Home settings
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_preferences (
+                    user_id TEXT PRIMARY KEY,
+                    tone_of_voice TEXT DEFAULT 'Professional',
+                    preferred_city TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+
             
             # Create index for cleanup queries
             await conn.execute("""
@@ -432,6 +458,97 @@ class UserDatabase:
                 logger.info(f"Cleaned up {count} expired execution details")
             
             return count
+
+    # ========================= USER PREFERENCES METHODS =========================
+    
+    async def get_user_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user preferences from database"""
+        if USE_POSTGRES:
+            return await self._get_user_preferences_postgres(user_id)
+        else:
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._get_user_preferences_sqlite, user_id)
+    
+    def _get_user_preferences_sqlite(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user preferences from SQLite database"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM user_preferences WHERE user_id = ?
+        """, (user_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return dict(row)
+        return None
+    
+    async def _get_user_preferences_postgres(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user preferences from PostgreSQL database"""
+        await self.initialize()
+        
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT * FROM user_preferences WHERE user_id = $1
+            """, user_id)
+            
+            if row:
+                return dict(row)
+            return None
+    
+    async def save_user_preferences(self, user_id: str, preferences: Dict[str, Any]) -> None:
+        """Save or update user preferences in database"""
+        if USE_POSTGRES:
+            await self._save_user_preferences_postgres(user_id, preferences)
+        else:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self._save_user_preferences_sqlite, user_id, preferences)
+    
+    def _save_user_preferences_sqlite(self, user_id: str, preferences: Dict[str, Any]) -> None:
+        """Save user preferences to SQLite database"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Extract preferences
+        tone_of_voice = preferences.get('tone_of_voice', 'Professional')
+        preferred_city = preferences.get('preferred_city', '')
+        
+        cursor.execute("""
+            INSERT INTO user_preferences (user_id, tone_of_voice, preferred_city, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                tone_of_voice = excluded.tone_of_voice,
+                preferred_city = excluded.preferred_city,
+                updated_at = CURRENT_TIMESTAMP
+        """, (user_id, tone_of_voice, preferred_city))
+        
+        conn.commit()
+        conn.close()
+        logger.info(f"Saved preferences for user {user_id}")
+    
+    async def _save_user_preferences_postgres(self, user_id: str, preferences: Dict[str, Any]) -> None:
+        """Save user preferences to PostgreSQL database"""
+        await self.initialize()
+        
+        # Extract preferences
+        tone_of_voice = preferences.get('tone_of_voice', 'Professional')
+        preferred_city = preferences.get('preferred_city', '')
+        
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO user_preferences (user_id, tone_of_voice, preferred_city, updated_at)
+                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    tone_of_voice = EXCLUDED.tone_of_voice,
+                    preferred_city = EXCLUDED.preferred_city,
+                    updated_at = CURRENT_TIMESTAMP
+            """, user_id, tone_of_voice, preferred_city)
+        
+        logger.info(f"Saved preferences for user {user_id}")
+    
 
     async def close(self):
         """Close database connections"""

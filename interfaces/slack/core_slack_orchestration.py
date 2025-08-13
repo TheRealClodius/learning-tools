@@ -28,6 +28,7 @@ from .services.cache_service import SlackCacheService
 from .services.user_service import SlackUserService
 from .handlers.streaming_handler import SlackStreamingHandler
 from .handlers.modal_handler import SlackModalHandler
+from .features.app_home.app_home_handler import AppHomeHandler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +59,7 @@ class SlackInterface:
         self.user_service = SlackUserService(self.app.client)
         self.modal_handler = SlackModalHandler(self.cache_service)
         self.mention_resolver = SlackMentionResolver(self.cache_service, self.user_service)
+        self.app_home_handler = AppHomeHandler(self.cache_service, self.user_service)
         
         # Setup handlers
         self._setup_handlers()
@@ -169,6 +171,106 @@ class SlackInterface:
             logger.info(f"Assistant thread context changed: {body}")
             # This event is informational - no action needed
             # Just acknowledging to avoid unhandled request warnings
+        
+        @self.app.event("app_home_opened")
+        async def handle_app_home_opened(event, client, logger):
+            """Handle App Home tab opened events"""
+            logger.info(f"App Home opened by user {event['user']}")
+            await self.app_home_handler.publish_home_view(client, event["user"], event)
+        
+        # App Home action handlers
+        @self.app.action("start_new_chat")
+        async def handle_start_new_chat(ack, body, client):
+            await self.app_home_handler.handle_app_home_action(ack, body, client, "start_new_chat")
+        
+        @self.app.action("show_available_tools")
+        async def handle_show_tools(ack, body, client):
+            await self.app_home_handler.handle_app_home_action(ack, body, client, "show_available_tools")
+        
+        @self.app.action("open_preferences")
+        async def handle_open_preferences(ack, body, client):
+            await self.app_home_handler.handle_app_home_action(ack, body, client, "open_preferences")
+        
+        @self.app.action("view_all_action_points")
+        async def handle_view_all_action_points(ack, body, client):
+            await self.app_home_handler.handle_app_home_action(ack, body, client, "view_all_action_points")
+        
+        @self.app.action("refresh_home_view")
+        async def handle_refresh_home_view(ack, body, client):
+            await ack()
+            user_id = body.get('user', {}).get('id')
+            if user_id:
+                await self.app_home_handler.publish_home_view(client, user_id)
+        
+        # Modal submission handlers for App Home modals
+        @self.app.view("start_chat_modal")
+        async def handle_start_chat_submission(ack, body, client, view):
+            await ack()
+            try:
+                user_id = body["user"]["id"]
+                values = view["state"]["values"]
+                
+                # Extract message and channel
+                message_text = values["message_input"]["message_text"]["value"]
+                channel_info = values.get("channel_select", {}).get("channel_id", {})
+                channel_id = channel_info.get("selected_channel") if channel_info else None
+                
+                if not message_text:
+                    return
+                
+                # If no channel selected, try to open a DM
+                if not channel_id:
+                    # Open a DM with the user
+                    dm_response = await client.conversations_open(users=[user_id])
+                    if dm_response["ok"]:
+                        channel_id = dm_response["channel"]["id"]
+                    else:
+                        logger.error(f"Failed to open DM for user {user_id}")
+                        return
+                
+                # Send the message to the selected channel
+                await client.chat_postMessage(
+                    channel=channel_id,
+                    text=f"<@{user_id}> {message_text}",  # Mention the user so the agent responds
+                    mrkdwn=True
+                )
+                
+                logger.info(f"Message sent from App Home by user {user_id} to channel {channel_id}")
+                
+            except Exception as e:
+                logger.error(f"Error handling start chat submission: {e}")
+        
+        @self.app.view("user_preferences_modal")
+        async def handle_preferences_submission(ack, body, client, view):
+            await ack()
+            try:
+                user_id = body["user"]["id"]
+                values = view["state"]["values"]
+                
+                # Extract preferences
+                tone_info = values.get("tone_setting", {}).get("tone_select", {})
+                new_tone = tone_info.get("selected_option", {}).get("value")
+                
+                city_info = values.get("city_setting", {}).get("city_input", {})
+                new_city = city_info.get("value", "")
+                
+                # Save the user preferences to the database
+                if new_tone or new_city:
+                    preferences = {
+                        'tone_of_voice': new_tone.title() if new_tone else 'Professional',
+                        'preferred_city': new_city
+                    }
+                    await user_db.save_user_preferences(user_id, preferences)
+                
+                logger.info(f"User {user_id} updated preferences - tone: {new_tone}, city: {new_city}")
+                
+                # Refresh the App Home view to show updated preferences
+                await self.app_home_handler.publish_home_view(client, user_id)
+                
+            except Exception as e:
+                logger.error(f"Error handling preferences submission: {e}")
+        
+
     
     async def _handle_message(self, event: Dict[str, Any], say, logger):
         """Handle incoming messages - simplified version"""
@@ -341,6 +443,8 @@ class SlackInterface:
                 # Claude responses: full execution details tracking
                 await streaming_handler.finish_with_response(response_text, self)
             logger.info(f"SLACK-TIMING: finish_with_response took {int((time.time()-t_finish)*1000)} ms user={user_id}")
+            
+
             
             logger.info(f"SLACK-TIMING: end-to-end for user={user_id} ms={int((time.time()-t_overall)*1000)}")
             logger.info(f"Sent response to {user_id}: {response_text[:50]}...")
