@@ -193,7 +193,11 @@ class SlackInterface:
         
         @self.app.action("send_prompt")
         async def handle_send_prompt(ack, body, client):
-            await self.app_home_handler.handle_app_home_action(ack, body, client, "send_prompt")
+            # Acknowledge the action and close the modal
+            await ack()
+            user_id = body.get('user', {}).get('id')
+            if user_id:
+                await self.app_home_handler._handle_send_prompt(body, client, user_id)
         
         @self.app.action("refresh_home_view")
         async def handle_refresh_home_view(ack, body, client):

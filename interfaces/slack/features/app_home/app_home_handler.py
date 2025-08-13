@@ -273,8 +273,7 @@ class AppHomeHandler:
                 await self._handle_open_preferences(body, client, user_id)
             elif action_id == "view_all_action_points":
                 await self._handle_view_all_action_points(body, client, user_id)
-            elif action_id == "send_prompt":
-                await self._handle_send_prompt(body, client, user_id)
+
             else:
                 logger.warning(f"Unknown App Home action: {action_id}")
                 
@@ -360,6 +359,9 @@ class AppHomeHandler:
                         ]
                     },
                     {
+                        "type": "divider"
+                    },
+                    {
                         "type": "header",
                         "text": {
                             "type": "plain_text",
@@ -396,6 +398,9 @@ class AppHomeHandler:
                         ]
                     },
                     {
+                        "type": "divider"
+                    },
+                    {
                         "type": "header",
                         "text": {
                             "type": "plain_text",
@@ -430,6 +435,9 @@ class AppHomeHandler:
                                 "value": "What did we discuss about the Q4 budget?"
                             }
                         ]
+                    },
+                    {
+                        "type": "divider"
                     },
                     {
                         "type": "header",
@@ -663,6 +671,7 @@ class AppHomeHandler:
                 logger.error("No prompt text found in button action")
                 return
             
+
             # Open a DM with the user
             dm_response = await client.conversations_open(users=[user_id])
             if not dm_response.get("ok"):
@@ -671,10 +680,10 @@ class AppHomeHandler:
             
             channel_id = dm_response["channel"]["id"]
             
-            # Send the prompt message with user mention to trigger the agent
+            # Send the prompt message directly (without mention to avoid bot ignoring it)
             await client.chat_postMessage(
                 channel=channel_id,
-                text=f"<@{user_id}> {prompt_text}",  # Mention user so agent responds
+                text=prompt_text,  # Send the prompt directly to trigger agent processing
                 mrkdwn=True
             )
             
