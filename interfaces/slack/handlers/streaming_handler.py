@@ -236,13 +236,32 @@ class SlackStreamingHandler:
     def _format_slack_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
         """Format Slack tool success messages"""
         if isinstance(result, dict) and result.get("success"):
-            data = result.get("data", {})
-            if "search" in tool_name:
-                count = len(data.get("messages", []))
-                return f"⚡️ *{tool_name}* found {count} messages"
+            if "search" in tool_name or "vector_search" in tool_name:
+                # Parse the results text to extract message count
+                results_text = result.get("results", "")
+                if "Found" in results_text and "messages" in results_text:
+                    # Extract count from text like "Found 3 messages matching..."
+                    import re
+                    match = re.search(r'Found (\d+) messages?', results_text)
+                    if match:
+                        count = int(match.group(1))
+                        return f"⚡️ *{tool_name}* found {count} messages"
+                # Fallback: check if we have results content
+                if results_text and len(results_text.strip()) > 50:
+                    return f"⚡️ *{tool_name}* found messages"
+                else:
+                    return f"⚡️ *{tool_name}* found 0 messages"
             elif "channels" in tool_name:
-                count = len(data.get("channels", []))
-                return f"⚡️ *{tool_name}* retrieved {count} channels"
+                # For channels, try to parse from results or check data
+                data = result.get("data", {})
+                channels_data = data.get("channels", [])
+                if channels_data:
+                    count = len(channels_data)
+                    return f"⚡️ *{tool_name}* retrieved {count} channels"
+                # Try parsing from results text
+                results_text = result.get("channels", "")
+                if results_text and len(results_text.strip()) > 10:
+                    return f"⚡️ *{tool_name}* retrieved channels"
         return f"⚡️ *{tool_name}* completed Slack operation"
     
     def _format_memory_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
