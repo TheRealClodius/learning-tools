@@ -706,18 +706,20 @@ class AppHomeHandler:
             # Parse mentions (empty in this case, but needed for the interface)
             mention_context = {'users': {}, 'channels': {}}
             
-            # Generate a thread timestamp for the conversation
-            thread_ts = str(time.time())
+            # Create a proper Slack timestamp format for the thread
+            # This will be the "root" message timestamp for the conversation
+            current_time = time.time()
+            thread_ts = f"{current_time:.6f}"  # Slack timestamp format with microseconds
             
             # Now directly call the agent processing with proper user context
             if self.slack_interface:
                 # This will trigger the full agent flow with proper user context, history, etc.
-                # The agent will start with its own "thinking" message, no need for redundant initial message
+                # The agent will start with its own "thinking" message using this thread timestamp
                 await self.slack_interface._process_and_respond(
                     user_id=user_id,
                     channel_id=channel_id,
                     message_text=prompt_text,
-                    thread_ts=thread_ts,
+                    thread_ts=thread_ts,  # Use proper timestamp format
                     mention_context=mention_context,
                     user_info=user_info
                 )
