@@ -73,7 +73,7 @@ class AppHomeHandler:
         else:
             greeting = "Good evening"
         
-        # Build header section with integrated buttons
+        # Build header section with grouped buttons
         header_blocks = [
             {
                 "type": "header",
@@ -88,15 +88,6 @@ class AppHomeHandler:
                 "text": {
                     "type": "mrkdwn",
                     "text": "Welcome to your personal AI agent dashboard. Here you can view your activity, manage preferences, and quickly access common features."
-                },
-                "accessory": {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "⚙️ Preferences",
-                        "emoji": True
-                    },
-                    "action_id": "open_preferences"
                 }
             },
             {
@@ -106,10 +97,17 @@ class AppHomeHandler:
                         "type": "button",
                         "text": {
                             "type": "plain_text",
-                            "text": "Things you can ask me...",
-                            "emoji": True
+                            "text": "Things you can ask me..."
                         },
                         "action_id": "show_available_tools"
+                    },
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Preferences"
+                        },
+                        "action_id": "open_preferences"
                     }
                 ]
             }
