@@ -106,16 +106,6 @@ class AppHomeHandler:
                         "type": "button",
                         "text": {
                             "type": "plain_text",
-                            "text": "📝 Start New Chat",
-                            "emoji": True
-                        },
-                        "action_id": "start_new_chat",
-                        "style": "primary"
-                    },
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
                             "text": "What I can do",
                             "emoji": True
                         },
@@ -279,9 +269,7 @@ class AppHomeHandler:
         try:
             user_id = body.get('user', {}).get('id')
             
-            if action_id == "start_new_chat":
-                await self._handle_start_new_chat(body, client, user_id)
-            elif action_id == "show_available_tools":
+            if action_id == "show_available_tools":
                 await self._handle_show_tools(body, client, user_id)
             elif action_id == "open_preferences":
                 await self._handle_open_preferences(body, client, user_id)
@@ -293,77 +281,7 @@ class AppHomeHandler:
         except Exception as e:
             logger.error(f"Error handling App Home action {action_id}: {e}")
     
-    async def _handle_start_new_chat(self, body, client, user_id: str):
-        """Handle the start new chat action"""
-        try:
-            # Open a modal for starting a new conversation
-            modal_view = {
-                "type": "modal",
-                "callback_id": "start_chat_modal",
-                "title": {
-                    "type": "plain_text",
-                    "text": "Start New Chat"
-                },
-                "submit": {
-                    "type": "plain_text",
-                    "text": "Send Message"
-                },
-                "close": {
-                    "type": "plain_text",
-                    "text": "Cancel"
-                },
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "What would you like to chat about? I can help with research, analysis, weather, and much more!"
-                        }
-                    },
-                    {
-                        "type": "input",
-                        "block_id": "message_input",
-                        "element": {
-                            "type": "plain_text_input",
-                            "action_id": "message_text",
-                            "multiline": True,
-                            "placeholder": {
-                                "type": "plain_text",
-                                "text": "Type your message here..."
-                            }
-                        },
-                        "label": {
-                            "type": "plain_text",
-                            "text": "Your Message"
-                        }
-                    },
-                    {
-                        "type": "input",
-                        "block_id": "channel_select",
-                        "element": {
-                            "type": "channels_select",
-                            "action_id": "channel_id",
-                            "placeholder": {
-                                "type": "plain_text",
-                                "text": "Select a channel..."
-                            }
-                        },
-                        "label": {
-                            "type": "plain_text",
-                            "text": "Send to Channel"
-                        },
-                        "optional": True
-                    }
-                ]
-            }
-            
-            await client.views_open(
-                trigger_id=body["trigger_id"],
-                view=modal_view
-            )
-            
-        except Exception as e:
-            logger.error(f"Error opening start chat modal: {e}")
+
     
     async def _handle_show_tools(self, body, client, user_id: str):
         """Handle showing what I can do in a narrative format"""

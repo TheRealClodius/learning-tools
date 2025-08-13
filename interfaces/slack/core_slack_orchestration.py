@@ -179,10 +179,6 @@ class SlackInterface:
             await self.app_home_handler.publish_home_view(client, event["user"], event)
         
         # App Home action handlers
-        @self.app.action("start_new_chat")
-        async def handle_start_new_chat(ack, body, client):
-            await self.app_home_handler.handle_app_home_action(ack, body, client, "start_new_chat")
-        
         @self.app.action("show_available_tools")
         async def handle_show_capabilities(ack, body, client):
             await self.app_home_handler.handle_app_home_action(ack, body, client, "show_available_tools")
@@ -203,43 +199,6 @@ class SlackInterface:
                 await self.app_home_handler.publish_home_view(client, user_id)
         
         # Modal submission handlers for App Home modals
-        @self.app.view("start_chat_modal")
-        async def handle_start_chat_submission(ack, body, client, view):
-            await ack()
-            try:
-                user_id = body["user"]["id"]
-                values = view["state"]["values"]
-                
-                # Extract message and channel
-                message_text = values["message_input"]["message_text"]["value"]
-                channel_info = values.get("channel_select", {}).get("channel_id", {})
-                channel_id = channel_info.get("selected_channel") if channel_info else None
-                
-                if not message_text:
-                    return
-                
-                # If no channel selected, try to open a DM
-                if not channel_id:
-                    # Open a DM with the user
-                    dm_response = await client.conversations_open(users=[user_id])
-                    if dm_response["ok"]:
-                        channel_id = dm_response["channel"]["id"]
-                    else:
-                        logger.error(f"Failed to open DM for user {user_id}")
-                        return
-                
-                # Send the message to the selected channel
-                await client.chat_postMessage(
-                    channel=channel_id,
-                    text=f"<@{user_id}> {message_text}",  # Mention the user so the agent responds
-                    mrkdwn=True
-                )
-                
-                logger.info(f"Message sent from App Home by user {user_id} to channel {channel_id}")
-                
-            except Exception as e:
-                logger.error(f"Error handling start chat submission: {e}")
-        
         @self.app.view("user_preferences_modal")
         async def handle_preferences_submission(ack, body, client, view):
             await ack()
