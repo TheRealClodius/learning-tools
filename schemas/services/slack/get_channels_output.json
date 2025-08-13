@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "GetSlackChannelsOutput",
+  "title": "Get Slack Channels Output",
   "description": "Output schema for Slack channels list",
   "type": "object",
   "properties": {

@@ -1,7 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SearchSlackMessagesInput",
-  "description": "Input schema for searching Slack messages using semantic search",
+  "title": "Slack Vector Search",
+  "description": [
+    "Search through Slack messages using semantic/vector search",
+    "AI-powered search to find relevant discussions and conversations",
+    "Supports filtering by channel, user, and date range"
+  ],
   "type": "object",
   "properties": {
     "query": {
@@ -37,25 +41,5 @@
     }
   },
   "required": ["query"],
-  "additionalProperties": false,
-  "_meta": {
-    "tool_name": "slack_chatter.search_slack_messages",
-    "category": "communication",
-    "tags": ["slack", "search", "messages", "semantic", "mcp"],
-    "capabilities": [
-      "Semantic search through Slack messages",
-      "Filter by channel, user, and date range",
-      "AI-enhanced query processing",
-      "Real-time message retrieval"
-    ],
-    "use_cases": [
-      "Finding relevant discussions in Slack",
-      "Searching for specific topics or keywords",
-      "Retrieving historical conversations",
-      "Filtering messages by user or channel"
-    ],
-    "rate_limits": {
-      "requests_per_minute": 60
-    }
-  }
+  "additionalProperties": false
 }
