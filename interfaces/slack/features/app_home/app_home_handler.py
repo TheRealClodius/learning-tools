@@ -317,46 +317,52 @@ class AppHomeHandler:
                         }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "What's the weather in Tokyo right now?"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "What's the weather in Tokyo right now?"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *What's the weather in Tokyo right now?*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "What's the weather in Tokyo right now?"
+                        }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Will it rain in London tomorrow?"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Will it rain in London tomorrow?"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Will it rain in London tomorrow?*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Will it rain in London tomorrow?"
+                        }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Show me the 5-day forecast for San Francisco"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Show me the 5-day forecast for San Francisco"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Show me the 5-day forecast for San Francisco*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Show me the 5-day forecast for San Francisco"
+                        }
                     },
                     {
                         "type": "divider"
@@ -370,32 +376,36 @@ class AppHomeHandler:
                         }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Find the latest news about renewable energy"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Find the latest news about renewable energy"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Find the latest news about renewable energy*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Find the latest news about renewable energy"
+                        }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Research competitor pricing for SaaS tools"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Research competitor pricing for SaaS tools"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Research competitor pricing for SaaS tools*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Research competitor pricing for SaaS tools"
+                        }
                     },
                     {
                         "type": "divider"
@@ -409,32 +419,36 @@ class AppHomeHandler:
                         }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Remember that John prefers morning meetings"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Remember that John prefers morning meetings"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Remember that John prefers morning meetings*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Remember that John prefers morning meetings"
+                        }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "What did we discuss about the Q4 budget?"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "What did we discuss about the Q4 budget?"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *What did we discuss about the Q4 budget?*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "What did we discuss about the Q4 budget?"
+                        }
                     },
                     {
                         "type": "divider"
@@ -448,32 +462,36 @@ class AppHomeHandler:
                         }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Find messages about the product launch"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Find messages about the product launch"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Find messages about the product launch*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Find messages about the product launch"
+                        }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "Search for files shared in #marketing channel"
-                                },
-                                "action_id": "send_prompt",
-                                "value": "Search for files shared in #marketing channel"
-                            }
-                        ]
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "• *Search for files shared in #marketing channel*"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Try it"
+                            },
+                            "action_id": "send_prompt",
+                            "value": "Search for files shared in #marketing channel"
+                        }
                     }
                 ]
             }
