@@ -160,13 +160,17 @@ class MarkdownToSlackParser:
     @staticmethod
     def _convert_markdown_to_slack(text: str) -> str:
         """Convert markdown formatting to Slack mrkdwn"""
-        # Convert bold (**text** or __text__ -> *text*)
-        text = re.sub(r'\*\*(.*?)\*\*', r'*\1*', text)
-        text = re.sub(r'__(.*?)__', r'*\1*', text)
+        # First, handle bold (**text** or __text__ -> *text*)
+        # Use a placeholder to avoid conflicts with italic processing
+        text = re.sub(r'\*\*(.*?)\*\*', r'SLACKBOLD\1SLACKBOLD', text)
+        text = re.sub(r'__(.*?)__', r'SLACKBOLD\1SLACKBOLD', text)
         
-        # Convert italic (*text* or _text_ -> _text_) - but be careful not to conflict with bold
-        text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'_\1_', text)
-        text = re.sub(r'(?<!_)_([^_]+?)_(?!_)', r'_\1_', text)
+        # Then handle italic (*text* or _text_ -> _text_)
+        text = re.sub(r'\*([^*]+?)\*', r'_\1_', text)
+        text = re.sub(r'(?<!SLACKBOLD)_([^_]+?)_(?!SLACKBOLD)', r'_\1_', text)
+        
+        # Finally, replace placeholders with actual Slack bold syntax
+        text = re.sub(r'SLACKBOLD(.*?)SLACKBOLD', r'*\1*', text)
         
         # Convert inline code (`text` stays as `text`)
         # Already compatible with Slack
