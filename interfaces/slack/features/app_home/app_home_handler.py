@@ -706,19 +706,13 @@ class AppHomeHandler:
             # Parse mentions (empty in this case, but needed for the interface)
             mention_context = {'users': {}, 'channels': {}}
             
-            # Post an initial message to show we're processing
-            initial_message = await client.chat_postMessage(
-                channel=channel_id,
-                text=f"💭 *You asked:* {prompt_text}",
-                mrkdwn=True
-            )
-            
-            # Get the timestamp for threading
-            thread_ts = initial_message["ts"]
+            # Generate a thread timestamp for the conversation
+            thread_ts = str(time.time())
             
             # Now directly call the agent processing with proper user context
             if self.slack_interface:
                 # This will trigger the full agent flow with proper user context, history, etc.
+                # The agent will start with its own "thinking" message, no need for redundant initial message
                 await self.slack_interface._process_and_respond(
                     user_id=user_id,
                     channel_id=channel_id,
@@ -732,7 +726,6 @@ class AppHomeHandler:
                 await client.chat_postMessage(
                     channel=channel_id,
                     text="🤖 Processing your request...",
-                    thread_ts=thread_ts,
                     mrkdwn=True
                 )
             
