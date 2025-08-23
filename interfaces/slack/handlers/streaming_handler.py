@@ -426,9 +426,20 @@ class SlackStreamingHandler:
         
         # Parse the response as markdown and convert to Slack blocks
         try:
-            # Ensure final_response is not empty
+            # Ensure final_response is not empty - if it is, try to extract from thinking blocks
             if not final_response or not final_response.strip():
-                final_response = "Task completed successfully."
+                # Try to get the last meaningful thinking block as the response
+                if self.execution_summary:
+                    for block_type, content in reversed(self.execution_summary):
+                        if block_type == "thinking" and content and len(content.strip()) > 50:
+                            # Use the last substantial thinking block as the response
+                            final_response = content.strip()
+                            logger.info(f"Using thinking block as final response: {final_response[:100]}...")
+                            break
+                
+                # Final fallback if still empty
+                if not final_response or not final_response.strip():
+                    final_response = "Task completed successfully."
             
             response_blocks = MarkdownToSlackParser.parse_to_blocks(final_response)
             if not response_blocks:
