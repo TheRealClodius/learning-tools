@@ -488,23 +488,16 @@ class SlackStreamingHandler:
         if not tool_info:
             return "_⚡️ Tool executed_"
         
-        # Extract tool information
-        tool_name = tool_info.get('tool', 'unknown_tool')
-        success = tool_info.get('success', True)
+        # Use the summary directly if available (matches original behavior)
         summary = tool_info.get('summary', '')
-        
-        # Format based on success
-        if success:
-            status_emoji = "⚡️"
-            status_text = "completed successfully"
-        else:
-            status_emoji = "❌"
-            status_text = "encountered an error"
-        
-        # Build formatted message
-        formatted_parts = [f"_{status_emoji} *{tool_name}* {status_text}_"]
-        
         if summary and summary.strip():
-            formatted_parts.append(f"_{summary.strip()}_")
+            return f"_{summary.strip()}_"
         
-        return "\n".join(formatted_parts)
+        # Fallback formatting if no summary
+        tool_name = tool_info.get('tool', 'Tool')
+        success = tool_info.get('success', True)
+        
+        if success:
+            return f"_⚡️ *{tool_name}* completed successfully_"
+        else:
+            return f"_❌ *{tool_name}* encountered an error_"
