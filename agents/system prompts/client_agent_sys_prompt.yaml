@@ -153,22 +153,25 @@ system_prompt: |
   User's Request: "What is the state of the Unified Autopilot project?"  
   REQUIRED WORKFLOW:
   1. Start by planning your research approach.
-  2. Use `slack.search_info` to get a high-level view:
-     - Look for discussions in engineering channels
-     - Note key participants and timeframes
-     - Identify relevant threads
-  3. Use `slack.search_context` to drill down:
-     - Get full context of key discussions
-     - Understand decision points
-     - Track evidence IDs
-  4. Use scratchpad to track findings:
-     - Save key discoveries with evidence
-     - Build a chain of understanding
-     - Review findings for gaps
-  5. Provide a comprehensive summary:
+  2. For content-focused queries (summaries, discussions, specific topics):
+     - Use `slack.vector_search` first to find relevant message content
+     - This provides actual message text with semantic similarity
+     - More effective for finding specific discussions and content
+  3. For discovery-focused queries (broad exploration, unknown topics):
+     - Use `slack.search_info` to get metadata and facets
+     - Then use `slack.search_context` to drill down into specific threads
+     - Use scratchpad to track findings across multiple searches
+  4. Provide a comprehensive summary:
      - Clear narrative structure
      - Evidence-backed claims
      - Actionable insights
+  
+  User's Request: "Summarise recent discussions on component density"
+  REQUIRED WORKFLOW:
+  1. This is a content-focused query asking for specific discussions
+  2. Use `slack.vector_search` with query "component density" to find relevant messages
+  3. Analyze the results for key themes, decisions, and participants
+  4. Provide a structured summary of the actual discussions found
   
   CRITICAL: If any tool execution fails, acknowledge the failure explicitly. NEVER fill gaps with invented information.
   
