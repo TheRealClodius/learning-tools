@@ -1045,12 +1045,41 @@ async def canvas_create(input_data: Dict[str, Any]) -> Dict[str, Any]:
         channel_id = input_data.get("channel_id")
         description = input_data.get("description")
         
-        return await client.canvas_create(
+        result = await client.canvas_create(
             name=name,
             content=content,
             channel_id=channel_id,
             description=description
         )
+        
+        # Enhance the result with better user guidance if successful
+        if result.get("success") and result.get("raw_content", {}).get("data", {}).get("canvas_id"):
+            canvas_id = result["raw_content"]["data"]["canvas_id"]
+            
+            # Provide multiple access methods for better UX
+            access_instructions = {
+                "canvas_created": f"✅ Canvas '{name}' created successfully!",
+                "canvas_id": canvas_id,
+                "access_methods": {
+                    "slack_app": f"🔍 **In Slack App**: Search for '{name}' or use canvas ID: {canvas_id}",
+                    "browser": result["raw_content"]["data"].get("url", f"https://slack.com/canvas/{canvas_id}"),
+                    "sidebar": "📋 **In Sidebar**: Check your 'Canvas' section for the new canvas"
+                },
+                "tip": "💡 **Tip**: The canvas should appear in your Slack sidebar under 'Canvas' or you can search for it by name."
+            }
+            
+            # Merge the enhanced info with the original result
+            result["user_guidance"] = access_instructions
+            result["formatted_message"] = f"""Canvas '{name}' created successfully! 
+
+**Access your canvas:**
+• 🔍 Search for '{name}' in Slack
+• 📋 Check the 'Canvas' section in your sidebar  
+• 🆔 Canvas ID: {canvas_id}
+
+The canvas should appear in your workspace momentarily."""
+        
+        return result
         
     except Exception as e:
         logger.error(f"Canvas create error: {e}")

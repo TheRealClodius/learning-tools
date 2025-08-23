@@ -648,7 +648,7 @@ class SlackInterface:
     
     async def _cleanup_cache_periodically(self):
         """Background task to clean up stale cache entries - delegated to cache service"""
-        await self.cache_service._cleanup_cache_periodically()
+        await self.cache_service._cleanup_database_periodically()
     
     def get_fastapi_handler(self):
         """Get FastAPI handler for webhook integration"""

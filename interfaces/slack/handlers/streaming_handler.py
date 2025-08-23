@@ -383,7 +383,7 @@ class SlackStreamingHandler:
         
         # Add current tool block if we have one running
         if self.current_tool_block:
-            tool_formatted = self._format_tool_block(self.current_tool_block)
+            tool_formatted = await self._format_tool_block(self.current_tool_block)
             
             # Ensure tool_formatted is never empty
             if not tool_formatted or not tool_formatted.strip():
