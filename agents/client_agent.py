@@ -1601,7 +1601,6 @@ Note: scratchpad.add_finding requires 'summary' parameter, not 'finding'."""
                 
                 # For any dict result, format as JSON so the model can parse it reliably
                 if isinstance(result, dict):
-                    import json
                     from dataclasses import asdict, is_dataclass
                     
                     def json_serializer(obj):
