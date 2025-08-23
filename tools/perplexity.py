@@ -263,6 +263,7 @@ async def perplexity_research(input_data: Dict[str, Any], stream_callback: Optio
         # Get API key from environment, not from input (like weather tools)
         api_key = os.getenv('PERPLEXITY_API_KEY')
         if not api_key:
+            logger.error("PERPLEXITY-RESEARCH: API key not configured in environment variables")
             return {
                 "success": False,
                 "message": "Perplexity API key not configured in environment variables",
@@ -325,12 +326,15 @@ async def perplexity_research(input_data: Dict[str, Any], stream_callback: Optio
             if stream_callback:
                 # Streaming mode
                 full_response = []
+                logger.info(f"PERPLEXITY-RESEARCH: Starting streaming request to {PERPLEXITY_CHAT_ENDPOINT}")
                 async with client.stream("POST", PERPLEXITY_CHAT_ENDPOINT, headers=headers, json=payload) as response:
                     if response.status_code == 401:
+                        logger.error(f"PERPLEXITY-RESEARCH: Authentication failed - Invalid API key")
                         raise PerplexityAuthError("Invalid API key")
                     if response.status_code != 200:
-                        error_msg = f"Perplexity API error {response.status_code}: {await response.aread()}"
-                        logger.error(error_msg)
+                        error_body = await response.aread()
+                        error_msg = f"Perplexity Research API error {response.status_code}: {error_body}"
+                        logger.error(f"PERPLEXITY-RESEARCH: {error_msg}")
                         raise PerplexityAPIError(error_msg)
                     
                     async for line in response.aiter_lines():
@@ -455,10 +459,13 @@ async def perplexity_research(input_data: Dict[str, Any], stream_callback: Optio
             "data": {"research_report": "", "model": ""}
         }
     except Exception as e:
-        logger.error(f"Unexpected error in perplexity_research: {str(e)}")
+        logger.error(f"PERPLEXITY-RESEARCH: Unexpected error in perplexity_research: {str(e)}")
+        logger.error(f"PERPLEXITY-RESEARCH: Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"PERPLEXITY-RESEARCH: Full traceback: {traceback.format_exc()}")
         return {
             "success": False,
-            "message": f"Unexpected error: {str(e)}",
+            "message": f"Perplexity research failed: {str(e)}",
             "data": {"research_report": "", "model": ""}
         }
 
