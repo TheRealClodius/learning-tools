@@ -11,6 +11,8 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 
+from ..formatters.markdown_parser import MarkdownToSlackParser
+
 logger = logging.getLogger(__name__)
 
 
@@ -216,12 +218,27 @@ class SlackModalHandler:
                 # Use the same formatting logic as real-time display
                 formatted_tool_text = self._format_tool_block_for_modal(tool_info)
                 
-                # Create blocks for the tool information
-                for chunk in self._split_text_for_slack(formatted_tool_text):
-                    add_block({
-                        "type": "section",
-                        "text": {"type": "mrkdwn", "text": chunk}
-                    })
+                # Parse through markdown parser for consistent formatting
+                tool_blocks = MarkdownToSlackParser.parse_to_blocks(formatted_tool_text)
+                if tool_blocks:
+                    for tool_block in tool_blocks:
+                        # Split large blocks if needed
+                        if tool_block.get("type") == "section":
+                            text_content = tool_block["text"]["text"]
+                            for chunk in self._split_text_for_slack(text_content):
+                                add_block({
+                                    "type": "section",
+                                    "text": {"type": "mrkdwn", "text": chunk}
+                                })
+                        else:
+                            add_block(tool_block)
+                else:
+                    # Fallback to original formatting if parsing fails
+                    for chunk in self._split_text_for_slack(formatted_tool_text):
+                        add_block({
+                            "type": "section",
+                            "text": {"type": "mrkdwn", "text": chunk}
+                        })
             add_block({"type": "divider"})
 
         # Remove trailing divider from last page

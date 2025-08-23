@@ -333,15 +333,36 @@ class SlackStreamingHandler:
                     logger.error(f"Error formatting tool block: {e}")
                     tool_formatted = "_⚡️ Tool completed_"
                 
-                blocks.append({
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": tool_formatted
-                        }
-                    ]
-                })
+                # Parse tool formatted text through markdown parser for consistency
+                tool_blocks = MarkdownToSlackParser.parse_to_blocks(tool_formatted)
+                if tool_blocks:
+                    # Use the parsed blocks, but convert to context elements if needed
+                    for tool_block in tool_blocks:
+                        if tool_block.get("type") == "section":
+                            # Convert section blocks to context elements for tool display
+                            blocks.append({
+                                "type": "context",
+                                "elements": [
+                                    {
+                                        "type": "mrkdwn",
+                                        "text": tool_block["text"]["text"]
+                                    }
+                                ]
+                            })
+                        else:
+                            # Keep other block types as-is
+                            blocks.append(tool_block)
+                else:
+                    # Fallback to original formatting if parsing fails
+                    blocks.append({
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": tool_formatted
+                            }
+                        ]
+                    })
         
         # Add current thinking block if we have ongoing thinking
         if self.all_thinking:
