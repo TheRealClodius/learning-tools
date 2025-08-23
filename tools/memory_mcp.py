@@ -315,12 +315,23 @@ class MemoryMCPClient:
                         await asyncio.sleep(wait_time)
                 
             duration_ms = int((time.time() - start_time) * 1000)
+            
+            # DEBUG: Log raw result before parsing
+            logger.info(f"DEBUG: Raw MCP result type: {type(result)}")
+            if hasattr(result, 'structuredContent'):
+                logger.info(f"DEBUG: Has structuredContent: {result.structuredContent}")
+            if hasattr(result, 'content'):
+                logger.info(f"DEBUG: Has content: {result.content}")
+            
             logger.info(f"Memory retrieved successfully for user_id={user_id} in {duration_ms} ms")
             
             # Parse the MCP CallToolResult to extract the actual JSON data
             parsed = None
             if hasattr(result, 'structuredContent') and result.structuredContent:
                 parsed = result.structuredContent.get('result', result.structuredContent)
+                logger.info(f"DEBUG: Parsed from structuredContent: {type(parsed)}")
+                if isinstance(parsed, dict) and 'short_term_memory' in parsed:
+                    logger.info(f"DEBUG: short_term_memory length: {len(parsed['short_term_memory'])}")
             elif hasattr(result, 'content') and result.content:
                 # Try to parse JSON from text content
                 import json
