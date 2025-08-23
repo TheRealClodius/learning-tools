@@ -320,10 +320,17 @@ class SlackStreamingHandler:
             elif block_type == "tool":
                 # Tool block: Format structured tool information programmatically
                 tool_info = content
-                tool_formatted = await self._format_tool_block(tool_info)
-                
-                # Ensure tool_formatted is never empty
-                if not tool_formatted or not tool_formatted.strip():
+                try:
+                    tool_formatted = await self._format_tool_block(tool_info)
+                    
+                    # Ensure tool_formatted is a string and not empty
+                    if not isinstance(tool_formatted, str):
+                        logger.error(f"_format_tool_block returned {type(tool_formatted)}, expected str")
+                        tool_formatted = "_⚡️ Tool completed_"
+                    elif not tool_formatted or not tool_formatted.strip():
+                        tool_formatted = "_⚡️ Tool completed_"
+                except Exception as e:
+                    logger.error(f"Error formatting tool block: {e}")
                     tool_formatted = "_⚡️ Tool completed_"
                 
                 blocks.append({
