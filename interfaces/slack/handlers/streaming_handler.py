@@ -426,6 +426,10 @@ class SlackStreamingHandler:
         
         # Parse the response as markdown and convert to Slack blocks
         try:
+            # Ensure final_response is not empty
+            if not final_response or not final_response.strip():
+                final_response = "Task completed successfully."
+            
             response_blocks = MarkdownToSlackParser.parse_to_blocks(final_response)
             if not response_blocks:
                 response_blocks = [{
@@ -468,6 +472,10 @@ class SlackStreamingHandler:
         except Exception as e:
             logger.error(f"Error parsing markdown response: {e}")
             # Fallback to simple text block
+            fallback_text = final_response or "Error displaying response"
+            if not fallback_text.strip():
+                fallback_text = "Task completed with errors."
+                
             await self.app_client.chat_update(
                 channel=self.channel_id,
                 ts=self.message_ts,
@@ -476,11 +484,11 @@ class SlackStreamingHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": final_response or "Error displaying response"
+                            "text": fallback_text
                         }
                     }
                 ],
-                text=final_response
+                text=fallback_text
             )
     
     def _format_tool_block(self, tool_info: Dict[str, Any]) -> str:
@@ -488,21 +496,23 @@ class SlackStreamingHandler:
         if not tool_info:
             return "_⚡️ Tool executed_"
         
-        # Extract tool information
-        tool_name = tool_info.get('tool', 'unknown_tool')
-        success = tool_info.get('success', True)
+        # Extract tool information (use 'name' field which is what's actually stored)
+        tool_name = tool_info.get('name', tool_info.get('tool', 'unknown_tool'))
+        status = tool_info.get('status', 'completed')
+        error = tool_info.get('error')
         summary = tool_info.get('summary', '')
         
-        # Format with specific tool name (like the original behavior)
-        if success:
-            status_emoji = "⚡️"
-            # Use the actual tool name instead of generic "Tool"
-            formatted_message = f"_{status_emoji} *{tool_name}* completed successfully_"
+        # Format based on status
+        if status == "running":
+            formatted_message = f"_⚡️ *{tool_name}* executing..._"
+        elif status == "failed" or error:
+            error_msg = error or "encountered an error"
+            formatted_message = f"_❌ *{tool_name}* failed: {error_msg}_"
         else:
-            status_emoji = "❌"
-            formatted_message = f"_{status_emoji} *{tool_name}* encountered an error_"
+            # Completed successfully
+            formatted_message = f"_⚡️ *{tool_name}* completed successfully_"
         
-        # Add summary if available and different from generic messages
+        # Add summary if available and meaningful
         if summary and summary.strip() and "completed successfully" not in summary.lower():
             formatted_message += f"\n_{summary.strip()}_"
         
