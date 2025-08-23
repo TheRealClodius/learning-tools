@@ -9,6 +9,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import json
+from dataclasses import asdict, is_dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -329,13 +330,33 @@ class UserDatabase:
     
     async def save_execution_details(self, message_ts: str, channel_id: str, user_id: str, execution_data: Any) -> None:
         """Save execution details to database with 7-day expiration"""
-        execution_json = json.dumps(execution_data)
-        
-        if USE_POSTGRES:
-            await self._save_execution_postgres(message_ts, channel_id, user_id, execution_json)
-        else:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._save_execution_sqlite, message_ts, channel_id, user_id, execution_json)
+        try:
+            # Custom JSON serializer to handle dataclass objects like ClusterFeatures
+            def json_serializer(obj):
+                if is_dataclass(obj):
+                    return asdict(obj)
+                elif hasattr(obj, '__dict__'):
+                    return obj.__dict__
+                raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+            
+            execution_json = json.dumps(execution_data, default=json_serializer)
+            
+            if USE_POSTGRES:
+                await self._save_execution_postgres(message_ts, channel_id, user_id, execution_json)
+            else:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self._save_execution_sqlite, message_ts, channel_id, user_id, execution_json)
+        except Exception as e:
+            logger.error(f"Failed to serialize execution data for message_ts={message_ts}: {e}")
+            # Save a minimal fallback instead of failing completely
+            fallback_data = [("error", f"Failed to serialize execution data: {str(e)}")]
+            execution_json = json.dumps(fallback_data)
+            
+            if USE_POSTGRES:
+                await self._save_execution_postgres(message_ts, channel_id, user_id, execution_json)
+            else:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self._save_execution_sqlite, message_ts, channel_id, user_id, execution_json)
     
     def _save_execution_sqlite(self, message_ts: str, channel_id: str, user_id: str, execution_json: str) -> None:
         """Save execution details to SQLite"""

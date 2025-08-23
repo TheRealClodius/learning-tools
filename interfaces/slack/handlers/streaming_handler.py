@@ -306,6 +306,10 @@ class SlackStreamingHandler:
                 tool_info = content
                 tool_formatted = self._format_tool_block(tool_info)
                 
+                # Ensure tool_formatted is never empty
+                if not tool_formatted or not tool_formatted.strip():
+                    tool_formatted = "_⚡️ Tool completed_"
+                
                 blocks.append({
                     "type": "context",
                     "elements": [
@@ -336,6 +340,10 @@ class SlackStreamingHandler:
         # Add current tool block if we have one running
         if self.current_tool_block:
             tool_formatted = self._format_tool_block(self.current_tool_block)
+            
+            # Ensure tool_formatted is never empty
+            if not tool_formatted or not tool_formatted.strip():
+                tool_formatted = "_⚡️ Tool executing..._"
             
             blocks.append({
                 "type": "context", 
@@ -474,3 +482,29 @@ class SlackStreamingHandler:
                 ],
                 text=final_response
             )
+    
+    def _format_tool_block(self, tool_info: Dict[str, Any]) -> str:
+        """Format tool information into a readable Slack message"""
+        if not tool_info:
+            return "_⚡️ Tool executed_"
+        
+        # Extract tool information
+        tool_name = tool_info.get('tool', 'unknown_tool')
+        success = tool_info.get('success', True)
+        summary = tool_info.get('summary', '')
+        
+        # Format based on success
+        if success:
+            status_emoji = "⚡️"
+            status_text = "completed successfully"
+        else:
+            status_emoji = "❌"
+            status_text = "encountered an error"
+        
+        # Build formatted message
+        formatted_parts = [f"_{status_emoji} *{tool_name}* {status_text}_"]
+        
+        if summary and summary.strip():
+            formatted_parts.append(f"_{summary.strip()}_")
+        
+        return "\n".join(formatted_parts)

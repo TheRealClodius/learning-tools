@@ -2062,11 +2062,20 @@ Note: scratchpad.add_finding requires 'summary' parameter, not 'finding'."""
         Store conversation in memory for both Gemini and Claude responses
         """
         try:
+            # Validate required fields before storing
+            if not user_message or not user_message.strip():
+                logger.warning(f"MEMORY-STORAGE: Skipping memory storage - empty user_message for user {user_id}")
+                return
+            
+            if not agent_response or not agent_response.strip():
+                logger.warning(f"MEMORY-STORAGE: Skipping memory storage - empty agent_response for user {user_id}")
+                return
+            
             logger.info(f"MEMORY-STORAGE: Adding conversation to memory for user {user_id}")
             
             memory_add_args = {
-                "user_input": user_message,
-                "agent_response": agent_response,
+                "user_input": user_message.strip(),
+                "agent_response": agent_response.strip(),
                 "user_id": user_id
             }
             
