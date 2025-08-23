@@ -325,7 +325,13 @@ class SlackInterface:
                 # 🔍 PRODUCTION DEBUG: Log all streaming callback events
                 logger.info(f"🔄 SLACK-CALLBACK: type='{content_type}' content_len={len(str(content))} content_preview='{str(content)[:80]}...'")
                 
-                if content_type == "thinking" and content.strip():
+                # Check if content is a coroutine and await it if necessary
+                import asyncio
+                if asyncio.iscoroutine(content):
+                    logger.warning(f"⚠️ SLACK-CALLBACK: Received coroutine instead of string for {content_type}, awaiting it...")
+                    content = await content
+                
+                if content_type == "thinking" and content and hasattr(content, 'strip'):
                     logger.info(f"🧠 SLACK-THINKING: Processing thinking content ({len(content)} chars)")
                     await streaming_handler.update_thinking(content.strip())
                 elif content_type == "tool_start":
@@ -343,11 +349,15 @@ class SlackInterface:
                 elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
                     # DEBUG: These intermediate operations are now only logged for debugging
                     # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
-                    logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100]}...")
+                    logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100] if hasattr(content, '__getitem__') else str(content)[:100]}...")
                 elif content_type == "tool_result":
                     # DEPRECATED: Old summary-based approach - keeping for backward compatibility
-                    logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
-                    await streaming_handler.complete_tool(content.strip(), None)
+                    if hasattr(content, 'strip'):
+                        logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
+                        await streaming_handler.complete_tool(content.strip(), None)
+                    else:
+                        logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with non-string content: {type(content)}")
+                        await streaming_handler.complete_tool(str(content), None)
                 elif content_type == "tool_complete":
                     # NEW: Structured completion data with result and error information
                     if isinstance(content, dict):
