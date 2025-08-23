@@ -313,7 +313,7 @@ class SlackInterface:
         try:
             t_overall = time.time()
             # Create streaming handler for this message
-            streaming_handler = SlackStreamingHandler(self.app.client, channel_id, thread_ts, user_id)
+            streaming_handler = SlackStreamingHandler(self.app.client, channel_id, thread_ts, user_id, self.mention_resolver)
             
             # Start streaming display
             t_stream_start = time.time()

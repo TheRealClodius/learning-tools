@@ -27,11 +27,12 @@ class SlackStreamingHandler:
     - Pure UI formatting: No LLM logic in this class
     """
     
-    def __init__(self, app_client, channel_id: str, thread_ts: str, user_id: str = None):
+    def __init__(self, app_client, channel_id: str, thread_ts: str, user_id: str = None, mention_resolver=None):
         self.app_client = app_client
         self.channel_id = channel_id
         self.thread_ts = thread_ts
         self.user_id = user_id  # Store user_id for database storage
+        self.mention_resolver = mention_resolver  # For resolving channel IDs to names
         self.message_ts: Optional[str] = None
         self.content_blocks = []  # Chronological list of thinking and tool blocks
         self.current_tool_block = None  # Currently active tool block
@@ -139,7 +140,7 @@ class SlackStreamingHandler:
         self.current_tool_block = None
         await self._update_display()
     
-    def _format_tool_block(self, tool_info: Dict) -> str:
+    async def _format_tool_block(self, tool_info: Dict) -> str:
         """Format tool information programmatically for clean display"""
         tool_name = tool_info.get('name', 'Unknown tool')
         status = tool_info.get('status', 'running')
@@ -156,7 +157,7 @@ class SlackStreamingHandler:
             parts.append(f"⚡️ *{tool_name}* failed: {error}")
         elif status == "completed":
             # Format success message based on tool type and result
-            success_msg = self._format_tool_success(tool_name, tool_args, result)
+            success_msg = await self._format_tool_success(tool_name, tool_args, result)
             parts.append(success_msg)
         else:
             parts.append(f"⚡️ *{tool_name}* completed")
@@ -165,7 +166,7 @@ class SlackStreamingHandler:
         tool_content = '\n'.join(parts)
         return f"_{tool_content}_"
     
-    def _format_tool_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+    async def _format_tool_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
         """Format successful tool execution message based on tool type and result data"""
         try:
             # Handle different tool types with specific formatting
@@ -176,7 +177,7 @@ class SlackStreamingHandler:
             elif "registry" in tool_name.lower() or "reg." in tool_name.lower():
                 return self._format_registry_success(tool_name, tool_args, result)
             elif "slack" in tool_name.lower():
-                return self._format_slack_success(tool_name, tool_args, result)
+                return await self._format_slack_success(tool_name, tool_args, result)
             elif "memory" in tool_name.lower():
                 return self._format_memory_success(tool_name, tool_args, result)
             else:
@@ -233,8 +234,8 @@ class SlackStreamingHandler:
             return f"⚡️ *{tool_name}* retrieved tool categories"
         return f"⚡️ *{tool_name}* completed registry operation"
     
-    def _format_slack_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
-        """Format Slack tool success messages"""
+    async def _format_slack_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
+        """Format Slack tool success messages with channel ID resolution"""
         if isinstance(result, dict) and result.get("success"):
             if "search" in tool_name or "vector_search" in tool_name:
                 # Parse the results text to extract message count
@@ -245,10 +246,14 @@ class SlackStreamingHandler:
                     match = re.search(r'Found (\d+) messages?', results_text)
                     if match:
                         count = int(match.group(1))
-                        return f"⚡️ *{tool_name}* found {count} messages"
+                        # Resolve channel IDs in the message
+                        resolved_text = await self._resolve_channel_ids_in_text(f"found {count} messages")
+                        return f"⚡️ *{tool_name}* {resolved_text}"
                 # Fallback: check if we have results content
                 if results_text and len(results_text.strip()) > 50:
-                    return f"⚡️ *{tool_name}* found messages"
+                    # Resolve channel IDs in the results text
+                    resolved_text = await self._resolve_channel_ids_in_text("found messages")
+                    return f"⚡️ *{tool_name}* {resolved_text}"
                 else:
                     return f"⚡️ *{tool_name}* found 0 messages"
             elif "channels" in tool_name:
@@ -262,7 +267,18 @@ class SlackStreamingHandler:
                 results_text = result.get("channels", "")
                 if results_text and len(results_text.strip()) > 10:
                     return f"⚡️ *{tool_name}* retrieved channels"
-        return f"⚡️ *{tool_name}* completed Slack operation"
+        
+        # For any Slack operation, resolve channel IDs in the entire result
+        formatted_message = f"⚡️ *{tool_name}* completed Slack operation"
+        if isinstance(result, dict):
+            # Check if there are any channel IDs in the result data that we should resolve
+            result_str = str(result)
+            resolved_result_str = await self._resolve_channel_ids_in_text(result_str)
+            if resolved_result_str != result_str:
+                # Channel IDs were found and resolved, include some context
+                formatted_message = f"⚡️ *{tool_name}* completed Slack operation"
+        
+        return formatted_message
     
     def _format_memory_success(self, tool_name: str, tool_args: Dict, result: any) -> str:
         """Format memory tool success messages"""
@@ -304,7 +320,7 @@ class SlackStreamingHandler:
             elif block_type == "tool":
                 # Tool block: Format structured tool information programmatically
                 tool_info = content
-                tool_formatted = self._format_tool_block(tool_info)
+                tool_formatted = await self._format_tool_block(tool_info)
                 
                 # Ensure tool_formatted is never empty
                 if not tool_formatted or not tool_formatted.strip():
@@ -502,29 +518,50 @@ class SlackStreamingHandler:
                 text=fallback_text
             )
     
-    def _format_tool_block(self, tool_info: Dict[str, Any]) -> str:
-        """Format tool information into a readable Slack message"""
-        if not tool_info:
-            return "_⚡️ Tool executed_"
+
+    
+    async def _resolve_channel_ids_in_text(self, text: str) -> str:
+        """Resolve raw channel IDs to readable channel names in text"""
+        import re
         
-        # Extract tool information (use 'name' field which is what's actually stored)
-        tool_name = tool_info.get('name', tool_info.get('tool', 'unknown_tool'))
-        status = tool_info.get('status', 'completed')
-        error = tool_info.get('error')
-        summary = tool_info.get('summary', '')
+        # Pattern to match raw channel IDs (like CMA54SH0Q, C087QKECFKQ)
+        channel_id_pattern = r'\b(C[A-Z0-9]{8,})\b'
         
-        # Format based on status
-        if status == "running":
-            formatted_message = f"_⚡️ *{tool_name}* executing..._"
-        elif status == "failed" or error:
-            error_msg = error or "encountered an error"
-            formatted_message = f"_❌ *{tool_name}* failed: {error_msg}_"
-        else:
-            # Completed successfully
-            formatted_message = f"_⚡️ *{tool_name}* completed successfully_"
+        # Find all channel IDs in the text
+        channel_ids = re.findall(channel_id_pattern, text)
         
-        # Add summary if available and meaningful
-        if summary and summary.strip() and "completed successfully" not in summary.lower():
-            formatted_message += f"\n_{summary.strip()}_"
+        if not channel_ids:
+            return text
         
-        return formatted_message
+        # Resolve each channel ID to a readable name
+        resolved_text = text
+        for channel_id in set(channel_ids):  # Use set to avoid duplicates
+            try:
+                # Use Slack API to get channel name
+                channel_name = await self._get_channel_name_by_id(channel_id)
+                if channel_name:
+                    # Replace the raw ID with a readable name
+                    resolved_text = resolved_text.replace(channel_id, f"#{channel_name}")
+                else:
+                    # Fallback: just add # prefix to make it clear it's a channel
+                    resolved_text = resolved_text.replace(channel_id, f"#{channel_id}")
+            except Exception as e:
+                logger.warning(f"Failed to resolve channel ID {channel_id}: {e}")
+                # Leave as-is if resolution fails
+        
+        return resolved_text
+    
+    async def _get_channel_name_by_id(self, channel_id: str) -> Optional[str]:
+        """Get channel name by ID using Slack API"""
+        try:
+            # Use Slack API to get channel info
+            channel_info = await self.app_client.conversations_info(channel=channel_id)
+            if channel_info.get("ok"):
+                channel = channel_info.get("channel", {})
+                return channel.get("name")
+            else:
+                logger.warning(f"Failed to get channel info for {channel_id}: {channel_info.get('error', 'unknown error')}")
+                return None
+        except Exception as e:
+            logger.warning(f"Error getting channel name for {channel_id}: {e}")
+            return None
