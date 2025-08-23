@@ -1265,7 +1265,6 @@ Note: scratchpad.add_finding requires 'summary' parameter, not 'finding'."""
                 }
                 if streaming_callback:
                     await streaming_callback({"name": "scratchpad.add_finding", "args": add_args}, "tool_start")
-                    await streaming_callback("scratchpad.add_finding", "tool_start")
                 _ = await self.tool_executor.execute_command("scratchpad.add_finding", add_args, user_id=user_id)
                 findings_made = 1
 

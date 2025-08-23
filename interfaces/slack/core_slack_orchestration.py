@@ -322,57 +322,93 @@ class SlackInterface:
             
             # Create simple streaming callback with enhanced debugging
             async def slack_streaming_callback(content: str, content_type: str):
-                # 🔍 PRODUCTION DEBUG: Log all streaming callback events
-                logger.info(f"🔄 SLACK-CALLBACK: type='{content_type}' content_len={len(str(content))} content_preview='{str(content)[:80]}...'")
-                
-                # Check if content is a coroutine and await it if necessary
-                import asyncio
-                if asyncio.iscoroutine(content):
-                    logger.warning(f"⚠️ SLACK-CALLBACK: Received coroutine instead of string for {content_type}, awaiting it...")
-                    content = await content
-                
-                if content_type == "thinking" and content and hasattr(content, 'strip'):
-                    logger.info(f"🧠 SLACK-THINKING: Processing thinking content ({len(content)} chars)")
-                    await streaming_handler.update_thinking(content.strip())
-                elif content_type == "tool_start":
-                    # Check if content includes tool args (for execute_tool)
-                    if isinstance(content, dict):
-                        tool_name = content.get("name", "unknown")
-                        tool_args = content.get("args", {})
-                        # Safely get keys only if tool_args is a dict
-                        args_keys = list(tool_args.keys()) if isinstance(tool_args, dict) and tool_args else []
-                        logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={args_keys}")
-                        await streaming_handler.start_tool(tool_name, tool_args)
+                try:
+                    # 🔍 PRODUCTION DEBUG: Log all streaming callback events
+                    logger.info(f"🔄 SLACK-CALLBACK: type='{content_type}' content_len={len(str(content))} content_preview='{str(content)[:80]}...'")
+                    
+                    # Check if content is a coroutine and await it if necessary
+                    import asyncio
+                    import inspect
+                    
+                    # More comprehensive check for coroutines and async functions
+                    if asyncio.iscoroutine(content):
+                        logger.warning(f"⚠️ SLACK-CALLBACK: Received coroutine instead of string for {content_type}, awaiting it...")
+                        content = await content
+                    elif inspect.iscoroutinefunction(content):
+                        logger.warning(f"⚠️ SLACK-CALLBACK: Received coroutine function instead of string for {content_type}, calling and awaiting it...")
+                        content = await content()
+                    elif callable(content) and not isinstance(content, (str, dict, list)):
+                        logger.warning(f"⚠️ SLACK-CALLBACK: Received callable {type(content)} instead of expected type for {content_type}, calling it...")
+                        result = content()
+                        if asyncio.iscoroutine(result):
+                            logger.warning(f"⚠️ SLACK-CALLBACK: Callable returned coroutine, awaiting it...")
+                            content = await result
+                        else:
+                            content = result
+                    
+                    # Additional safety check - if content is still not the right type, convert it
+                    if content_type == "thinking":
+                        if not isinstance(content, str):
+                            logger.error(f"❌ SLACK-CALLBACK: After all checks, content for 'thinking' is still {type(content)}, converting to string")
+                            content = str(content)
+                        
+                        if content and content.strip():  # Safe to call strip() now
+                            logger.info(f"🧠 SLACK-THINKING: Processing thinking content ({len(content)} chars)")
+                            await streaming_handler.update_thinking(content.strip())
+                    elif content_type == "tool_start":
+                        # Check if content includes tool args (for execute_tool)
+                        if isinstance(content, dict):
+                            tool_name = content.get("name", "unknown")
+                            tool_args = content.get("args", {})
+                            # Safely get keys only if tool_args is a dict
+                            args_keys = list(tool_args.keys()) if isinstance(tool_args, dict) and tool_args else []
+                            logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={args_keys}")
+                            await streaming_handler.start_tool(tool_name, tool_args)
+                        else:
+                            logger.info(f"🚀 SLACK-TOOL-START: string format tool='{content}'")
+                            await streaming_handler.start_tool(content, None)
+                    elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
+                        # DEBUG: These intermediate operations are now only logged for debugging
+                        # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
+                        logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100] if hasattr(content, '__getitem__') else str(content)[:100]}...")
+                    elif content_type == "tool_result":
+                        # DEPRECATED: Old summary-based approach - keeping for backward compatibility
+                        if not isinstance(content, str):
+                            logger.warning(f"⚠️ SLACK-TOOL-RESULT: Content is {type(content)}, converting to string")
+                            content = str(content) if content is not None else ""
+                        
+                        if content and content.strip():
+                            logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
+                            await streaming_handler.complete_tool(content.strip(), None)
+                        else:
+                            logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with empty/None content")
+                            await streaming_handler.complete_tool("", None)
+                    elif content_type == "tool_complete":
+                        # NEW: Structured completion data with result and error information
+                        if isinstance(content, dict):
+                            result_data = content.get("result_data")
+                            error = content.get("error")
+                            logger.info(f"✅ SLACK-TOOL-COMPLETE: Structured completion result_len={len(str(result_data)) if result_data else 0} error={error is not None}")
+                            await streaming_handler.complete_tool(result_data, error)
+                        else:
+                            logger.warning(f"SLACK-TOOL-COMPLETE: Expected dict but got {type(content)}")
+                            await streaming_handler.complete_tool(content, None)
+                    elif content_type == "tool_summary_chunk":
+                        # DEPRECATED: Old streaming chunk approach - no longer used with structured data
+                        logger.debug(f"DEPRECATED-CHUNK: Ignoring old-style tool_summary_chunk: {content[:50]}...")
                     else:
-                        logger.info(f"🚀 SLACK-TOOL-START: string format tool='{content}'")
-                        await streaming_handler.start_tool(content, None)
-                elif content_type in ["tool_details", "operation", "result", "result_detail", "error"]:
-                    # DEBUG: These intermediate operations are now only logged for debugging
-                    # Gemini creates complete summaries in ClientAgent, so no need to show these in UI
-                    logger.debug(f"INTERMEDIATE-OP: {content_type}: {content[:100] if hasattr(content, '__getitem__') else str(content)[:100]}...")
-                elif content_type == "tool_result":
-                    # DEPRECATED: Old summary-based approach - keeping for backward compatibility
-                    if hasattr(content, 'strip'):
-                        logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with summary ({len(content)} chars): '{content[:80]}...'")
-                        await streaming_handler.complete_tool(content.strip(), None)
-                    else:
-                        logger.info(f"✅ SLACK-TOOL-RESULT: Completing tool with non-string content: {type(content)}")
-                        await streaming_handler.complete_tool(str(content), None)
-                elif content_type == "tool_complete":
-                    # NEW: Structured completion data with result and error information
-                    if isinstance(content, dict):
-                        result_data = content.get("result_data")
-                        error = content.get("error")
-                        logger.info(f"✅ SLACK-TOOL-COMPLETE: Structured completion result_len={len(str(result_data)) if result_data else 0} error={error is not None}")
-                        await streaming_handler.complete_tool(result_data, error)
-                    else:
-                        logger.warning(f"SLACK-TOOL-COMPLETE: Expected dict but got {type(content)}")
-                        await streaming_handler.complete_tool(content, None)
-                elif content_type == "tool_summary_chunk":
-                    # DEPRECATED: Old streaming chunk approach - no longer used with structured data
-                    logger.debug(f"DEPRECATED-CHUNK: Ignoring old-style tool_summary_chunk: {content[:50]}...")
-                else:
-                    logger.warning(f"🔍 SLACK-UNKNOWN: Unhandled callback type='{content_type}' content='{str(content)[:80]}...')")
+                        logger.warning(f"🔍 SLACK-UNKNOWN: Unhandled callback type='{content_type}' content='{str(content)[:80]}...'")
+                        
+                except AttributeError as e:
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: AttributeError in callback for {content_type}: {e}")
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: Content type was {type(content)}, value: {repr(content)[:200]}")
+                    import traceback
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: Traceback: {traceback.format_exc()}")
+                except Exception as e:
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: Unexpected error in callback for {content_type}: {e}")
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: Content type was {type(content)}")
+                    import traceback
+                    logger.error(f"❌ SLACK-CALLBACK-ERROR: Traceback: {traceback.format_exc()}")
 
             
             # Process through agent with streaming
