@@ -490,7 +490,7 @@ class SlackMCPClient:
         try:
             # Build arguments
             arguments = {
-                "name": name,
+                "title": name,
                 "content": content
             }
             if channel_id:
@@ -500,7 +500,7 @@ class SlackMCPClient:
             
             # Make MCP request
             params = {
-                "name": "canvases.create",
+                "name": "canvas.create",
                 "arguments": arguments
             }
             
@@ -555,7 +555,7 @@ class SlackMCPClient:
             
             # Make MCP request
             params = {
-                "name": "canvases.edit",
+                "name": "canvas.edit",
                 "arguments": arguments
             }
             
@@ -597,7 +597,7 @@ class SlackMCPClient:
             
             # Make MCP request
             params = {
-                "name": "canvases.delete",
+                "name": "canvas.delete",
                 "arguments": arguments
             }
             
@@ -653,7 +653,7 @@ class SlackMCPClient:
             
             # Make MCP request
             params = {
-                "name": "canvases.access.set",
+                "name": "canvas.access.manage",
                 "arguments": arguments
             }
             
@@ -704,7 +704,7 @@ class SlackMCPClient:
             
             # Make MCP request
             params = {
-                "name": "canvases.access.delete",
+                "name": "canvas.access.manage",
                 "arguments": arguments
             }
             
