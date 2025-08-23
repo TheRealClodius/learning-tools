@@ -333,7 +333,9 @@ class SlackInterface:
                     if isinstance(content, dict):
                         tool_name = content.get("name", "unknown")
                         tool_args = content.get("args", {})
-                        logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={list(tool_args.keys()) if tool_args else []}")
+                        # Safely get keys only if tool_args is a dict
+                        args_keys = list(tool_args.keys()) if isinstance(tool_args, dict) and tool_args else []
+                        logger.info(f"🚀 SLACK-TOOL-START: dict format tool='{tool_name}' args_keys={args_keys}")
                         await streaming_handler.start_tool(tool_name, tool_args)
                     else:
                         logger.info(f"🚀 SLACK-TOOL-START: string format tool='{content}'")
