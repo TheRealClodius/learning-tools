@@ -1,3 +1,11 @@
+"""
+Main tool execution engine that handles:
+- Dynamic tool discovery via registry
+- Tool loading and execution
+- Service management
+- Tool schema caching for performance
+"""
+
 from typing import Dict, Any, Callable, List, Optional, Set
 import logging
 import importlib
@@ -52,7 +60,20 @@ class ToolExecutor:
             "slack": {
                 "slack.vector_search": "tools.slack_mcp:vector_search",
                 "slack.get_channels": "tools.slack_mcp:get_channels",
-                "slack.get_search_stats": "tools.slack_mcp:get_search_stats"
+                "slack.get_search_stats": "tools.slack_mcp:get_search_stats",
+                "slack.search_info": "tools.slack_mcp:search_info",
+                "slack.search_context": "tools.slack_mcp:search_context",
+                "slack.canvas_create": "tools.slack_mcp:canvas_create",
+                "slack.canvas_edit": "tools.slack_mcp:canvas_edit",
+                "slack.canvas_delete": "tools.slack_mcp:canvas_delete",
+                "slack.canvas_access_set": "tools.slack_mcp:canvas_access_set",
+                "slack.canvas_access_delete": "tools.slack_mcp:canvas_access_delete",
+                "slack.canvas_sections_lookup": "tools.slack_mcp:canvas_sections_lookup"
+            },
+            "scratchpad": {
+                "scratchpad.add_finding": "tools.slack_mcp:scratchpad_add_finding",
+                "scratchpad.get_findings": "tools.slack_mcp:scratchpad_get_findings",
+                "scratchpad.get_evidence": "tools.slack_mcp:scratchpad_get_evidence"
             }
         }
         
@@ -455,4 +476,4 @@ class ToolExecutor:
     def set_cache_ttl(self, ttl_seconds: float) -> None:
         """Update the cache TTL setting"""
         self.cache_ttl = ttl_seconds
-        logger.info(f"Cache TTL updated to {ttl_seconds} seconds") 
+        logger.info(f"Cache TTL updated to {ttl_seconds} seconds")

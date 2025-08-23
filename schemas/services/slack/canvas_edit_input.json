@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas to edit"
+    },
+    "content": {
+      "type": "string",
+      "description": "New content for the canvas in markdown format"
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["append", "replace", "prepend"],
+      "description": "How to apply the content (default: replace)",
+      "default": "replace"
+    },
+    "section_id": {
+      "type": "string",
+      "description": "Optional specific section to edit"
+    }
+  },
+  "required": ["canvas_id", "content"],
+  "description": "Edit content of an existing Slack canvas"
+}

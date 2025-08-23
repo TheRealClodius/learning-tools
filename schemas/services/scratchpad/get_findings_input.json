@@ -1,0 +1,93 @@
+{
+    "tool_name": "scratchpad.get_findings",
+    "category": "memory",
+    "tags": ["discovery", "evidence", "findings", "research"],
+    "description": "Retrieve and summarize findings from the scratchpad. Use this to check existing discoveries and guide further research.",
+    "capabilities": [
+        "Search findings by query",
+        "Filter by source system",
+        "Get summarized findings",
+        "Track research progress"
+    ],
+    "use_cases": [
+        "Check what's already discovered",
+        "Guide next research steps",
+        "Summarize findings so far",
+        "Identify gaps in research"
+    ],
+    "best_practices": [
+        "Check findings before new searches",
+        "Use queries to focus retrieval",
+        "Review findings to spot patterns",
+        "Use findings to guide next steps"
+    ],
+    "examples": [
+        {
+            "description": "Guide progressive research",
+            "code": [
+                {
+                    "step": 1,
+                    "comment": "Check existing findings",
+                    "tool_name": "scratchpad.get_findings",
+                    "tool_args": {
+                        "query": "performance worker pool",
+                        "max_findings": 5
+                    }
+                },
+                {
+                    "step": 2,
+                    "comment": "Search new area based on gaps",
+                    "tool_name": "slack.search_info",
+                    "tool_args": {
+                        "query": "worker pool memory settings"
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Build on existing findings",
+            "code": [
+                {
+                    "step": 1,
+                    "tool_name": "scratchpad.get_findings",
+                    "tool_args": {
+                        "query": "latency",
+                        "source": "slack"
+                    }
+                },
+                {
+                    "step": 2,
+                    "tool_name": "scratchpad.get_evidence",
+                    "tool_args": {
+                        "evidence_id": "slack:msg/123"
+                    }
+                },
+                {
+                    "step": 3,
+                    "tool_name": "slack.search_context",
+                    "tool_args": {
+                        "thread_ts": "slack:th/123"
+                    }
+                }
+            ]
+        }
+    ],
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Optional search query to filter findings"
+            },
+            "source": {
+                "type": "string",
+                "description": "Optional source system filter"
+            },
+            "max_findings": {
+                "type": "integer",
+                "description": "Maximum findings to return",
+                "default": 5
+            }
+        }
+    }
+}

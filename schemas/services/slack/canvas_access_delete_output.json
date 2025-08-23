@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether access was removed successfully"
+    },
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas"
+    },
+    "removed_access": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of user/channel IDs that had access removed"
+    },
+    "message": {
+      "type": "string",
+      "description": "Success or error message"
+    }
+  },
+  "required": ["success", "message"],
+  "description": "Response from removing canvas access permissions"
+}

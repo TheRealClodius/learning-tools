@@ -1,0 +1,100 @@
+{
+    "tool_name": "slack.search_info",
+    "category": "communication",
+    "tags": ["slack", "search", "info", "assistant", "discovery"],
+    "description": "Search Slack using a metadata-first progressive reduction approach. This tool returns structured results with facets and previews, not raw message blobs.",
+    "capabilities": [
+        "Returns metadata and facets to guide exploration",
+        "Automatically groups messages by thread/conversation",
+        "Ranks and deduplicates results",
+        "Provides evidence IDs for drill-down",
+        "Integrates with scratchpad for tracking findings"
+    ],
+    "use_cases": [
+        "Start broad research with metadata-first approach",
+        "Use facets to guide exploration (channels, dates, authors)",
+        "Track findings and evidence across searches",
+        "Progressive drill-down into specific threads"
+    ],
+    "best_practices": [
+        "Start with broad queries to understand the landscape",
+        "Use facets from results to refine your search",
+        "Save important findings to scratchpad with evidence IDs",
+        "Use search_context for detailed thread exploration"
+    ],
+    "examples": [
+        {
+            "description": "Basic metadata-first search",
+            "code": {
+                "tool_name": "slack.search_info",
+                "tool_args": {
+                    "query": "performance issues",
+                    "include_pinned": true
+                }
+            },
+            "expected_response": {
+                "success": true,
+                "info": {
+                    "facets": {
+                        "channels": ["#eng", "#ops"],
+                        "dates": ["last_week", "last_month"]
+                    },
+                    "results": [
+                        {
+                            "thread_id": "slack:th/123",
+                            "preview": "Worker pool latency increased...",
+                            "evidence_id": "slack:msg/123"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "description": "Progressive discovery flow",
+            "code": [
+                {
+                    "step": 1,
+                    "tool_name": "slack.search_info",
+                    "tool_args": {
+                        "query": "performance issues"
+                    }
+                },
+                {
+                    "step": 2,
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Found worker pool latency issue",
+                        "evidence_ids": ["slack:msg/123"]
+                    }
+                },
+                {
+                    "step": 3,
+                    "tool_name": "slack.search_context",
+                    "tool_args": {
+                        "thread_ts": "slack:th/123"
+                    }
+                }
+            ]
+        }
+    ],
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query to find relevant information"
+            },
+            "include_pinned": {
+                "type": "boolean",
+                "description": "Include pinned items in search",
+                "default": true
+            },
+            "include_canvases": {
+                "type": "boolean",
+                "description": "Include canvas items in search",
+                "default": true
+            }
+        },
+        "required": ["query"]
+    }
+}

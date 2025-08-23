@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetFindingsOutput",
+  "description": "Output schema for retrieving findings from the scratchpad",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation was successful"
+    },
+    "findings": {
+      "type": "object",
+      "description": "Summary of findings with evidence",
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Finding identifier"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Finding summary"
+              },
+              "timestamp": {
+                "type": "string",
+                "description": "When the finding was created",
+                "format": "date-time"
+              },
+              "evidence_count": {
+                "type": "integer",
+                "description": "Number of evidence items"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source system"
+              }
+            },
+            "required": ["id", "summary", "timestamp"]
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "description": "Map of evidence IDs to evidence content",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Evidence content"
+              },
+              "metadata": {
+                "type": "object",
+                "description": "Evidence metadata"
+              }
+            }
+          }
+        },
+        "context": {
+          "type": "object",
+          "description": "Current search context if available",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query used"
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "When the search was performed",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if operation failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false,
+  "_meta": {
+    "tool_name": "scratchpad.get_findings",
+    "token_policy": {
+      "cluster_summary": {
+        "max_tokens": 200,
+        "max_clusters": 10,
+        "total_max_tokens": 2000,
+        "description": "Each cluster summary limited to 200 tokens, max 10 clusters in context"
+      },
+      "global_summary": {
+        "max_tokens": 400,
+        "description": "Global summary/brief limited to 300-400 tokens"
+      },
+      "scratchpad": {
+        "max_tokens": 500,
+        "description": "Rolling context in scratchpad limited to 500 tokens"
+      },
+      "total_evidence": {
+        "max_tokens": 3000,
+        "description": "Total tokens dedicated to evidence per step"
+      }
+    },
+    "response_examples": [
+      {
+        "success": true,
+        "findings": {
+          "findings": [
+            {
+              "id": "f_123",
+              "summary": "API latency increased after deployment",
+              "timestamp": "2024-03-20T10:00:00Z",
+              "evidence_count": 2,
+              "source": "slack"
+            }
+          ],
+          "evidence": {
+            "slack:msg_123": {
+              "content": "Latency metrics show 2x increase",
+              "metadata": {
+                "channel": "#eng",
+                "author": "alice"
+              }
+            }
+          },
+          "context": {
+            "query": "api performance",
+            "timestamp": "2024-03-20T10:00:00Z"
+          }
+        }
+      },
+      {
+        "success": false,
+        "message": "Failed to retrieve findings: Invalid query format"
+      }
+    ]
+  }
+}

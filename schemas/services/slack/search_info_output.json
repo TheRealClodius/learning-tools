@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchSlackInfoOutput",
+  "description": "Output schema for Slack info search results",
+  "type": "object",
+  "properties": {
+    "result_set_id": {
+      "type": "string",
+      "description": "Unique identifier for this result set"
+    },
+    "count": {
+      "type": "integer",
+      "description": "Total number of results found"
+    },
+    "facets": {
+      "type": "object",
+      "properties": {
+        "slack": {
+          "type": "object",
+          "properties": {
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "n": {"type": "integer"}
+                }
+              }
+            },
+            "dates": {
+              "type": "array", 
+              "items": {
+                "type": "object",
+                "properties": {
+                  "day": {"type": "string", "format": "date"},
+                  "n": {"type": "integer"}
+                }
+              }
+            },
+            "authors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {"type": "string"},
+                  "n": {"type": "integer"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the item"
+              },
+              "thread_id": {
+                "type": "string",
+                "description": "Thread identifier if part of thread"
+              },
+              "ts": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp of the message"
+              },
+              "author": {
+                "type": "string",
+                "description": "Author identifier"
+              },
+              "text_preview": {
+                "type": "string",
+                "description": "Short preview of the message content"
+              },
+              "reactions": {
+                "type": "integer",
+                "description": "Number of reactions"
+              },
+              "attachments": {
+                "type": "integer",
+                "description": "Number of attachments"
+              }
+            },
+            "required": ["id", "ts", "author", "text_preview"]
+          }
+        },
+        "next_page_token": {
+          "type": "string",
+          "description": "Token for fetching next page of results"
+        }
+      }
+    }
+  },
+  "required": ["result_set_id", "count", "facets", "page"],
+  "_meta": {
+    "tool_name": "slack.search_info",
+    "category": "communication",
+    "tags": ["slack", "search", "metadata", "assistant"],
+    "capabilities": [
+      "Metadata-focused search in Slack",
+      "Faceted result navigation",
+      "Progressive result loading"
+    ]
+  }
+}

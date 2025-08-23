@@ -1,3 +1,7 @@
+"""
+Core Slack orchestration module for handling messages and events
+"""
+
 import os
 import logging
 import asyncio
@@ -7,9 +11,6 @@ import json
 from typing import Dict, Any, Optional, List
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
-
-# Import agent components
-from agents.client_agent import ClientAgent
 
 # Import rate limit handler
 from runtime.rate_limit_handler import (
@@ -34,8 +35,6 @@ from .features.app_home.app_home_handler import AppHomeHandler
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-
 class SlackInterface:
     """
     Simple Slack bot interface - just messages in, responses out
@@ -48,8 +47,8 @@ class SlackInterface:
             signing_secret=os.environ.get("SLACK_SIGNING_SECRET")
         )
         
-        # Initialize agent
-        self.agent = ClientAgent()
+        # Initialize agent lazily
+        self.agent = None
         
         # Initialize cleanup task tracking
         self._cleanup_task_started = False
@@ -66,6 +65,13 @@ class SlackInterface:
         
         # Create FastAPI handler
         self.handler = AsyncSlackRequestHandler(self.app)
+    
+    def _get_agent(self):
+        """Get or create the agent instance"""
+        if self.agent is None:
+            from agents.client_agent import ClientAgent
+            self.agent = ClientAgent()
+        return self.agent
     
     async def _ensure_cleanup_task_started(self):
         """Start the cleanup task if not already started"""
@@ -387,7 +393,8 @@ class SlackInterface:
             }
             
             t_agent = time.time()
-            response = await self.agent.process_request(
+            agent = self._get_agent()
+            response = await agent.process_request(
                 message_text, 
                 context=context,
                 streaming_callback=slack_streaming_callback
@@ -598,7 +605,6 @@ class SlackInterface:
     def get_fastapi_handler(self):
         """Get FastAPI handler for webhook integration"""
         return self.handler
-
 
 
 # For FastAPI integration

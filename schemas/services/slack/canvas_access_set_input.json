@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas to modify access for"
+    },
+    "access_level": {
+      "type": "string",
+      "enum": ["read", "write", "admin"],
+      "description": "Access level to grant"
+    },
+    "user_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of user IDs to grant access to"
+    },
+    "channel_ids": {
+      "type": "array", 
+      "items": {
+        "type": "string"
+      },
+      "description": "List of channel IDs to grant access to"
+    }
+  },
+  "required": ["canvas_id", "access_level"],
+  "description": "Set access permissions for a Slack canvas"
+}

@@ -2,11 +2,26 @@
 Slack MCP Client
 
 This module provides an MCP (Model Context Protocol) client for connecting to 
-the Slack Service to enable semantic search of Slack messages.
+the Slack Service to enable comprehensive Slack operations including search,
+canvas management, and discovery capabilities.
 
-The client supports three main operations:
+The client supports 11 main operations:
+
+Search Operations (4):
 - vector_search: Search through Slack messages using semantic search
 - get_channels: Get list of available Slack channels
+- search_info: Search for information using assistant.search.info
+- search_context: Search for context using assistant.search.context
+
+Canvas Operations (6):
+- canvas_create: Create collaborative documents/summaries
+- canvas_edit: Update canvas content with markdown/tables
+- canvas_delete: Remove canvases
+- canvas_access_set: Manage canvas permissions
+- canvas_access_delete: Remove canvas permissions
+- canvas_sections_lookup: Search within canvas sections
+
+Statistics (1):
 - get_search_stats: Get statistics about the indexed Slack messages
 
 Configuration via environment variables:
@@ -22,7 +37,20 @@ import json
 from typing import Dict, Any, Optional, List
 import aiohttp
 
+from interfaces.slack.services.progressive_reducer import ProgressiveReducer
+from interfaces.slack.services.scratchpad import Scratchpad
+
 logger = logging.getLogger(__name__)
+
+# Global scratchpad instance
+_scratchpad: Optional[Scratchpad] = None
+
+def get_scratchpad() -> Scratchpad:
+    """Get or create the global scratchpad instance"""
+    global _scratchpad
+    if _scratchpad is None:
+        _scratchpad = Scratchpad()
+    return _scratchpad
 
 class SlackMCPClient:
     """
@@ -34,6 +62,7 @@ class SlackMCPClient:
                  port: int = None,
                  api_key: str = None,
                  timeout: int = 30):
+        self.result_reducer = ProgressiveReducer()
         """
         Initialize Slack MCP client
         
@@ -260,6 +289,146 @@ class SlackMCPClient:
                 "message": f"Failed to get channels: {str(e)}"
             }
     
+    async def search_context(self,
+                          query: str,
+                          thread_ts: Optional[str] = None,
+                          channel_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Search for context using assistant.search.context
+        
+        Args:
+            query: Search query for finding relevant context
+            thread_ts: Optional thread timestamp to get context for a specific thread
+            channel_id: Optional channel ID to scope the context search
+            
+        Returns:
+            Dictionary with context search results
+        """
+        try:
+            # Build arguments
+            arguments = {"query": query}
+            if thread_ts:
+                arguments["thread_ts"] = thread_ts
+            if channel_id:
+                arguments["channel_id"] = channel_id
+            
+            # Make MCP request
+            params = {
+                "name": "assistant.search.context",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "context": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No context returned from search"
+                }
+                
+        except Exception as e:
+            logger.error(f"Context search error: {e}")
+            return {
+                "success": False,
+                "message": f"Context search failed: {str(e)}"
+            }
+
+    async def search_info(self,
+                         query: str,
+                         include_pinned: bool = True,
+                         include_canvases: bool = True) -> Dict[str, Any]:
+        """
+        Search for information using assistant.search.info
+        
+        Args:
+            query: Search query for finding relevant information
+            include_pinned: Whether to include pinned items
+            include_canvases: Whether to include canvas items
+            
+        Returns:
+            Dictionary with information search results
+        """
+        try:
+            # Build arguments
+            arguments = {
+                "query": query,
+                "include_pinned": include_pinned,
+                "include_canvases": include_canvases
+            }
+            
+            # Make MCP request
+            params = {
+                "name": "assistant.search.info",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and reduce the results
+            if result and "data" in result:
+                # Use structured data for processing, not the text content
+                structured_data = result["data"]
+                
+                # Fix data type issues that cause comparison and conversion errors
+                if "matches" in structured_data:
+                    for match in structured_data["matches"]:
+                        # Fix timestamp fields - ensure they're valid floats or convert to float
+                        for ts_field in ["ts", "thread_ts"]:
+                            ts_value = match.get(ts_field)
+                            if ts_value == "" or ts_value is None:
+                                # Use current time as fallback
+                                import time
+                                match[ts_field] = str(time.time())
+                            elif isinstance(ts_value, str):
+                                try:
+                                    # Try to convert string to float to validate
+                                    float(ts_value)
+                                except (ValueError, TypeError):
+                                    # Invalid timestamp, use current time
+                                    import time
+                                    match[ts_field] = str(time.time())
+                            elif isinstance(ts_value, (int, float)):
+                                # Convert to string for consistency
+                                match[ts_field] = str(float(ts_value))
+                        
+                        # Ensure reply_count is a number
+                        reply_count = match.get("reply_count", 0)
+                        if isinstance(reply_count, str):
+                            try:
+                                match["reply_count"] = float(reply_count)
+                            except (ValueError, TypeError):
+                                match["reply_count"] = 0.0
+                        elif not isinstance(reply_count, (int, float)):
+                            match["reply_count"] = 0.0
+                
+                reduced_results = await self.result_reducer.reduce_results(
+                    structured_data,
+                    query
+                )
+                return {
+                    "success": True,
+                    "info": reduced_results
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No information returned from search"
+                }
+                
+        except Exception as e:
+            logger.error(f"Info search error: {e}")
+            return {
+                "success": False,
+                "message": f"Info search failed: {str(e)}"
+            }
+
     async def get_search_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the indexed Slack messages
@@ -299,6 +468,318 @@ class SlackMCPClient:
             return {
                 "success": False,
                 "message": f"Failed to get stats: {str(e)}"
+            }
+
+    async def canvas_create(self, 
+                          name: str,
+                          content: str,
+                          channel_id: Optional[str] = None,
+                          description: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a new Slack canvas
+        
+        Args:
+            name: Name of the canvas to create
+            content: Initial content for the canvas in markdown format
+            channel_id: Optional channel ID to create the canvas in
+            description: Optional description for the canvas
+            
+        Returns:
+            Dictionary with canvas creation results
+        """
+        try:
+            # Build arguments
+            arguments = {
+                "name": name,
+                "content": content
+            }
+            if channel_id:
+                arguments["channel_id"] = channel_id
+            if description:
+                arguments["description"] = description
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.create",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "canvas_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No canvas data returned from creation"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas create error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas creation failed: {str(e)}"
+            }
+
+    async def canvas_edit(self,
+                        canvas_id: str,
+                        content: str,
+                        operation: str = "replace",
+                        section_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Edit content of an existing Slack canvas
+        
+        Args:
+            canvas_id: ID of the canvas to edit
+            content: New content for the canvas in markdown format
+            operation: How to apply the content (append, replace, prepend)
+            section_id: Optional specific section to edit
+            
+        Returns:
+            Dictionary with canvas edit results
+        """
+        try:
+            # Build arguments
+            arguments = {
+                "canvas_id": canvas_id,
+                "content": content,
+                "operation": operation
+            }
+            if section_id:
+                arguments["section_id"] = section_id
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.edit",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "canvas_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No canvas data returned from edit"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas edit error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas edit failed: {str(e)}"
+            }
+
+    async def canvas_delete(self, canvas_id: str) -> Dict[str, Any]:
+        """
+        Delete an existing Slack canvas
+        
+        Args:
+            canvas_id: ID of the canvas to delete
+            
+        Returns:
+            Dictionary with canvas deletion results
+        """
+        try:
+            # Build arguments
+            arguments = {"canvas_id": canvas_id}
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.delete",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "deletion_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No deletion confirmation returned"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas delete error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas deletion failed: {str(e)}"
+            }
+
+    async def canvas_access_set(self,
+                              canvas_id: str,
+                              access_level: str,
+                              user_ids: Optional[List[str]] = None,
+                              channel_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Set access permissions for a Slack canvas
+        
+        Args:
+            canvas_id: ID of the canvas to modify access for
+            access_level: Access level to grant (read, write, admin)
+            user_ids: List of user IDs to grant access to
+            channel_ids: List of channel IDs to grant access to
+            
+        Returns:
+            Dictionary with access setting results
+        """
+        try:
+            # Build arguments
+            arguments = {
+                "canvas_id": canvas_id,
+                "access_level": access_level
+            }
+            if user_ids:
+                arguments["user_ids"] = user_ids
+            if channel_ids:
+                arguments["channel_ids"] = channel_ids
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.access.set",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "access_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No access data returned from setting"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas access set error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas access setting failed: {str(e)}"
+            }
+
+    async def canvas_access_delete(self,
+                                 canvas_id: str,
+                                 user_ids: Optional[List[str]] = None,
+                                 channel_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Remove access permissions from a Slack canvas
+        
+        Args:
+            canvas_id: ID of the canvas to remove access from
+            user_ids: List of user IDs to remove access from
+            channel_ids: List of channel IDs to remove access from
+            
+        Returns:
+            Dictionary with access removal results
+        """
+        try:
+            # Build arguments
+            arguments = {"canvas_id": canvas_id}
+            if user_ids:
+                arguments["user_ids"] = user_ids
+            if channel_ids:
+                arguments["channel_ids"] = channel_ids
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.access.delete",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "access_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No access data returned from removal"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas access delete error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas access removal failed: {str(e)}"
+            }
+
+    async def canvas_sections_lookup(self,
+                                   canvas_id: str,
+                                   query: str,
+                                   section_types: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Search for content within sections of a Slack canvas
+        
+        Args:
+            canvas_id: ID of the canvas to search within
+            query: Search query to find content in canvas sections
+            section_types: Filter by specific section types
+            
+        Returns:
+            Dictionary with canvas section search results
+        """
+        try:
+            # Build arguments
+            arguments = {
+                "canvas_id": canvas_id,
+                "query": query
+            }
+            if section_types:
+                arguments["section_types"] = section_types
+            
+            # Make MCP request
+            params = {
+                "name": "canvases.sections.lookup",
+                "arguments": arguments
+            }
+            
+            result = await self._make_mcp_request("tools/call", params)
+            
+            # Process and return the result
+            if result and "content" in result:
+                return {
+                    "success": True,
+                    "sections_data": result["content"],
+                    "raw_content": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "No sections data returned from search"
+                }
+                
+        except Exception as e:
+            logger.error(f"Canvas sections lookup error: {e}")
+            return {
+                "success": False,
+                "message": f"Canvas sections lookup failed: {str(e)}"
             }
     
     async def close(self):
@@ -389,4 +870,356 @@ async def get_search_stats(input_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"Failed to get stats: {str(e)}"
+        }
+
+# Scratchpad tool functions
+async def scratchpad_add_finding(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for adding a finding to the scratchpad
+    """
+    try:
+        scratchpad = get_scratchpad()
+        
+        finding_id = await scratchpad.add_finding(
+            summary=input_data["summary"],
+            evidence_ids=input_data["evidence_ids"],
+            source=input_data.get("source", "slack")
+        )
+        
+        return {
+            "success": True,
+            "finding_id": finding_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Add finding error: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to add finding: {str(e)}"
+        }
+
+async def scratchpad_get_findings(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for retrieving findings from the scratchpad
+    """
+    try:
+        scratchpad = get_scratchpad()
+        
+        findings = await scratchpad.get_context_findings(
+            query=input_data.get("query"),
+            source=input_data.get("source")
+        )
+        
+        summary = await scratchpad.summarize_findings(
+            max_findings=input_data.get("max_findings", 5),
+            query=input_data.get("query")
+        )
+        
+        return {
+            "success": True,
+            "findings": summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Get findings error: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to get findings: {str(e)}"
+        }
+
+async def scratchpad_get_evidence(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for retrieving evidence from the scratchpad
+    """
+    try:
+        scratchpad = get_scratchpad()
+        
+        evidence = await scratchpad.get_evidence(
+            evidence_id=input_data["evidence_id"]
+        )
+        
+        if evidence:
+            return {
+                "success": True,
+                "evidence": {
+                    "content": evidence.content,
+                    "metadata": evidence.metadata,
+                    "fetch_time": evidence.fetch_time
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Evidence not found or expired"
+            }
+        
+    except Exception as e:
+        logger.error(f"Get evidence error: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to get evidence: {str(e)}"
+        }
+
+async def search_context(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for searching Slack context via assistant.search.context
+    """
+    try:
+        client = get_slack_client()
+        
+        query = input_data.get("query", "")
+        if not query:
+            return {
+                "success": False,
+                "message": "Search query is required"
+            }
+        
+        thread_ts = input_data.get("thread_ts")
+        channel_id = input_data.get("channel_id")
+        
+        return await client.search_context(
+            query=query,
+            thread_ts=thread_ts,
+            channel_id=channel_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Search context error: {e}")
+        return {
+            "success": False,
+            "message": f"Context search failed: {str(e)}"
+        }
+
+async def search_info(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for searching Slack info via assistant.search.info
+    """
+    try:
+        client = get_slack_client()
+        
+        query = input_data.get("query", "")
+        if not query:
+            return {
+                "success": False,
+                "message": "Search query is required"
+            }
+        
+        include_pinned = input_data.get("include_pinned", True)
+        include_canvases = input_data.get("include_canvases", True)
+        
+        return await client.search_info(
+            query=query,
+            include_pinned=include_pinned,
+            include_canvases=include_canvases
+        )
+        
+    except Exception as e:
+        logger.error(f"Search info error: {e}")
+        return {
+            "success": False,
+            "message": f"Info search failed: {str(e)}"
+        }
+
+# Canvas tool function wrappers
+async def canvas_create(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for creating Slack canvases via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        name = input_data.get("name", "")
+        if not name:
+            return {
+                "success": False,
+                "message": "Canvas name is required"
+            }
+        
+        content = input_data.get("content", "")
+        if not content:
+            return {
+                "success": False,
+                "message": "Canvas content is required"
+            }
+        
+        channel_id = input_data.get("channel_id")
+        description = input_data.get("description")
+        
+        return await client.canvas_create(
+            name=name,
+            content=content,
+            channel_id=channel_id,
+            description=description
+        )
+        
+    except Exception as e:
+        logger.error(f"Canvas create error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas creation failed: {str(e)}"
+        }
+
+async def canvas_edit(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for editing Slack canvases via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        canvas_id = input_data.get("canvas_id", "")
+        if not canvas_id:
+            return {
+                "success": False,
+                "message": "Canvas ID is required"
+            }
+        
+        content = input_data.get("content", "")
+        if not content:
+            return {
+                "success": False,
+                "message": "Canvas content is required"
+            }
+        
+        operation = input_data.get("operation", "replace")
+        section_id = input_data.get("section_id")
+        
+        return await client.canvas_edit(
+            canvas_id=canvas_id,
+            content=content,
+            operation=operation,
+            section_id=section_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Canvas edit error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas edit failed: {str(e)}"
+        }
+
+async def canvas_delete(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for deleting Slack canvases via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        canvas_id = input_data.get("canvas_id", "")
+        if not canvas_id:
+            return {
+                "success": False,
+                "message": "Canvas ID is required"
+            }
+        
+        return await client.canvas_delete(canvas_id=canvas_id)
+        
+    except Exception as e:
+        logger.error(f"Canvas delete error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas deletion failed: {str(e)}"
+        }
+
+async def canvas_access_set(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for setting Slack canvas access permissions via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        canvas_id = input_data.get("canvas_id", "")
+        if not canvas_id:
+            return {
+                "success": False,
+                "message": "Canvas ID is required"
+            }
+        
+        access_level = input_data.get("access_level", "")
+        if not access_level:
+            return {
+                "success": False,
+                "message": "Access level is required"
+            }
+        
+        user_ids = input_data.get("user_ids")
+        channel_ids = input_data.get("channel_ids")
+        
+        return await client.canvas_access_set(
+            canvas_id=canvas_id,
+            access_level=access_level,
+            user_ids=user_ids,
+            channel_ids=channel_ids
+        )
+        
+    except Exception as e:
+        logger.error(f"Canvas access set error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas access setting failed: {str(e)}"
+        }
+
+async def canvas_access_delete(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for removing Slack canvas access permissions via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        canvas_id = input_data.get("canvas_id", "")
+        if not canvas_id:
+            return {
+                "success": False,
+                "message": "Canvas ID is required"
+            }
+        
+        user_ids = input_data.get("user_ids")
+        channel_ids = input_data.get("channel_ids")
+        
+        return await client.canvas_access_delete(
+            canvas_id=canvas_id,
+            user_ids=user_ids,
+            channel_ids=channel_ids
+        )
+        
+    except Exception as e:
+        logger.error(f"Canvas access delete error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas access removal failed: {str(e)}"
+        }
+
+async def canvas_sections_lookup(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tool function for searching Slack canvas sections via MCP
+    """
+    try:
+        client = get_slack_client()
+        
+        canvas_id = input_data.get("canvas_id", "")
+        if not canvas_id:
+            return {
+                "success": False,
+                "message": "Canvas ID is required"
+            }
+        
+        query = input_data.get("query", "")
+        if not query:
+            return {
+                "success": False,
+                "message": "Search query is required"
+            }
+        
+        section_types = input_data.get("section_types")
+        
+        return await client.canvas_sections_lookup(
+            canvas_id=canvas_id,
+            query=query,
+            section_types=section_types
+        )
+        
+    except Exception as e:
+        logger.error(f"Canvas sections lookup error: {e}")
+        return {
+            "success": False,
+            "message": f"Canvas sections lookup failed: {str(e)}"
         }

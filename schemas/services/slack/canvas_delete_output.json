@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the canvas was deleted successfully"
+    },
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the deleted canvas"
+    },
+    "message": {
+      "type": "string",
+      "description": "Success or error message"
+    }
+  },
+  "required": ["success", "message"],
+  "description": "Response from deleting a Slack canvas"
+}

@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchSlackContextOutput",
+  "description": "Output schema for searching Slack context using assistant.search.context",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation was successful"
+    },
+    "context": {
+      "type": "object",
+      "description": "Context information and messages",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "description": "Messages providing context",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ts": {
+                "type": "string",
+                "description": "Message timestamp"
+              },
+              "thread_ts": {
+                "type": "string",
+                "description": "Thread timestamp if part of thread"
+              },
+              "user": {
+                "type": "string",
+                "description": "User ID who sent the message"
+              },
+              "text": {
+                "type": "string",
+                "description": "Message text"
+              },
+              "channel": {
+                "type": "string",
+                "description": "Channel ID where message was sent"
+              },
+              "reactions": {
+                "type": "array",
+                "description": "Reactions to the message",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Reaction emoji name"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Number of users who reacted"
+                    },
+                    "users": {
+                      "type": "array",
+                      "description": "Users who added this reaction",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "reply_count": {
+                "type": "integer",
+                "description": "Number of replies if this is a thread parent"
+              },
+              "reply_users_count": {
+                "type": "integer",
+                "description": "Number of unique users who replied"
+              }
+            },
+            "required": ["ts", "user", "text", "channel"]
+          }
+        },
+        "thread_context": {
+          "type": "object",
+          "description": "Additional context if message is part of thread",
+          "properties": {
+            "parent_message": {
+              "type": "object",
+              "description": "Parent message of the thread"
+            },
+            "participant_count": {
+              "type": "integer",
+              "description": "Number of participants in thread"
+            },
+            "reply_count": {
+              "type": "integer",
+              "description": "Total number of replies"
+            },
+            "time_span": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "description": "Thread start time",
+                  "format": "date-time"
+                },
+                "end": {
+                  "type": "string",
+                  "description": "Last reply time",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        },
+        "channel_context": {
+          "type": "object",
+          "description": "Channel information",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Channel name"
+            },
+            "topic": {
+              "type": "string",
+              "description": "Channel topic"
+            },
+            "member_count": {
+              "type": "integer",
+              "description": "Number of members in channel"
+            }
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if operation failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false,
+  "_meta": {
+    "tool_name": "slack.search_context",
+    "response_examples": [
+      {
+        "success": true,
+        "context": {
+          "messages": [
+            {
+              "ts": "1647789123.123456",
+              "user": "U123ABC",
+              "text": "Has anyone seen increased API latency?",
+              "channel": "C456DEF",
+              "reactions": [
+                {
+                  "name": "eyes",
+                  "count": 3,
+                  "users": ["U789GHI", "U012JKL", "U345MNO"]
+                }
+              ],
+              "reply_count": 5,
+              "reply_users_count": 3
+            }
+          ],
+          "thread_context": {
+            "participant_count": 3,
+            "reply_count": 5,
+            "time_span": {
+              "start": "2024-03-20T10:00:00Z",
+              "end": "2024-03-20T11:30:00Z"
+            }
+          },
+          "channel_context": {
+            "name": "eng-api",
+            "topic": "API Development and Operations",
+            "member_count": 45
+          }
+        }
+      },
+      {
+        "success": false,
+        "message": "Failed to retrieve context: Invalid thread timestamp"
+      }
+    ]
+  }
+}

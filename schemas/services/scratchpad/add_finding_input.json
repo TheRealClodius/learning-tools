@@ -1,0 +1,101 @@
+{
+    "tool_name": "scratchpad.add_finding",
+    "category": "memory",
+    "tags": ["discovery", "evidence", "findings", "research"],
+    "description": "Add a finding to the global scratchpad with supporting evidence IDs. Use this to track important discoveries during progressive research.",
+    "capabilities": [
+        "Store findings with evidence links",
+        "Track source of findings",
+        "Maintain evidence chain",
+        "Support cross-tool research"
+    ],
+    "use_cases": [
+        "Save key insights during Slack research",
+        "Track evidence for important findings",
+        "Build evidence chain across tools",
+        "Document progressive discoveries"
+    ],
+    "best_practices": [
+        "Add findings as you discover them, don't wait",
+        "Always include evidence IDs from source tools",
+        "Keep summaries concise but specific",
+        "Link related findings through common evidence"
+    ],
+    "examples": [
+        {
+            "description": "Save finding from Slack search",
+            "code": [
+                {
+                    "step": 1,
+                    "comment": "First find relevant info",
+                    "tool_name": "slack.search_info",
+                    "tool_args": {
+                        "query": "performance issues"
+                    }
+                },
+                {
+                    "step": 2,
+                    "comment": "Save finding with evidence",
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Worker pool latency increased after config change",
+                        "evidence_ids": ["slack:msg/123"],
+                        "source": "slack"
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Build evidence chain",
+            "code": [
+                {
+                    "step": 1,
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Initial latency spike in worker pool",
+                        "evidence_ids": ["slack:msg/123"],
+                        "source": "slack"
+                    }
+                },
+                {
+                    "step": 2,
+                    "tool_name": "slack.search_context",
+                    "tool_args": {
+                        "thread_ts": "slack:th/123"
+                    }
+                },
+                {
+                    "step": 3,
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Config change caused latency: increased worker count without memory adjustment",
+                        "evidence_ids": ["slack:msg/123", "slack:msg/124"],
+                        "source": "slack"
+                    }
+                }
+            ]
+        }
+    ],
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "summary": {
+                "type": "string",
+                "description": "Concise summary of the finding"
+            },
+            "evidence_ids": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "List of evidence IDs supporting this finding"
+            },
+            "source": {
+                "type": "string",
+                "description": "Source system (e.g., slack, jira)",
+                "default": "slack"
+            }
+        },
+        "required": ["summary", "evidence_ids"]
+    }
+}

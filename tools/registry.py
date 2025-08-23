@@ -32,12 +32,12 @@ class ToolRegistry:
                 "name": "Tool Registry",
                 "description": "Tools for discovering and managing other tools",
                 "icon": "🔧"
-                        },
-                        "weather": {
-                            "name": "Weather & Climate",
-                            "description": "Tools for weather information and forecasts",
-                            "icon": "🌤️"
-                        },
+            },
+            "weather": {
+                "name": "Weather & Climate",
+                "description": "Tools for weather information and forecasts",
+                "icon": "🌤️"
+            },
             "memory": {
                 "name": "Memory & Personalization",
                 "description": "Tools for persistent memory and user profiling",
@@ -47,11 +47,16 @@ class ToolRegistry:
                 "name": "Search & Research",
                 "description": "Tools for web search and comprehensive research",
                 "icon": "🔍"
-                        },
-                        "communication": {
-                            "name": "Communication",
-                            "description": "Tools for messaging and team communication",
-                            "icon": "💬"
+            },
+            "communication": {
+                "name": "Communication",
+                "description": "Tools for messaging and team communication",
+                "icon": "💬"
+            },
+            "scratchpad": {
+                "name": "Scratchpad & Discovery",
+                "description": "Tools for progressive reduction, findings management, and evidence tracking",
+                "icon": "📝"
             }
         }
     
@@ -583,11 +588,14 @@ async def registry_describe(input_data: Dict[str, Any]) -> Dict[str, Any]:
                     with open(input_schema_path, 'r') as f:
                         input_schema_data = json.load(f)
                         
+                        # Extract the actual schema - it's nested under "input_schema" key
+                        nested_schema = input_schema_data.get("input_schema", input_schema_data)
+                        
                         # Extract the actual schema properties for agent use
                         agent_schema = {
-                            "type": input_schema_data.get("type", "object"),
-                            "properties": input_schema_data.get("properties", {}),
-                            "required": input_schema_data.get("required", [])
+                            "type": nested_schema.get("type", "object"),
+                            "properties": nested_schema.get("properties", {}),
+                            "required": nested_schema.get("required", [])
                         }
                         
                         # Filter out implementation details that are handled automatically

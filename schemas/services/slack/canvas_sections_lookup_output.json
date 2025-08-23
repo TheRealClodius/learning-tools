@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the search was successful"
+    },
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the searched canvas"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section_id": {"type": "string"},
+          "section_type": {"type": "string"},
+          "content": {"type": "string"},
+          "match_score": {"type": "number"}
+        }
+      },
+      "description": "Matching canvas sections"
+    },
+    "total_matches": {
+      "type": "integer",
+      "description": "Total number of matching sections found"
+    },
+    "message": {
+      "type": "string",
+      "description": "Success or error message"
+    }
+  },
+  "required": ["success", "message"],
+  "description": "Response from searching canvas sections"
+}

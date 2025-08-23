@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether access was set successfully"
+    },
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas"
+    },
+    "granted_access": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user_id": {"type": "string"},
+          "access_level": {"type": "string"}
+        }
+      },
+      "description": "List of access grants that were applied"
+    },
+    "message": {
+      "type": "string",
+      "description": "Success or error message"
+    }
+  },
+  "required": ["success", "message"],
+  "description": "Response from setting canvas access permissions"
+}

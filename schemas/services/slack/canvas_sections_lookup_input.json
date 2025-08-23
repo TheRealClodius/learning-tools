@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas to search within"
+    },
+    "query": {
+      "type": "string",
+      "description": "Search query to find content in canvas sections"
+    },
+    "section_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["text", "heading", "list", "table", "code"]
+      },
+      "description": "Filter by specific section types"
+    }
+  },
+  "required": ["canvas_id", "query"],
+  "description": "Search for content within sections of a Slack canvas"
+}

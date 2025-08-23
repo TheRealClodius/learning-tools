@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AddFindingOutput",
+  "description": "Output schema for adding a finding to the scratchpad",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation was successful"
+    },
+    "finding_id": {
+      "type": "string",
+      "description": "Unique identifier for the newly created finding"
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if operation failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false,
+  "_meta": {
+    "tool_name": "scratchpad.add_finding",
+    "response_examples": [
+      {
+        "success": true,
+        "finding_id": "f_1234567890"
+      },
+      {
+        "success": false,
+        "message": "Failed to add finding: Invalid evidence ID format"
+      }
+    ]
+  }
+}

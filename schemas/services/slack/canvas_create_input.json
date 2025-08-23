@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the canvas to create"
+    },
+    "content": {
+      "type": "string",
+      "description": "Initial content for the canvas in markdown format"
+    },
+    "channel_id": {
+      "type": "string",
+      "description": "Optional channel ID to create the canvas in"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description for the canvas"
+    }
+  },
+  "required": ["name", "content"],
+  "description": "Create a new Slack canvas for collaborative document creation and editing"
+}

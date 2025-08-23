@@ -1,0 +1,103 @@
+# Progressive Summarizer Configuration
+# Provides intelligent summarization for progressive reduction pipeline
+
+# Model configuration
+model_config:
+  model: "gemini-2.5-flash"
+  max_tokens: 500
+  temperature: 0.1  # Low temperature for consistent, factual summaries
+
+# Summarization limits
+summarization_config:
+  cluster_summary_tokens: 200
+  global_summary_tokens: 400
+  scratchpad_tokens: 500
+
+# Prompt for cluster summarization
+cluster_prompt: |
+  Create a concise summary of this message cluster from Slack.
+  Focus on key points and maintain evidence links.
+  
+  CRITICAL:
+  - Keep summary under 200 tokens
+  - Preserve evidence IDs in parentheses
+  - Format: Summary text (evidence_id1; evidence_id2)
+  - Highlight any findings relevant to the goal: {goal}
+  
+  Example:
+  "API latency spikes identified in payment service, confirmed by multiple teams (slack:ch/eng/123; slack:ch/eng/124)"
+  
+  Cluster data:
+  {cluster_data}
+
+# Prompt for global summarization
+global_prompt: |
+  Create a brief overview of these Slack discussion clusters.
+  
+  RESEARCH CONTEXT:
+  Goal: {goal}
+  Current Progress: {progress_summary}
+  Iteration: {iteration_number}
+  
+  DECISION GUIDANCE:
+  Facet Analysis:
+  {facet_summary}
+  
+  Previous Findings:
+  {previous_findings}
+  
+  CRITICAL:
+  - Keep summary under 400 tokens
+  - Include 2-3 key findings with evidence
+  - Format each finding: • Finding text (evidence_id1; evidence_id2)
+  - Suggest next areas to explore based on facets
+  - Note any findings that advance the goal
+  - Indicate if evidence appears saturated
+  
+  Example Output:
+  Found 5 discussion clusters with 25 total messages.
+  
+  Key findings:
+  • API latency issues affecting payment service (slack:ch/eng/123; slack:ch/eng/124)
+  • Database optimization efforts underway (slack:ch/eng/125; slack:ch/eng/126)
+  
+  Suggested areas to explore:
+  • #perf channel shows recent activity spike
+  • Last week's discussions have high engagement
+  • Database team's messages often referenced
+  
+  Progress toward goal:
+  • Confirmed latency source (payment service)
+  • Missing: Impact assessment, timeline
+  
+  Evidence saturation: Medium (new findings decreasing)
+  
+  Discussion data:
+  {discussion_data}
+
+# Facet analysis prompt
+facet_prompt: |
+  Analyze these facets to guide further exploration.
+  
+  CRITICAL:
+  - Identify promising areas to explore
+  - Note unusual patterns or spikes
+  - Connect facets to research goal
+  - Keep analysis under 200 tokens
+  
+  Facet data:
+  {facet_data}
+
+# Progress tracking prompt
+progress_prompt: |
+  Assess progress toward the research goal.
+  
+  CRITICAL:
+  - Compare findings to goal
+  - Identify gaps
+  - Note diminishing returns
+  - Keep assessment under 150 tokens
+  
+  Goal: {goal}
+  Findings so far:
+  {findings_history}

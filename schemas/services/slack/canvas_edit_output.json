@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the canvas was edited successfully"
+    },
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the edited canvas"
+    },
+    "updated_content": {
+      "type": "string",
+      "description": "Preview of the updated content"
+    },
+    "message": {
+      "type": "string",
+      "description": "Success or error message"
+    }
+  },
+  "required": ["success", "message"],
+  "description": "Response from editing a Slack canvas"
+}

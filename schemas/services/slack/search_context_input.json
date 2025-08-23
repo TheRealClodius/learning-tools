@@ -1,0 +1,84 @@
+{
+    "tool_name": "slack.search_context",
+    "category": "communication",
+    "tags": ["slack", "search", "context", "assistant", "discovery"],
+    "description": "Get detailed context for specific threads or messages identified through search_info. This tool is used for drilling down into specific conversations after using search_info to identify relevant threads.",
+    "capabilities": [
+        "Retrieves full thread context",
+        "Includes message reactions and replies",
+        "Provides thread participant information",
+        "Returns channel context"
+    ],
+    "use_cases": [
+        "Drill down into specific threads found via search_info",
+        "Get full context around a message",
+        "Analyze conversation flow in a thread",
+        "Verify findings before adding to scratchpad"
+    ],
+    "best_practices": [
+        "Use after search_info identifies relevant threads",
+        "Extract evidence IDs from search_info results",
+        "Add verified findings to scratchpad",
+        "Focus on specific threads rather than broad searches"
+    ],
+    "examples": [
+        {
+            "description": "Drill down into thread",
+            "code": {
+                "tool_name": "slack.search_context",
+                "tool_args": {
+                    "thread_ts": "slack:th/123",
+                    "query": "latency increase details"
+                }
+            }
+        },
+        {
+            "description": "Progressive discovery flow",
+            "code": [
+                {
+                    "step": 1,
+                    "comment": "First find relevant threads",
+                    "tool_name": "slack.search_info",
+                    "tool_args": {
+                        "query": "performance issues"
+                    }
+                },
+                {
+                    "step": 2,
+                    "comment": "Drill down into specific thread",
+                    "tool_name": "slack.search_context",
+                    "tool_args": {
+                        "thread_ts": "slack:th/123"
+                    }
+                },
+                {
+                    "step": 3,
+                    "comment": "Save verified finding",
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Worker pool latency increased after config change",
+                        "evidence_ids": ["slack:msg/123", "slack:msg/124"]
+                    }
+                }
+            ]
+        }
+    ],
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query to focus the context retrieval"
+            },
+            "thread_ts": {
+                "type": "string",
+                "description": "Thread timestamp to get context for"
+            },
+            "channel_id": {
+                "type": "string",
+                "description": "Optional channel ID to scope the context search"
+            }
+        },
+        "required": ["query"]
+    }
+}

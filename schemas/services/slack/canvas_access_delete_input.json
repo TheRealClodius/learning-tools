@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "canvas_id": {
+      "type": "string",
+      "description": "ID of the canvas to remove access from"
+    },
+    "user_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of user IDs to remove access from"
+    },
+    "channel_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of channel IDs to remove access from"
+    }
+  },
+  "required": ["canvas_id"],
+  "description": "Remove access permissions from a Slack canvas"
+}

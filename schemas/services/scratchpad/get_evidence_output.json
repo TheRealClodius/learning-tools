@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetEvidenceOutput",
+  "description": "Output schema for retrieving evidence from the scratchpad",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation was successful"
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Evidence content and metadata",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "Full evidence content"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Evidence metadata",
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Source system name"
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "When the evidence was created",
+              "format": "date-time"
+            },
+            "fetch_time": {
+              "type": "string",
+              "description": "When the evidence was last fetched",
+              "format": "date-time"
+            }
+          },
+          "additionalProperties": true
+        },
+        "related_findings": {
+          "type": "array",
+          "description": "List of findings that reference this evidence",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Finding identifier"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Finding summary"
+              }
+            }
+          }
+        }
+      },
+      "required": ["content", "metadata"]
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message if operation failed"
+    }
+  },
+  "required": ["success"],
+  "additionalProperties": false,
+  "_meta": {
+    "tool_name": "scratchpad.get_evidence",
+    "response_examples": [
+      {
+        "success": true,
+        "evidence": {
+          "content": "Latency metrics show 2x increase after deployment",
+          "metadata": {
+            "source": "slack",
+            "channel": "#eng",
+            "author": "alice",
+            "timestamp": "2024-03-20T10:00:00Z",
+            "fetch_time": "2024-03-20T15:00:00Z"
+          },
+          "related_findings": [
+            {
+              "id": "f_123",
+              "summary": "API latency increased after deployment"
+            }
+          ]
+        }
+      },
+      {
+        "success": false,
+        "message": "Evidence not found or expired"
+      }
+    ]
+  }
+}

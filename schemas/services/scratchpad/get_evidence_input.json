@@ -1,0 +1,85 @@
+{
+    "tool_name": "scratchpad.get_evidence",
+    "category": "memory",
+    "tags": ["discovery", "evidence", "findings", "research"],
+    "description": "Retrieve full evidence content by ID. Use this to verify findings or get more details about specific pieces of evidence.",
+    "capabilities": [
+        "Get full evidence content",
+        "Access evidence metadata",
+        "Track evidence freshness",
+        "Support cross-reference"
+    ],
+    "use_cases": [
+        "Verify findings details",
+        "Get full message content",
+        "Check evidence freshness",
+        "Build evidence chains"
+    ],
+    "best_practices": [
+        "Only fetch evidence when needed",
+        "Check evidence timestamp",
+        "Use for verification",
+        "Chain related evidence"
+    ],
+    "examples": [
+        {
+            "description": "Verify finding details",
+            "code": [
+                {
+                    "step": 1,
+                    "tool_name": "scratchpad.get_findings",
+                    "tool_args": {
+                        "query": "latency spike"
+                    }
+                },
+                {
+                    "step": 2,
+                    "tool_name": "scratchpad.get_evidence",
+                    "tool_args": {
+                        "evidence_id": "slack:msg/123"
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Progressive evidence chain",
+            "code": [
+                {
+                    "step": 1,
+                    "comment": "Get initial evidence",
+                    "tool_name": "scratchpad.get_evidence",
+                    "tool_args": {
+                        "evidence_id": "slack:msg/123"
+                    }
+                },
+                {
+                    "step": 2,
+                    "comment": "Get thread context",
+                    "tool_name": "slack.search_context",
+                    "tool_args": {
+                        "thread_ts": "slack:th/123"
+                    }
+                },
+                {
+                    "step": 3,
+                    "comment": "Add finding with chain",
+                    "tool_name": "scratchpad.add_finding",
+                    "tool_args": {
+                        "summary": "Full latency incident timeline",
+                        "evidence_ids": ["slack:msg/123", "slack:msg/124", "slack:msg/125"]
+                    }
+                }
+            ]
+        }
+    ],
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "evidence_id": {
+                "type": "string",
+                "description": "ID of the evidence to retrieve"
+            }
+        },
+        "required": ["evidence_id"]
+    }
+}
