@@ -28,6 +28,8 @@ Configuration via environment variables:
 - SLACK_MCP_HOST: MCP server host (default: slack-chronicler-andreiclodius.replit.app)
 - SLACK_MCP_PORT: MCP server port (default: 443 for Replit)
 - SLACK_API_KEY: Optional API key for authentication
+- SLACK_WORKSPACE_DOMAIN: Enterprise workspace domain (default: uipath.enterprise.slack.com)
+- SLACK_WORKSPACE_ID: Workspace ID for deep links (default: TLXCE0J2Z)
 """
 
 import asyncio
@@ -1056,13 +1058,20 @@ async def canvas_create(input_data: Dict[str, Any]) -> Dict[str, Any]:
         if result.get("success") and result.get("raw_content", {}).get("data", {}).get("canvas_id"):
             canvas_id = result["raw_content"]["data"]["canvas_id"]
             
+            # Generate the proper enterprise workspace deep link
+            # Format: https://{workspace_domain}/docs/{workspace_id}/{canvas_id}
+            workspace_domain = os.getenv("SLACK_WORKSPACE_DOMAIN", "uipath.enterprise.slack.com")
+            workspace_id = os.getenv("SLACK_WORKSPACE_ID", "TLXCE0J2Z")
+            deep_link = f"https://{workspace_domain}/docs/{workspace_id}/{canvas_id}"
+            
             # Provide multiple access methods for better UX
             access_instructions = {
                 "canvas_created": f"✅ Canvas '{name}' created successfully!",
                 "canvas_id": canvas_id,
                 "access_methods": {
                     "slack_app": f"🔍 **In Slack App**: Search for '{name}' or use canvas ID: {canvas_id}",
-                    "browser": result["raw_content"]["data"].get("url", f"https://slack.com/canvas/{canvas_id}"),
+                    "browser": result["raw_content"]["data"].get("url", deep_link),
+                    "deep_link": deep_link,
                     "sidebar": "📋 **In Sidebar**: Check your 'Canvas' section for the new canvas"
                 },
                 "tip": "💡 **Tip**: The canvas should appear in your Slack sidebar under 'Canvas' or you can search for it by name."
@@ -1075,6 +1084,7 @@ async def canvas_create(input_data: Dict[str, Any]) -> Dict[str, Any]:
 **Access your canvas:**
 • 🔍 Search for '{name}' in Slack
 • 📋 Check the 'Canvas' section in your sidebar  
+• 🔗 Direct link: {deep_link}
 • 🆔 Canvas ID: {canvas_id}
 
 The canvas should appear in your workspace momentarily."""
