@@ -488,16 +488,22 @@ class SlackStreamingHandler:
         if not tool_info:
             return "_⚡️ Tool executed_"
         
-        # Use the summary directly if available (matches original behavior)
-        summary = tool_info.get('summary', '')
-        if summary and summary.strip():
-            return f"_{summary.strip()}_"
-        
-        # Fallback formatting if no summary
-        tool_name = tool_info.get('tool', 'Tool')
+        # Extract tool information
+        tool_name = tool_info.get('tool', 'unknown_tool')
         success = tool_info.get('success', True)
+        summary = tool_info.get('summary', '')
         
+        # Format with specific tool name (like the original behavior)
         if success:
-            return f"_⚡️ *{tool_name}* completed successfully_"
+            status_emoji = "⚡️"
+            # Use the actual tool name instead of generic "Tool"
+            formatted_message = f"_{status_emoji} *{tool_name}* completed successfully_"
         else:
-            return f"_❌ *{tool_name}* encountered an error_"
+            status_emoji = "❌"
+            formatted_message = f"_{status_emoji} *{tool_name}* encountered an error_"
+        
+        # Add summary if available and different from generic messages
+        if summary and summary.strip() and "completed successfully" not in summary.lower():
+            formatted_message += f"\n_{summary.strip()}_"
+        
+        return formatted_message
