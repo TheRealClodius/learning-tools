@@ -93,12 +93,13 @@ class ModelRoutingAgent:
             }
         }
     
-    async def route_query(self, user_message: str) -> tuple[RouteDecision, str]:
+    async def route_query(self, user_message: str, conversation_context: str = "") -> tuple[RouteDecision, str]:
         """
         Route a user query to the appropriate model
         
         Args:
             user_message: The user's query to route
+            conversation_context: Recent conversation history for better routing decisions
             
         Returns:
             Tuple of (RouteDecision, reasoning_string) indicating which model to use and why
@@ -122,8 +123,12 @@ class ModelRoutingAgent:
                 # Create client
                 client = genai.Client(api_key=api_key)
                 
-                # Construct routing prompt
-                full_prompt = f"{self.routing_prompt}\n\nUser query: {user_message}"
+                # Construct routing prompt with conversation context
+                context_section = ""
+                if conversation_context.strip():
+                    context_section = f"\n\nCONVERSATION CONTEXT:\n{conversation_context.strip()}\n"
+                
+                full_prompt = f"{self.routing_prompt}{context_section}\nUser query: {user_message}"
                 
                 # Generate routing decision
                 response = client.models.generate_content(

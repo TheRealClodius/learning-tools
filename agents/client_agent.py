@@ -568,9 +568,12 @@ class ClientAgent:
             if streaming_callback:
                 await streaming_callback("🤖 Determining optimal model for your request...", "operation")
             
-            # Get routing decision
+            # Get conversation context for better routing decisions (non-blocking)
+            conversation_context = await self._get_routing_context(user_id)
+            
+            # Get routing decision with conversation context
             t_routing = time.time()
-            route_decision, routing_reasoning = await self.routing_agent.route_query(message)
+            route_decision, routing_reasoning = await self.routing_agent.route_query(message, conversation_context)
             routing_time_ms = int((time.time() - t_routing) * 1000)
             
             logger.info(f"MODEL-ROUTING: Routed to {route_decision.value} in {routing_time_ms}ms - {routing_reasoning}")
@@ -2686,6 +2689,64 @@ Generate updated insights:"""
     
 
     
+    async def _get_routing_context(self, user_id: str) -> str:
+        """
+        Get lightweight conversation context for routing decisions.
+        Returns a brief summary of recent interactions without blocking.
+        """
+        try:
+            context_parts = []
+            
+            # Check local buffer first (immediate, no API calls)
+            if user_id in self.user_buffers:
+                buffer = self.user_buffers[user_id]
+                last_updated = buffer.get('last_updated', 0)
+                
+                # If buffer is recent (< 15 minutes), include hint about recent activity
+                if time.time() - last_updated < 900:  # 15 minutes
+                    context_parts.append("RECENT ACTIVITY: User has recent complex interaction history")
+            
+            # Try to get very recent memory context (with timeout to avoid blocking)
+            try:
+                memory_args = {
+                    "query": "recent conversation",
+                    "user_id": user_id,
+                    "max_results": 2  # Just the last couple interactions
+                }
+                
+                # Use asyncio.wait_for with short timeout to avoid blocking UX
+                memory_result = await asyncio.wait_for(
+                    self.tool_executor.execute_command("memory.retrieve", memory_args, user_id=user_id),
+                    timeout=1.0  # 1 second max
+                )
+                
+                if isinstance(memory_result, dict) and memory_result.get("status") != "error":
+                    short_term = memory_result.get("short_term_memory", [])
+                    
+                    if short_term:
+                        # Look at most recent interaction
+                        recent_entry = short_term[-1] if short_term else {}
+                        if isinstance(recent_entry, dict):
+                            agent_response = recent_entry.get("agent_response", "")
+                            
+                            # Quick check if response suggests research/tool usage
+                            response_lower = agent_response.lower()
+                            research_indicators = ["found", "search", "analysis", "tool", "retrieved", "discovered"]
+                            
+                            if any(indicator in response_lower for indicator in research_indicators) or len(agent_response) > 300:
+                                context_parts.append("RECENT RESPONSE: Previous response involved research/analysis")
+            
+            except (asyncio.TimeoutError, Exception) as e:
+                # Don't block if memory lookup fails or times out
+                logger.debug(f"ROUTING-CONTEXT: Memory lookup skipped ({e})")
+                pass
+            
+            return "\n".join(context_parts) if context_parts else ""
+            
+        except Exception as e:
+            logger.warning(f"ROUTING-CONTEXT: Error getting context: {e}")
+            return ""
+
     async def get_status(self) -> Dict[str, Any]:
         """Get agent status information"""
         return {
