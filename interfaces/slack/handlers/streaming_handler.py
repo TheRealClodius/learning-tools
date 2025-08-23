@@ -470,6 +470,22 @@ class SlackStreamingHandler:
         
         # Parse the response as markdown and convert to Slack blocks
         try:
+            # CRITICAL: Strip any remaining thinking tags from final response
+            import re
+            if final_response:
+                original_response = final_response
+                # Remove thinking tags with multiple regex patterns to catch all variations
+                final_response = re.sub(r'<thinking>.*?</thinking>', '', final_response, flags=re.DOTALL)
+                final_response = re.sub(r'&lt;thinking&gt;.*?&lt;/thinking&gt;', '', final_response, flags=re.DOTALL)
+                final_response = re.sub(r'</?thinking>', '', final_response)
+                final_response = final_response.strip()
+                
+                # Debug log if we found and removed thinking tags
+                if original_response != final_response:
+                    logger.warning(f"🧠 THINKING-TAG-FIX: Removed thinking tags from final response. Original length: {len(original_response)}, cleaned length: {len(final_response)}")
+                    logger.warning(f"🧠 THINKING-TAG-FIX: Original preview: {original_response[:200]}...")
+                    logger.warning(f"🧠 THINKING-TAG-FIX: Cleaned preview: {final_response[:200]}...")
+            
             # Ensure final_response is not empty - if it is, try to extract from thinking blocks
             if not final_response or not final_response.strip():
                 # Try to get the last meaningful thinking block as the response
