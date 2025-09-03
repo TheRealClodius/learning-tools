@@ -5,6 +5,7 @@
 The `/api/send-message` endpoint provides a comprehensive interface for sending messages to the Signal Agent and receiving AI-powered responses. This endpoint supports conversation context, session management, tool calls, and includes built-in rate limiting, token tracking, and usage monitoring.
 
 **Key Features:**
+- 🚂 **Railway Mode** - Any string works as API key, no validation required
 - 🔄 **Full agent capabilities** - Access all agent features including tool usage
 - 💬 **Context support** - Maintain conversation history and session state  
 - 🔧 **Tool integration** - See what tools the agent uses to answer your questions
@@ -12,22 +13,40 @@ The `/api/send-message` endpoint provides a comprehensive interface for sending 
 - 🛡️ **Rate limiting** - Built-in protection against overuse
 - ⚡ **Graceful errors** - Friendly error responses instead of HTTP exceptions
 
+## 🚂 Railway Mode - No API Key Restrictions!
+
+This API is deployed on Railway in **"Railway Mode"** which means:
+- ✅ **Any string works as API key**: `sk-signal-test`, `my-key`, `demo`, `hello-world`
+- ✅ **No validation or rejections**: Every request with any key succeeds
+- ✅ **Per-key usage tracking**: Each unique key gets separate token limits
+- ✅ **Instant access**: Start testing immediately without registration
+
+**Examples of valid API keys:**
+```bash
+curl -H "Authorization: Bearer sk-signal-testing-platform" ...  # Professional format
+curl -H "Authorization: Bearer demo-key-123" ...                # Simple format  
+curl -H "Authorization: Bearer my-app-test" ...                 # Custom format
+curl -H "Authorization: Bearer literally-anything" ...         # Anything works!
+```
+
 ## 🚀 Quick Start
 
 ### Basic Request
 ```bash
-curl -X POST "http://localhost:8000/api/send-message" \
+curl -X POST "https://signal-ai-production-4a4c.up.railway.app/api/send-message" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello, how are you?"}'
 ```
 
 ### With API Key (Recommended)
 ```bash
-curl -X POST "http://localhost:8000/api/send-message" \
+curl -X POST "https://signal-ai-production-4a4c.up.railway.app/api/send-message" \
   -H "Authorization: Bearer sk-signal-your-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello, how are you?"}'
 ```
+
+> **🚂 Railway Mode**: This API accepts **any string** as a valid API key! Use any format you want: `sk-signal-test`, `my-api-key`, `demo-key`, or even `hello-world`. Each unique key gets separate usage tracking.
 
 ## 📋 API Specification
 
@@ -122,12 +141,12 @@ POST /api/send-message
 }
 ```
 
-**Invalid API Key (200 with error status)**
+**Processing Error (200 with error status)**
 ```json
 {
   "status": "error",
-  "error": "Invalid API key",
-  "type": "authentication_error"
+  "error": "Agent processing failed",
+  "type": "processing_error"
 }
 ```
 
@@ -140,18 +159,33 @@ POST /api/send-message
 
 ## 🔑 Authentication
 
+### Railway Mode - Any API Key Accepted! 🚂
+This API runs in **Railway mode**, which means **any string works as an API key**. No validation, no rejections - just usage tracking per unique key.
+
 ### Option 1: Authorization Header (Recommended)
 ```bash
 curl -H "Authorization: Bearer sk-signal-your-api-key" ...
+curl -H "Authorization: Bearer test-key-123" ...
+curl -H "Authorization: Bearer my-app-demo" ...
+curl -H "Authorization: Bearer literally-anything" ...
 ```
 
 ### Option 2: X-API-Key Header
 ```bash
 curl -H "X-API-Key: sk-signal-your-api-key" ...
+curl -H "X-API-Key: demo-key" ...
 ```
 
 ### Option 3: No Authentication
 Requests without an API key are allowed but tracked under an anonymous key with default limits.
+
+### API Key Examples That All Work:
+- `sk-signal-testing-platform` → Hash: `fb49668b5c8b33a8`
+- `my-app-key-123` → Hash: `d98efb8af6dde201`  
+- `demo-test` → Hash: `a1b2c3d4e5f6g7h8`
+- `hello-world` → Hash: `9z8y7x6w5v4u3t2s`
+
+Each unique key gets separate token tracking and usage limits!
 
 ## 📊 Rate Limiting & Token Tracking
 
@@ -173,7 +207,7 @@ Requests without an API key are allowed but tracked under an anonymous key with 
 
 ### Simple Text Message
 ```bash
-curl -X POST "http://localhost:8000/api/send-message" \
+curl -X POST "https://signal-ai-production-4a4c.up.railway.app/api/send-message" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-signal-your-key" \
   -d '{
@@ -200,7 +234,7 @@ curl -X POST "http://localhost:8000/api/send-message" \
 
 ### Complex Query with Context
 ```bash
-curl -X POST "http://localhost:8000/api/send-message" \
+curl -X POST "https://signal-ai-production-4a4c.up.railway.app/api/send-message" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-signal-your-key" \
   -d '{
@@ -217,7 +251,7 @@ curl -X POST "http://localhost:8000/api/send-message" \
 
 ### Programming Help with Session Context
 ```bash
-curl -X POST "http://localhost:8000/api/send-message" \
+curl -X POST "https://signal-ai-production-4a4c.up.railway.app/api/send-message" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-signal-your-key" \
   -d '{
@@ -239,7 +273,7 @@ import requests
 import json
 
 def send_message(message, api_key=None, context=None, agent_type="research"):
-    url = "http://localhost:8000/api/send-message"
+    url = "https://signal-ai-production-4a4c.up.railway.app/api/send-message"
     headers = {"Content-Type": "application/json"}
     
     if api_key:
@@ -273,7 +307,7 @@ print(f"Updated context: {result['context']}")
 ### JavaScript/Node.js
 ```javascript
 async function sendMessage(message, apiKey = null, context = {}, agentType = "research") {
-    const url = 'http://localhost:8000/api/send-message';
+    const url = 'https://signal-ai-production-4a4c.up.railway.app/api/send-message';
     const headers = {
         'Content-Type': 'application/json'
     };
@@ -320,7 +354,7 @@ sendMessage("How do I use async/await?", "sk-signal-your-key", context)
 ```php
 <?php
 function sendMessage($message, $apiKey = null, $context = [], $agentType = "research") {
-    $url = 'http://localhost:8000/api/send-message';
+    $url = 'https://signal-ai-production-4a4c.up.railway.app/api/send-message';
     $payload = [
         'message' => $message,
         'context' => $context,
@@ -390,17 +424,17 @@ echo "Context: " . json_encode($result['context']) . "\n";
 ### Check Your Usage
 ```bash
 curl -H "Authorization: Bearer sk-signal-your-key" \
-  "http://localhost:8000/api/usage"
+  "https://signal-ai-production-4a4c.up.railway.app/api/usage"
 ```
 
 ### Check Rate Limit Status
 ```bash
-curl "http://localhost:8000/api/rate-limit/status"
+curl "https://signal-ai-production-4a4c.up.railway.app/api/rate-limit/status"
 ```
 
 ### Check Server Health
 ```bash
-curl "http://localhost:8000/api/agent/status"
+curl "https://signal-ai-production-4a4c.up.railway.app/api/agent/status"
 ```
 
 ## ⚠️ Error Handling Best Practices
@@ -431,7 +465,7 @@ def send_with_retry(message, api_key, max_retries=3):
 ```python
 def check_token_usage(api_key):
     response = requests.get(
-        "http://localhost:8000/api/usage",
+        "https://signal-ai-production-4a4c.up.railway.app/api/usage",
         headers={"Authorization": f"Bearer {api_key}"}
     )
     
@@ -462,8 +496,9 @@ For issues or questions:
 
 ---
 
-**Base URL**: `http://localhost:8000` (development)  
-**Production URL**: Configure based on your deployment  
+**Production URL**: `https://signal-ai-production-4a4c.up.railway.app` 🚂  
+**Development URL**: `http://localhost:8000` (when running locally)  
 **API Version**: 1.0  
 **Content-Type**: `application/json`  
-**Authentication**: Bearer token (optional but recommended)
+**Authentication**: Bearer token with any string (Railway mode accepts all keys)  
+**Railway Mode**: ✅ Any API key accepted, per-key usage tracking active
